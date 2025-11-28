@@ -571,7 +571,7 @@
       "company": "KULR",
       "allocation": "€84.70",
       "shares": "35",
-      "share_price": "€2.77",
+      "share_price": "€2.79",
       "broker": "XTB-USD",
       "risk": "🟥 High Risk",
       "sector": "Technology"
@@ -763,7 +763,7 @@
       "company": "Binance",
       "allocation": "€NaN",
       "shares": "30867",
-      "share_price": "$0.006347",
+      "share_price": "$0.006340",
       "broker": "Crypto",
       "risk": "🟥 High Risk",
       "sector": "Cryptocurrency"
@@ -775,7 +775,7 @@
       "company": "ByBit",
       "allocation": "€NaN",
       "shares": "12283",
-      "share_price": "$0.049930",
+      "share_price": "$0.050271",
       "broker": "Crypto",
       "risk": "🟥 High Risk",
       "sector": "Cryptocurrency"
@@ -799,7 +799,7 @@
       "company": "Premier Mineral Africans",
       "allocation": "€14395.55",
       "shares": "36030",
-      "share_price": "£0.000575",
+      "share_price": "£0.050000",
       "broker": "Trading212",
       "risk": "🟥 High Risk",
       "sector": "Basic Materials"

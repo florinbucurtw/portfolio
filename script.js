@@ -2688,7 +2688,21 @@ async function generatePerformanceData(range) {
         console.log(`Retrieved ${snapshots.length} snapshots from database`);
         
         if (snapshots.length === 0) {
-            console.warn('⚠️ No snapshots available yet');
+            console.warn('⚠️ No snapshots available yet — using S&P 500 fallback');
+            // Fallback: fetch S&P 500 historical and build percent series
+            const hist = await fetch(`/api/historical/^GSPC?range=${range}`).then(r => r.json()).catch(() => null);
+            if (hist && Array.isArray(hist.data) && hist.data.length > 1) {
+                const base = hist.data[0].price;
+                const labels = hist.data.map(p => {
+                    const ts = new Date(p.timestamp);
+                    if (range === '1h') return ts.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                    if (range === '1d') return ts.toLocaleTimeString('en-US', { hour: '2-digit' });
+                    if (range === '1w' || range === '1m') return ts.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                    return ts.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+                });
+                const sp500Data = hist.data.map(p => ((p.price - base) / base) * 100).map(x => parseFloat(x.toFixed(2)));
+                return { labels, portfolioData: [], depositsData: [], sp500Data, betTRData: [] };
+            }
             return { labels: [], portfolioData: [], depositsData: [], sp500Data: [], betTRData: [] };
         }
         
@@ -2727,9 +2741,13 @@ async function generatePerformanceData(range) {
             const portfolioChange = firstPortfolioBalance > 0 ? ((currentBalance - firstPortfolioBalance) / firstPortfolioBalance) * 100 : 0;
             
             // For other metrics, calculate relative change from their first values
-            const depositsChange = parseFloat(snapshot.deposits_percent || 0) - firstDepositsPercent;
-            const sp500Change = parseFloat(snapshot.sp500_percent || 0) - firstSP500Percent;
-            const betChange = parseFloat(snapshot.bet_percent || 0) - firstBETPercent;
+            const depositsRaw = parseFloat(snapshot.deposits_percent);
+            const sp500Raw = parseFloat(snapshot.sp500_percent);
+            const betRaw = parseFloat(snapshot.bet_percent);
+
+            const depositsChange = (Number.isFinite(depositsRaw) ? depositsRaw : 0) - firstDepositsPercent;
+            const sp500Change = (Number.isFinite(sp500Raw) ? sp500Raw : 0) - firstSP500Percent;
+            const betChange = (Number.isFinite(betRaw) ? betRaw : 0) - firstBETPercent;
             
             portfolioData.push(parseFloat(portfolioChange.toFixed(2)));
             depositsData.push(parseFloat(depositsChange.toFixed(2)));
@@ -2738,6 +2756,31 @@ async function generatePerformanceData(range) {
         });
         
         console.log(`✅ Generated chart data: ${labels.length} points`);
+        // If S&P 500 series ended empty (e.g., missing sp500_percent in snapshots), fallback to Yahoo historical
+        if (sp500Data.length === 0) {
+            try {
+                const hist = await fetch(`/api/historical/^GSPC?range=${range}`).then(r => r.json());
+                if (hist && Array.isArray(hist.data) && hist.data.length > 1) {
+                    const base = hist.data[0].price;
+                    const histLabels = hist.data.map(p => {
+                        const ts = new Date(p.timestamp);
+                        if (range === '1h') return ts.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                        if (range === '1d') return ts.toLocaleTimeString('en-US', { hour: '2-digit' });
+                        if (range === '1w' || range === '1m') return ts.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                        return ts.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+                    });
+                    const sp = hist.data.map(p => ((p.price - base) / base) * 100).map(x => parseFloat(x.toFixed(2)));
+                    // Align labels if snapshots produced some; otherwise use historical labels
+                    if (labels.length === 0) {
+                        return { labels: histLabels, portfolioData, depositsData, sp500Data: sp, betTRData };
+                    }
+                    // If labels exist, just inject sp500 series
+                    return { labels, portfolioData, depositsData, sp500Data: sp, betTRData };
+                }
+            } catch (e) {
+                console.warn('S&P 500 fallback failed:', e.message);
+            }
+        }
         
         // Store snapshots globally for tooltip access
         window.currentSnapshots = snapshots;

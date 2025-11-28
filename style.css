@@ -15,8 +15,13 @@
 
 .stocks-table thead tr {
     display: grid;
-    grid-template-columns: 60px 70px 90px 1fr 140px 90px 70px 140px 140px 160px 160px 90px; /* add explicit Risk then Actions */
+    grid-template-columns: 33px 70px 90px 1.2fr 140px 90px 70px 140px 140px 160px 160px 90px; /* Company widened by ~20% */
     gap: 8px;
+}
+
+/* Prevent wrapping of the 'Price Change' column header text */
+.stocks-table thead th:nth-child(8) {
+    white-space: nowrap;
 }
 .stocks-table thead th {
     background: linear-gradient(135deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.05));
@@ -30,7 +35,7 @@
 
 #stocks-tbody tr {
     display: grid;
-    grid-template-columns: 60px 70px 90px 1fr 140px 90px 70px 140px 140px 160px 160px 90px; /* add explicit Risk then Actions */
+    grid-template-columns: 33px 70px 90px 1.2fr 140px 90px 70px 140px 140px 160px 160px 90px; /* Company widened by ~20% */
     gap: 3px;
     /* Darker card background for clear breakdown contrast */
     background: linear-gradient(135deg, rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.5));
