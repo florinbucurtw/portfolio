@@ -1022,6 +1022,14 @@ function sortTable(column) {
         } else if (column === 'allocation') {
             aValue = parseFloat(a.cells[4].textContent.replace(/[^0-9.-]/g, '')) || 0;
             bValue = parseFloat(b.cells[4].textContent.replace(/[^0-9.-]/g, '')) || 0;
+        } else if (column === 'price_change') {
+            // Price Change column index = 7
+            const aText = a.cells[7].textContent.trim();
+            const bText = b.cells[7].textContent.trim();
+            const aNum = parseFloat(aText.replace('%', ''));
+            const bNum = parseFloat(bText.replace('%', ''));
+            aValue = isNaN(aNum) ? -Infinity : aNum;
+            bValue = isNaN(bNum) ? -Infinity : bNum;
         } else if (column === 'broker') {
             aValue = a.cells[7].textContent.trim();
             bValue = b.cells[7].textContent.trim();

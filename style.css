@@ -1,3 +1,159 @@
+/* ===== Stocks Cards Layout ===== */
+.stocks-table {
+    width: 100%;
+    max-width: 960px; /* center like Allocation panels */
+    margin: 0 auto; /* perfect centering */
+    border-collapse: separate;
+    border-spacing: 0 12px; /* vertical gap between cards */
+}
+
+/* Center the Stocks header controls to the same width */
+#stocks-section .table-header {
+    max-width: 960px;
+    margin: 0 auto 1.5rem;
+}
+
+.stocks-table thead tr {
+    display: grid;
+    grid-template-columns: 60px 70px 90px 1fr 140px 90px 140px 140px 140px 160px 80px;
+    gap: 8px;
+}
+.stocks-table thead th {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.05));
+    color: #ffffff;
+    padding: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+    font-weight: 700;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+#stocks-tbody tr {
+    display: grid;
+    grid-template-columns: 60px 70px 90px 1fr 140px 90px 140px 140px 140px 160px 80px; /* map to existing 11 cells */
+    gap: 3px;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.03));
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    padding: 5px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+    min-height: unset;
+    align-items: center;
+}
+
+#stocks-tbody td {
+    background: transparent;
+    color: #eee;
+    padding: 2px 3px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border: none;
+    line-height: 1.1;
+}
+
+#stocks-tbody td[data-field="number"] {
+    justify-content: center;
+    font-weight: 700;
+    color: #9e9e9e;
+}
+
+#stocks-tbody td[data-field="symbol"],
+#stocks-tbody td[data-field="company"] {
+    font-weight: 600;
+    color: #fff;
+}
+
+/* Center content in Symbol column */
+#stocks-tbody td[data-field="symbol"] {
+    justify-content: center !important;
+    text-align: center;
+}
+
+#stocks-tbody td[data-field="allocation"],
+#stocks-tbody td[data-field="weight"] {
+    color: #00d9ff;
+    font-weight: 700;
+}
+
+/* Center content in Weight column */
+#stocks-tbody td[data-field="weight"] {
+    justify-content: center;
+    text-align: center;
+}
+
+#stocks-tbody td[data-field="share_price"],
+#stocks-tbody td[data-field="price_change"] {
+    font-weight: 600;
+}
+
+/* Center content in Shares column */
+#stocks-tbody td[data-field="shares"] {
+    display: block; /* override flex to allow pure centering */
+    text-align: center;
+    padding-left: 0;
+    padding-right: 0;
+}
+
+/* Ensure Shares column centers both display and edit */
+#stocks-tbody td[data-field="shares"] {
+    display: flex;
+    justify-content: center !important;
+    align-items: center !important;
+    text-align: center !important;
+    padding-left: 0;
+    padding-right: 0;
+}
+
+#stocks-tbody td[data-field="shares"] input {
+    text-align: center !important;
+}
+
+/* Center Shares header label */
+.stocks-table thead th:nth-child(6) {
+    text-align: center;
+}
+
+#stocks-tbody td[data-field="risk"] {
+    font-weight: 700;
+    white-space: nowrap; /* force single line */
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+#stocks-tbody td.action-buttons {
+    justify-content: center;
+    gap: 10px;
+}
+
+.stocks-table .sort-icon {
+    opacity: 0.6;
+    margin-left: 6px;
+}
+
+.stocks-table th.sorted-asc .sort-icon::after {
+    content: "↑";
+    margin-left: 4px;
+}
+.stocks-table th.sorted-desc .sort-icon::after {
+    content: "↓";
+    margin-left: 4px;
+}
+
+/* Inputs/selects inside cards */
+#stocks-tbody .editable-cell input,
+#stocks-tbody .editable-cell select {
+    width: 100%;
+    background: #232323;
+    color: #fff;
+    border: 1px solid #3a3a3a;
+    border-radius: 6px;
+    padding: 6px 8px;
+}
+
+/* Price change colors already set inline; add default neutral */
+.price-change-cell { color: #ccc; }
+
 * {
     margin: 0;
     padding: 0;
