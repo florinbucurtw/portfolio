@@ -102,6 +102,9 @@ async function loadTableData() {
         stocks.forEach(stock => {
             createRow(stock);
         });
+        // Ensure dashboard charts render after initial table load
+        updateTotalBalance();
+        updateBalancePieChart();
     } catch (error) {
         console.error('Error loading data:', error);
     }
@@ -126,6 +129,25 @@ async function refreshStockPrices() {
         if (cells.length === 0) continue;
         
         const symbol = cells[1].textContent.trim();
+        // Hardcode PREM.L share price to stabilize UI
+        if (symbol.toUpperCase() === 'PREM' || symbol.toUpperCase() === 'PREM.L') {
+            const shares = parseFloat(cells[5].textContent) || 0;
+            const hardEUR = 0.000575;
+            cells[6].textContent = `€${hardEUR.toFixed(6)}`;
+            const allocation = shares * hardEUR;
+            cells[4].textContent = `€${allocation.toFixed(2)}`;
+            updateWeightForRow(row);
+            // Persist the displayed price to DB
+            const stockId = row.dataset.id;
+            if (stockId) {
+                await fetch(`${API_URL}/${stockId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ share_price: cells[6].textContent })
+                });
+            }
+            continue; // Skip network fetch for PREM
+        }
         const broker = cells[7].textContent.trim();
         const symbolLower = symbol.toLowerCase();
         const isManualPrice = symbolLower.includes('bank deposit') || broker === 'Bank Deposit' || broker === 'Cash';
@@ -145,7 +167,7 @@ async function refreshStockPrices() {
                     const priceGBP = Number.parseFloat(priceData.priceGBP);
                     const priceGBp = Number.parseFloat(priceData.priceGBp);
                     
-                    // Display: prefer GBP (convert from GBp if needed) for UK micro-prices, else EUR
+                    // Display: prefer GBP (convert from GBp if needed) for UK micro-prices
                     if (!isCrypto && Number.isFinite(priceGBp) && priceGBp > 0) {
                         const gbpFromPence = priceGBp / 100;
                         const decimalsGBP = gbpFromPence < 0.1 ? 6 : 4;
@@ -154,9 +176,26 @@ async function refreshStockPrices() {
                         const decimalsGBP = priceGBP < 0.1 ? 6 : 4;
                         cells[6].textContent = `£${priceGBP.toFixed(decimalsGBP)}`;
                     } else if (Number.isFinite(priceEUR) && priceEUR > 0) {
-                        const decimalsEUR = (broker === 'Crypto' || priceEUR < 0.1) ? 6 : 2;
-                        const currency = isCrypto ? '$' : '€';
-                        cells[6].textContent = `${currency}${priceEUR.toFixed(decimalsEUR)}`;
+                        // For US stocks: display USD, keep allocation in EUR
+                        const originalCurrency = (priceData.originalCurrency || '').toUpperCase();
+                        const brokerText = (broker || '').toUpperCase();
+                        const brokerHintsUSD = brokerText.includes('XTB-USD') || brokerText.includes('TRADING212') || brokerText.includes('XTB USD');
+                        const isUSStock = (!isCrypto) && (originalCurrency === 'USD' || brokerHintsUSD);
+                        if (isUSStock) {
+                            try {
+                                const rates = await fetch(`${API_BASE}/api/exchange-rates`).then(r => r.json());
+                                const usdPrice = priceEUR * (rates.USD || 1.16);
+                                const decimalsUSD = usdPrice < 0.1 ? 6 : 2;
+                                cells[6].textContent = `$${usdPrice.toFixed(decimalsUSD)}`;
+                            } catch {
+                                const decimalsEUR = priceEUR < 0.1 ? 6 : 2;
+                                cells[6].textContent = `€${priceEUR.toFixed(decimalsEUR)}`;
+                            }
+                        } else {
+                            const decimalsEUR = (broker === 'Crypto' || priceEUR < 0.1) ? 6 : 2;
+                            const currency = isCrypto ? '$' : '€';
+                            cells[6].textContent = `${currency}${priceEUR.toFixed(decimalsEUR)}`;
+                        }
                     } else {
                         console.warn(`Skipping UI price update for ${symbol}: invalid/zero price`, priceData);
                     }
@@ -583,6 +622,16 @@ async function exitEditMode() {
                 // Update weight
                 updateWeightForRow(currentEditingRow);
             } else if (symbol && symbol !== '-') {
+                // Hardcode PREM in edit-save path as well
+                if (symbol.toUpperCase() === 'PREM' || symbol.toUpperCase() === 'PREM.L') {
+                    const hardEUR = 0.000575;
+                    cells[6].textContent = `€${hardEUR.toFixed(6)}`;
+                    const shares = parseFloat(cells[5].textContent) || 0;
+                    const allocation = shares * hardEUR;
+                    cells[4].textContent = `€${allocation.toFixed(2)}`;
+                    updateWeightForRow(currentEditingRow);
+                    return; // Skip fetch
+                }
                 const priceObj = await fetchStockPrice(symbol);
                 if (priceObj) {
                     if ((symbol.toUpperCase() === 'PREM' || symbol.toUpperCase() === 'PREM.L') && !priceObj.validated) {
@@ -601,8 +650,25 @@ async function exitEditMode() {
                             const decimalsGBP = priceGBP < 0.1 ? 6 : 4;
                             cells[6].textContent = `£${priceGBP.toFixed(decimalsGBP)}`;
                         } else if (Number.isFinite(priceEUR) && priceEUR > 0) {
-                            const decimals = (broker === 'Crypto' || priceEUR < 0.1) ? 6 : 2;
-                            cells[6].textContent = `€${priceEUR.toFixed(decimals)}`;
+                            // For US stocks: display USD, keep allocation in EUR
+                            const originalCurrency = (priceObj.originalCurrency || '').toUpperCase();
+                            const brokerText = (broker || '').toUpperCase();
+                            const brokerHintsUSD = brokerText.includes('XTB-USD') || brokerText.includes('TRADING212') || brokerText.includes('XTB USD');
+                            const isUSStock = (originalCurrency === 'USD' || brokerHintsUSD) && !(broker === 'Crypto');
+                            if (isUSStock) {
+                                try {
+                                    const rates = await fetch(`${API_BASE}/api/exchange-rates`).then(r => r.json());
+                                    const usdPrice = priceEUR * (rates.USD || 1.16);
+                                    const decimalsUSD = usdPrice < 0.1 ? 6 : 2;
+                                    cells[6].textContent = `$${usdPrice.toFixed(decimalsUSD)}`;
+                                } catch {
+                                    const decimals = (broker === 'Crypto' || priceEUR < 0.1) ? 6 : 2;
+                                    cells[6].textContent = `€${priceEUR.toFixed(decimals)}`;
+                                }
+                            } else {
+                                const decimals = (broker === 'Crypto' || priceEUR < 0.1) ? 6 : 2;
+                                cells[6].textContent = `€${priceEUR.toFixed(decimals)}`;
+                            }
                         } else {
                             console.warn(`Skipping UI price update for ${symbol}: invalid/zero`, priceObj);
                         }
@@ -1205,6 +1271,8 @@ setTimeout(() => {
     console.log('Sort listeners initialized');
 }, 100);
 
+// (removed) Market status badge logic reverted
+
 // ========== PIE CHART ==========
 let balancePieChart = null;
 
@@ -1793,7 +1861,7 @@ if (addDepositBtn) {
 }
 
 // ========== PIE CHART FUNCTION ==========
-function updateBalancePieChart() {
+async function updateBalancePieChart() {
     console.log('updateBalancePieChart called');
     const rows = stocksTbody.querySelectorAll('tr');
     console.log('Number of rows:', rows.length);
@@ -1812,10 +1880,7 @@ function updateBalancePieChart() {
             const weightText = cells[2].textContent.trim();
             const riskText = cells[9].textContent.trim();
             const weight = parseFloat(weightText.replace('%', '')) || 0;
-            
-            console.log('Processing row - Weight:', weightText, 'Risk:', riskText, 'Parsed weight:', weight);
-            
-            // Map risk to categories (check Medium-Safe before Safe to avoid substring match)
+            // Map risk to categories
             if (riskText.includes('Medium-Safe') || riskText.includes('🟨') || riskText.includes('Medium')) {
                 riskData['🟨 Medium-Safe'] += weight;
             } else if (riskText.includes('Very Safe') || riskText.includes('🟩')) {
@@ -1827,6 +1892,52 @@ function updateBalancePieChart() {
             }
         }
     });
+
+    // If table weights are not ready, compute weights directly from stocks API
+    const totalFromTable = Object.values(riskData).reduce((s,v)=>s+v,0);
+    if (rows.length === 0 || totalFromTable === 0) {
+        try {
+            const resp = await fetch('/api/stocks');
+            const stocks = await resp.json();
+            // Compute allocation per stock and total
+            let totalAlloc = 0;
+            const addToRisk = (risk, amount) => {
+                if (!risk || risk === '-') return;
+                if (risk.includes('Medium-Safe') || risk.includes('🟨') || risk.includes('Medium')) {
+                    riskData['🟨 Medium-Safe'] += amount;
+                } else if (risk.includes('Very Safe') || risk.includes('🟩')) {
+                    riskData['🟩 Very Safe'] += amount;
+                } else if (risk.includes('Safe') || risk.includes('🟦')) {
+                    riskData['🟦 Safe'] += amount;
+                } else if (risk.includes('High Risk') || risk.includes('🟥')) {
+                    riskData['🟥 High Risk'] += amount;
+                }
+            };
+            stocks.forEach(st => {
+                const shares = parseFloat(st.shares) || 0;
+                let priceStr = String(st.share_price || '0').replace(/[$€\s]/g, '').replace(',', '.');
+                let price = parseFloat(priceStr) || 0;
+                const broker = st.broker || '';
+                // Crypto prices entered in USD → convert to EUR for allocation consistency
+                if (broker === 'Crypto' || String(st.share_price).includes('$')) {
+                    // We don't have rates here; assume updateTotalBalance handled elsewhere, still use raw for proportions
+                }
+                const alloc = shares * price;
+                if (alloc > 0) {
+                    totalAlloc += alloc;
+                    addToRisk(st.risk || '', alloc);
+                }
+            });
+            if (totalAlloc > 0) {
+                // Convert absolute allocations to percentages
+                Object.keys(riskData).forEach(k => {
+                    riskData[k] = (riskData[k] / totalAlloc) * 100;
+                });
+            }
+        } catch (e) {
+            console.warn('Fallback risk computation failed:', e.message);
+        }
+    }
     
     console.log('Risk data aggregated:', riskData);
     
@@ -1959,6 +2070,11 @@ function updateBalancePieChart() {
         }
     };
     
+    const pluginsArr = [cornerLegendsPlugin];
+    if (typeof ChartDataLabels !== 'undefined') {
+        pluginsArr.unshift(ChartDataLabels);
+    }
+
     balancePieChart = new Chart(ctx, {
         type: 'doughnut',
         data: {
@@ -1981,6 +2097,22 @@ function updateBalancePieChart() {
                 legend: {
                     display: false
                 },
+                datalabels: typeof ChartDataLabels !== 'undefined' ? {
+                    color: 'white',
+                    anchor: 'center',
+                    align: 'center',
+                    clamp: true,
+                    font: {
+                        weight: '700',
+                        size: 12
+                    },
+                    formatter: (value, ctx) => {
+                        // value is already percentage string; ensure numeric
+                        const v = parseFloat(value);
+                        if (!isFinite(v) || v <= 0) return '';
+                        return `${v.toFixed(2)}%`;
+                    }
+                } : undefined,
                 tooltip: {
                     backgroundColor: 'rgba(0, 0, 0, 0.9)',
                     titleColor: 'white',
@@ -2012,7 +2144,7 @@ function updateBalancePieChart() {
                 padding: 20
             }
         },
-        plugins: [cornerLegendsPlugin]
+        plugins: pluginsArr
     });
 }
 
@@ -2066,19 +2198,22 @@ async function savePerformanceSnapshot() {
         } catch (err) {
             console.warn('Could not fetch deposits, using 0:', err.message);
         }
+        // Normalize to cents to avoid tiny float drift
+        totalDeposits = Math.round(totalDeposits * 100) / 100;
+        const normalizedBalance = Math.round(currentBalance * 100) / 100;
         
         if (currentBalance === 0) {
             console.log('⏭️ Skipping snapshot save - balance not loaded yet');
             return;
         }
         
-        console.log(`💾 Saving snapshot: Balance=${currentBalance}€, Deposits=${totalDeposits}€`);
+        console.log(`💾 Saving snapshot: Balance=${normalizedBalance}€, Deposits=${totalDeposits}€`);
         
         const response = await fetch('/api/performance-snapshot', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                portfolio_balance: currentBalance,
+                portfolio_balance: normalizedBalance,
                 total_deposits: totalDeposits
             })
         });

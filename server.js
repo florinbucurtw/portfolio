@@ -863,25 +863,36 @@ app.post('/api/performance-snapshot', async (req, res) => {
   try {
     const timestamp = Date.now();
     
-    // Fetch current prices for indices
+    // Fetch current prices for indices with robust fallbacks
     let sp500Price = null;
     let betPrice = null;
-    
+    const pickLatestPrice = (result) => {
+      if (!result) return null;
+      const meta = result.meta || {};
+      let price = meta.regularMarketPrice ?? meta.previousClose ?? null;
+      // Fallback to last non-null close value
+      if (price == null && result.indicators?.quote?.[0]?.close) {
+        const closes = result.indicators.quote[0].close.filter(v => v != null);
+        if (closes.length > 0) price = closes[closes.length - 1];
+      }
+      return price;
+    };
     try {
-      const sp500Response = await fetch('https://query1.finance.yahoo.com/v8/finance/chart/^GSPC');
+      // Use intraday range to get fresh price
+      const sp500Response = await fetch('https://query1.finance.yahoo.com/v8/finance/chart/^GSPC?interval=1m&range=1d');
       const sp500Data = await sp500Response.json();
       if (sp500Data.chart?.result?.[0]) {
-        sp500Price = sp500Data.chart.result[0].meta.regularMarketPrice || sp500Data.chart.result[0].meta.previousClose;
+        sp500Price = pickLatestPrice(sp500Data.chart.result[0]);
       }
     } catch (err) {
       console.log('Could not fetch S&P 500 price:', err.message);
     }
-    
     try {
-      const betResponse = await fetch('https://query1.finance.yahoo.com/v8/finance/chart/^BET-TRN.RO');
+      // Use intraday range to get fresh price
+      const betResponse = await fetch('https://query1.finance.yahoo.com/v8/finance/chart/^BET-TRN.RO?interval=1m&range=1d');
       const betData = await betResponse.json();
       if (betData.chart?.result?.[0]) {
-        betPrice = betData.chart.result[0].meta.regularMarketPrice || betData.chart.result[0].meta.previousClose;
+        betPrice = pickLatestPrice(betData.chart.result[0]);
       }
     } catch (err) {
       console.log('Could not fetch BET-TR price:', err.message);
@@ -940,16 +951,18 @@ app.post('/api/performance-snapshot', async (req, res) => {
           ? ((portfolio_balance - baseline.portfolio_balance) / baseline.portfolio_balance) * 100 
           : 0;
         
+        // Normalize minor drift: if change < 0.01 EUR, treat as no change
+        const depositDiff = Math.abs((total_deposits ?? 0) - (baseline.total_deposits ?? 0));
         const depositsPercent = baseline.total_deposits > 0 
-          ? ((total_deposits - baseline.total_deposits) / baseline.total_deposits) * 100 
+          ? (depositDiff < 0.01 ? 0 : ((total_deposits - baseline.total_deposits) / baseline.total_deposits) * 100)
           : 0;
         
-        const sp500Percent = (baseline.sp500_price > 0 && sp500Price) 
-          ? ((sp500Price - baseline.sp500_price) / baseline.sp500_price) * 100 
+        const sp500Percent = (baseline.sp500_price > 0 && sp500Price != null)
+          ? ((sp500Price - baseline.sp500_price) / baseline.sp500_price) * 100
           : 0;
         
-        const betPercent = (baseline.bet_price > 0 && betPrice) 
-          ? ((betPrice - baseline.bet_price) / baseline.bet_price) * 100 
+        const betPercent = (baseline.bet_price > 0 && betPrice != null)
+          ? ((betPrice - baseline.bet_price) / baseline.bet_price) * 100
           : 0;
 
         // Save percentages to database with full precision

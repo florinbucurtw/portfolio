@@ -15,7 +15,7 @@
 
 .stocks-table thead tr {
     display: grid;
-    grid-template-columns: 33px 70px 90px 1.2fr 140px 90px 70px 140px 140px 160px 160px 90px; /* Company widened by ~20% */
+    grid-template-columns: 33px 70px 90px 1.38fr 140px 90px 70px 140px 112px 128px 128px 90px; /* Company +15%, Broker -20%, Sector -20%, Risk -20% */
     gap: 8px;
 }
 
@@ -35,7 +35,7 @@
 
 #stocks-tbody tr {
     display: grid;
-    grid-template-columns: 33px 70px 90px 1.2fr 140px 90px 70px 140px 140px 160px 160px 90px; /* Company widened by ~20% */
+    grid-template-columns: 33px 70px 90px 1.38fr 140px 90px 70px 140px 112px 128px 128px 90px; /* Company +15%, Broker -20%, Sector -20%, Risk -20% */
     gap: 3px;
     /* Darker card background for clear breakdown contrast */
     background: linear-gradient(135deg, rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.5));
@@ -101,44 +101,36 @@
     font-weight: 600;
 }
 
-/* Center content in Price column */
+/* Align Price column slightly left */
 #stocks-tbody td[data-field="share_price"] {
-    justify-content: center !important;
-    text-align: center !important;
-    padding-left: 0;
+    justify-content: flex-start !important;
+    text-align: left !important;
+    padding-left: 6px;
     padding-right: 0;
 }
 
-/* Center Price header label */
+/* Align Price header label left */
 .stocks-table thead th:nth-child(7) {
-    text-align: center;
+    text-align: left;
 }
 
-/* Center content in Shares column */
-#stocks-tbody td[data-field="shares"] {
-    display: block; /* override flex to allow pure centering */
-    text-align: center;
-    padding-left: 0;
-    padding-right: 0;
-}
-
-/* Ensure Shares column centers both display and edit */
+/* Align Shares column slightly left */
 #stocks-tbody td[data-field="shares"] {
     display: flex;
-    justify-content: center !important;
+    justify-content: flex-start !important;
     align-items: center !important;
-    text-align: center !important;
-    padding-left: 0;
+    text-align: left !important;
+    padding-left: 6px;
     padding-right: 0;
 }
 
 #stocks-tbody td[data-field="shares"] input {
-    text-align: center !important;
+    text-align: left !important;
 }
 
-/* Center Shares header label */
+/* Align Shares header label left */
 .stocks-table thead th:nth-child(6) {
-    text-align: center;
+    text-align: left;
 }
 
 #stocks-tbody td[data-field="risk"] {
@@ -351,6 +343,7 @@ p {
     transform: perspective(1000px) rotateX(2deg);
     transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     position: relative;
+    z-index: 100; /* keep pie chart above nearby panels/popups */
     margin-top: 1.5rem;
     display: flex;
     flex-direction: column;
@@ -547,6 +540,8 @@ p {
     max-height: 250px;
     margin: 0 auto;
     filter: drop-shadow(0 15px 25px rgba(0, 0, 0, 0.4));
+    position: relative;
+    z-index: 101; /* ensure canvas renders above decorations */
 }
 
 /* Performance Chart Styles */
