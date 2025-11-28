@@ -138,9 +138,10 @@ async function refreshStockPrices() {
                     const isCrypto = typeof priceData === 'object' && priceData.isCrypto;
                     
                     // Format with appropriate decimals and currency
-                    const decimals = broker === 'Crypto' ? 6 : 2;
+                    const numericPrice = parseFloat(price);
+                    const decimals = (broker === 'Crypto' || numericPrice < 0.1) ? 6 : 2;
                     const currency = isCrypto ? '$' : '€';
-                    cells[6].textContent = `${currency}${parseFloat(price).toFixed(decimals)}`;
+                    cells[6].textContent = `${currency}${numericPrice.toFixed(decimals)}`;
                     
                     // Recalculate Allocation (always in EUR)
                     const shares = parseFloat(cells[5].textContent) || 0;
@@ -546,10 +547,10 @@ async function exitEditMode() {
             } else if (symbol && symbol !== '-') {
                 const price = await fetchStockPrice(symbol);
                 if (price) {
-                    // Format with 3 decimals for Crypto, 2 for others
                     const broker = cells[7].textContent.trim();
-                    const decimals = broker === 'Crypto' ? 3 : 2;
-                    cells[6].textContent = `€${parseFloat(price).toFixed(decimals)}`;
+                    const numericPrice = parseFloat(price);
+                    const decimals = (broker === 'Crypto' || numericPrice < 0.1) ? 6 : 2;
+                    cells[6].textContent = `€${numericPrice.toFixed(decimals)}`;
                     
                     // Calculate Allocation (Shares * Share Price in EUR)
                     const shares = parseFloat(cells[5].textContent) || 0;
