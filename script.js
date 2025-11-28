@@ -564,18 +564,17 @@ async function exitEditMode() {
             // Save to database
             const id = currentEditingRow.dataset.id;
             if (id) {
-                const newSymbol = cells[1].textContent.trim();
-                
+                const getField = (field) => currentEditingRow.querySelector(`td[data-field="${field}"]`)?.textContent.trim() || '-';
                 const data = {
-                    symbol: newSymbol,
-                    weight: cells[2].textContent,
-                    company: cells[3].textContent,
-                    allocation: cells[4].textContent,
-                    shares: cells[5].textContent,
-                    share_price: cells[6].textContent,
-                    broker: cells[7].textContent,
-                    sector: cells[8].textContent,
-                    risk: cells[9].textContent
+                    symbol: getField('symbol'),
+                    weight: getField('weight'),
+                    company: getField('company'),
+                    allocation: getField('allocation'),
+                    shares: getField('shares'),
+                    share_price: getField('share_price'),
+                    broker: getField('broker'),
+                    sector: getField('sector'),
+                    risk: getField('risk')
                 };
                 
                 // Try to update - server will handle duplicate check
@@ -815,9 +814,8 @@ function attachRowEventListeners(row) {
     });
     
     deleteBtn.addEventListener('click', () => {
-        const cells = row.querySelectorAll('td');
-        const stockSymbol = cells[0].textContent;
-        const stockCompany = cells[2].textContent;
+        const stockSymbol = row.querySelector('td[data-field="symbol"]')?.textContent || '-';
+        const stockCompany = row.querySelector('td[data-field="company"]')?.textContent || '-';
         const displayName = stockCompany !== '-' ? stockCompany : stockSymbol;
         
         showDeleteModal(displayName, async () => {
@@ -845,34 +843,52 @@ function updateStockNumbers() {
 }
 
 // Calculate and update total balance
-function updateTotalBalance() {
-    const rows = stocksTbody.querySelectorAll('tr');
-    let total = 0;
-    
-    rows.forEach(row => {
-        const cells = row.querySelectorAll('td');
-        if (cells.length >= 5) {
-            const allocationText = cells[4].textContent.replace('€', '').replace('$', '').replace(',', '');
-            const allocation = parseFloat(allocationText);
-            if (!isNaN(allocation) && allocation > 0) {
-                total += allocation;
+// Unified EUR balance computation from stocks data (authoritative)
+async function computeUnifiedPortfolioBalanceEUR() {
+    try {
+        const [stocksResponse, rates] = await Promise.all([
+            fetch('/api/stocks'),
+            fetch('http://localhost:3000/api/exchange-rates').then(r => r.json()).catch(() => ({ USD: 1.16, RON: 4.95 }))
+        ]);
+        const stocks = await stocksResponse.json();
+        let total = 0;
+        stocks.forEach(stock => {
+            const shares = parseFloat(stock.shares) || 0;
+            let priceStr = String(stock.share_price || '0').replace(/[$€\s]/g, '').replace(',', '.');
+            let price = parseFloat(priceStr) || 0;
+            const broker = stock.broker || '';
+            const symbol = (stock.symbol || '').toLowerCase();
+            // Crypto prices are USD -> convert to EUR
+            if (broker === 'Crypto' || String(stock.share_price).includes('$')) {
+                price = price / (rates.USD || 1);
             }
-        }
-    });
-    
+            // Bank Deposit may be entered in EUR already; if in RON, convert (heuristic: symbol contains 'bank deposit' and price was large)
+            if (broker === 'Bank Deposit' && rates.RON) {
+                // If original string had no currency and seems RON (fallback heuristic), keep as-is; conversion handled when editing
+            }
+            total += shares * price;
+        });
+        return total;
+    } catch (e) {
+        console.error('Error computing unified EUR balance:', e);
+        return null;
+    }
+}
+
+// Calculate and update total balance using unified computation
+async function updateTotalBalance() {
+    const unifiedTotal = await computeUnifiedPortfolioBalanceEUR();
     const balanceElement = document.getElementById('total-balance');
-    if (balanceElement) {
-        balanceElement.textContent = total.toLocaleString('en-US', {
+    if (balanceElement && unifiedTotal != null) {
+        balanceElement.textContent = unifiedTotal.toLocaleString('en-US', {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2
         });
+        // Update profit after balance changes
+        updateProfit();
+        // Update all weights after balance changes (weights still based on table allocations)
+        updateAllWeights(unifiedTotal);
     }
-    
-    // Update profit after balance changes
-    updateProfit();
-    
-    // Update all weights after balance changes
-    updateAllWeights(total);
 }
 
 // Calculate weight for a single row
@@ -1016,23 +1032,23 @@ function sortTable(column) {
     rows.sort((a, b) => {
         let aValue, bValue;
         
+        const getText = (row, field) => row.querySelector(`td[data-field="${field}"]`)?.textContent.trim() || '';
         if (column === 'weight') {
-            aValue = parseFloat(a.cells[2].textContent.replace('%', '')) || 0;
-            bValue = parseFloat(b.cells[2].textContent.replace('%', '')) || 0;
+            aValue = parseFloat(getText(a, 'weight').replace('%', '')) || 0;
+            bValue = parseFloat(getText(b, 'weight').replace('%', '')) || 0;
         } else if (column === 'allocation') {
-            aValue = parseFloat(a.cells[4].textContent.replace(/[^0-9.-]/g, '')) || 0;
-            bValue = parseFloat(b.cells[4].textContent.replace(/[^0-9.-]/g, '')) || 0;
+            aValue = parseFloat(getText(a, 'allocation').replace(/[^0-9.-]/g, '')) || 0;
+            bValue = parseFloat(getText(b, 'allocation').replace(/[^0-9.-]/g, '')) || 0;
         } else if (column === 'price_change') {
-            // Price Change column index = 7
-            const aText = a.cells[7].textContent.trim();
-            const bText = b.cells[7].textContent.trim();
+            const aText = getText(a, 'price_change');
+            const bText = getText(b, 'price_change');
             const aNum = parseFloat(aText.replace('%', ''));
             const bNum = parseFloat(bText.replace('%', ''));
             aValue = isNaN(aNum) ? -Infinity : aNum;
             bValue = isNaN(bNum) ? -Infinity : bNum;
         } else if (column === 'broker') {
-            aValue = a.cells[7].textContent.trim();
-            bValue = b.cells[7].textContent.trim();
+            aValue = getText(a, 'broker');
+            bValue = getText(b, 'broker');
             
             // Alphabetical comparison
             if (currentSortDirection === 'asc') {
@@ -1041,8 +1057,8 @@ function sortTable(column) {
                 return bValue.localeCompare(aValue);
             }
         } else if (column === 'sector') {
-            aValue = a.cells[8].textContent.trim();
-            bValue = b.cells[8].textContent.trim();
+            aValue = getText(a, 'sector');
+            bValue = getText(b, 'sector');
             
             // Alphabetical comparison
             if (currentSortDirection === 'asc') {
@@ -1051,8 +1067,8 @@ function sortTable(column) {
                 return bValue.localeCompare(aValue);
             }
         } else if (column === 'risk') {
-            const aRisk = a.cells[9].textContent.trim();
-            const bRisk = b.cells[9].textContent.trim();
+            const aRisk = getText(a, 'risk');
+            const bRisk = getText(b, 'risk');
             
             // Map risk text to numeric values - default to 5 for unknown
             aValue = 5;
@@ -1556,7 +1572,7 @@ async function updateBalanceBreakdown() {
         const bankDepositsProfit = bankDepositBalance - bankDepositsDeposits;
         const bankDepositsReturn = bankDepositsDeposits > 0 ? (bankDepositsProfit / bankDepositsDeposits) * 100 : 0;
         
-        // Update UI - Balance section
+        // Update UI - Balance section (values are EUR)
         const xtbEurBalanceElement = document.getElementById('xtb-eur-balance-value');
         if (xtbEurBalanceElement) {
             xtbEurBalanceElement.textContent = xtbEurBalance.toFixed(2) + ' €';
@@ -1632,6 +1648,15 @@ async function updateBalanceBreakdown() {
         updateBrokerProfit('t212-xtb-usd-profit-value', 't212-xtb-usd-return-percentage', t212XtbUsdProfit, t212XtbUsdReturn, 'T212 + XTB USD');
         updateBrokerProfit('crypto-profit-value', 'crypto-return-percentage', cryptoProfit, cryptoReturn, 'Crypto');
         updateBrokerProfit('bank-deposits-profit-value', 'bank-deposits-return-percentage', bankDepositsProfit, bankDepositsReturn, 'Bank Deposits');
+        
+        // Ensure top Balance equals sum of breakdowns
+        const unifiedTop = xtbEurBalance + tradevilleBalance + t212XtbUsdBalance + cryptoBalance + bankDepositBalance;
+        const balanceElement = document.getElementById('total-balance');
+        if (balanceElement) {
+            balanceElement.textContent = unifiedTop.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+        updateProfit();
+        updateAllWeights(unifiedTop);
         
     } catch (error) {
         console.error('Error updating balance breakdown:', error);
