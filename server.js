@@ -6,7 +6,13 @@ const fs = require('fs');
 const { exportData, importData } = require('./db-backup');
 
 const app = express();
-const PORT = 3000;
+let PORT = parseInt(process.env.PORT || '3000', 10);
+
+// Fetch shim: use global fetch if available (Node 18+), else node-fetch v2
+let fetchFn = global.fetch;
+if (!fetchFn) {
+  fetchFn = require('node-fetch');
+}
 
 // Initialize SQLite database
 const db = new sqlite3.Database('portfolio.db', (err) => {
@@ -495,7 +501,6 @@ let lastFetchTime = 0;
 // Fetch RON rate from BNR (Romanian National Bank)
 async function fetchBNRRate() {
   try {
-    const fetch = (await import('node-fetch')).default;
     const response = await fetch('https://www.bnr.ro/nbrfxrates.xml');
     const xmlText = await response.text();
     
@@ -525,7 +530,7 @@ async function getExchangeRates() {
   }
   
   try {
-    const fetch = (await import('node-fetch')).default;
+    // Using global fetch (Node 18+)
     
     // Fetch RON rate from BNR (official Romanian rate)
     const bnrRate = await fetchBNRRate();
@@ -573,7 +578,12 @@ function tryAlternativeSymbols(symbol) {
       base              // Just ticker: XXX
     );
   } else {
-    alternatives.push(symbol);
+    // Special-case UK tickers
+    if (symbol.toUpperCase() === 'PREM') {
+      alternatives.push('PREM.L', 'PREM');
+    } else {
+      alternatives.push(symbol);
+    }
   }
   
   return alternatives;
@@ -584,9 +594,9 @@ app.get('/api/stock-price/:symbol', async (req, res) => {
   const { symbol } = req.params;
   
   try {
-    const fetch = (await import('node-fetch')).default;
-    // Special handling for PREM from LSE (price in pence "p")
-    if (symbol.toUpperCase() === 'PREM') {
+    // Using global fetch (Node 18+)
+    // Special handling for PREM and PREM.L from LSE (price in pence "p")
+    if (symbol.toUpperCase() === 'PREM' || symbol.toUpperCase() === 'PREM.L') {
       try {
         const lseUrl = 'https://www.lse.co.uk/SharePrice.html?shareprice=PREM&share=Premier-african-minerals';
         const htmlResp = await fetch(lseUrl);
@@ -601,7 +611,15 @@ app.get('/api/stock-price/:symbol', async (req, res) => {
           const gbp = pence / 100;
           const eur = gbp / (rates.GBP || 0.86);
           console.log(`PREM LSE scrape: pence=${pence}, GBP=${gbp.toFixed(6)}, EUR=${eur.toFixed(6)}, GBP rate=${rates.GBP}`);
-          return res.json({ price: eur.toFixed(6), symbol: 'PREM', originalSymbol: symbol, originalCurrency: 'GBp' });
+          return res.json({ 
+            price: eur.toFixed(6), 
+            priceEUR: eur, 
+            priceGBP: gbp, 
+            priceGBp: pence,
+            symbol: 'PREM.L', 
+            originalSymbol: symbol, 
+            originalCurrency: 'GBp' 
+          });
         }
       } catch (err) {
         console.log('PREM LSE scrape failed, falling back to Yahoo:', err.message);
@@ -621,6 +639,8 @@ app.get('/api/stock-price/:symbol', async (req, res) => {
           const meta = data.chart.result[0].meta;
           let price = meta.regularMarketPrice || meta.previousClose;
           const currency = meta.currency;
+          let priceGBP = null;
+          let priceGBp = null;
           
           console.log(`✓ Found data for ${altSymbol}: price=${price}, currency=${currency}`);
           
@@ -635,22 +655,50 @@ app.get('/api/stock-price/:symbol', async (req, res) => {
               price = price / rates.RON;
             } else if (currency === 'GBP') {
               // GBP to EUR
+              priceGBP = price; // keep GBP for UI display
               price = price / (rates.GBP || 0.86);
             } else if (currency === 'GBp') {
               // London prices in pence: convert to GBP then to EUR
-              const gbpPrice = price / 100;
-              price = gbpPrice / (rates.GBP || 0.86);
+              if (Number.isFinite(price) && price > 0) {
+                const gbpPrice = price / 100;
+                priceGBP = gbpPrice; // keep GBP for UI display
+                priceGBp = price;    // original pence
+                price = gbpPrice / (rates.GBP || 0.86);
+              } else {
+                // Yahoo returned invalid pence; try LSE scrape fallback
+                try {
+                  const lseUrl = 'https://www.lse.co.uk/SharePrice.html?shareprice=PREM&share=Premier-african-minerals';
+                  const htmlResp = await fetch(lseUrl);
+                  const html = await htmlResp.text();
+                  const m = html.match(/([0-9]+\.?[0-9]*)\s*p\b/i);
+                  if (m && m[1]) {
+                    const pence = parseFloat(m[1]);
+                    const gbp = pence / 100;
+                    priceGBP = gbp;
+                    priceGBp = pence;
+                    price = gbp / (rates.GBP || 0.86);
+                    console.log(`Yahoo GBp was invalid; LSE fallback used: pence=${pence}, GBP=${gbp}`);
+                  }
+                } catch (e) {
+                  console.warn('GBp invalid and LSE fallback failed:', e.message);
+                }
+              }
             }
             console.log(`Converted ${altSymbol}: EUR price=${price}, rates=${JSON.stringify(rates)}`);
-            
-            if (price) {
+            // Guard: skip invalid/zero price
+            if (Number.isFinite(price) && price > 0) {
               return res.json({ 
                 price: price.toFixed(isCrypto ? 6 : 2), 
+                priceEUR: price, 
+                priceGBP: priceGBP, 
+                priceGBp: priceGBp,
                 symbol: altSymbol,
                 originalSymbol: symbol,
                 originalCurrency: currency,
                 isCrypto: isCrypto
               });
+            } else {
+              console.warn(`Ignored non-finite/zero price from Yahoo for ${altSymbol}:`, price);
             }
           }
         }
@@ -675,7 +723,7 @@ app.get('/api/historical/:symbol', async (req, res) => {
   const { range } = req.query;
   
   try {
-    const fetch = (await import('node-fetch')).default;
+    // Using global fetch (Node 18+)
     
     // Map range to Yahoo Finance parameters
     const rangeMap = {
@@ -736,7 +784,6 @@ app.post('/api/performance-snapshot', async (req, res) => {
   const { portfolio_balance, total_deposits } = req.body;
   
   try {
-    const fetch = (await import('node-fetch')).default;
     const timestamp = Date.now();
     
     // Fetch current prices for indices
@@ -977,7 +1024,7 @@ app.post('/api/performance-baseline/reset', async (req, res) => {
   const { portfolio_balance, total_deposits } = req.body;
   
   try {
-    const fetch = (await import('node-fetch')).default;
+    const fetch = fetchFn;
     const timestamp = Date.now();
     
     // Fetch current prices for indices
@@ -1440,9 +1487,22 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-});
+function startServer(port) {
+  const server = app.listen(port, () => {
+    console.log(`Server running on http://localhost:${port}`);
+  });
+  server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+      const nextPort = port + 1;
+      console.warn(`Port ${port} in use. Trying ${nextPort}...`);
+      startServer(nextPort);
+    } else {
+      throw err;
+    }
+  });
+}
+
+startServer(PORT);
 
 // Export data before process exits
 process.on('SIGINT', async () => {

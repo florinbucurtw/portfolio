@@ -134,27 +134,45 @@ async function refreshStockPrices() {
             try {
                 const priceData = await fetchStockPrice(symbol);
                 if (priceData) {
-                    const price = typeof priceData === 'object' ? priceData.price : priceData;
-                    const isCrypto = typeof priceData === 'object' && priceData.isCrypto;
+                    const isCrypto = !!priceData.isCrypto;
+                    const priceEUR = Number.parseFloat(priceData.priceEUR ?? priceData.price);
+                    const priceGBP = Number.parseFloat(priceData.priceGBP);
+                    const priceGBp = Number.parseFloat(priceData.priceGBp);
                     
-                    // Format with appropriate decimals and currency
-                    const numericPrice = parseFloat(price);
-                    const decimals = (broker === 'Crypto' || numericPrice < 0.1) ? 6 : 2;
-                    const currency = isCrypto ? '$' : '€';
-                    cells[6].textContent = `${currency}${numericPrice.toFixed(decimals)}`;
+                    // Display: prefer pence (GBp) visually if available for UK micro-prices, else GBP, else EUR
+                    if (!isCrypto && Number.isFinite(priceGBp) && priceGBp > 0) {
+                        const decimalsP = priceGBp < 1 ? 6 : 4;
+                        cells[6].textContent = `${priceGBp.toFixed(decimalsP)}p`;
+                    } else if (Number.isFinite(priceGBP) && priceGBP > 0 && !isCrypto) {
+                        const decimalsGBP = priceGBP < 0.1 ? 6 : 4;
+                        cells[6].textContent = `£${priceGBP.toFixed(decimalsGBP)}`;
+                    } else if (Number.isFinite(priceEUR) && priceEUR > 0) {
+                        const decimalsEUR = (broker === 'Crypto' || priceEUR < 0.1) ? 6 : 2;
+                        const currency = isCrypto ? '$' : '€';
+                        cells[6].textContent = `${currency}${priceEUR.toFixed(decimalsEUR)}`;
+                    } else {
+                        console.warn(`Skipping UI price update for ${symbol}: invalid/zero price`, priceData);
+                    }
                     
                     // Recalculate Allocation (always in EUR)
                     const shares = parseFloat(cells[5].textContent) || 0;
-                    let priceEUR = parseFloat(price);
+                    let allocPriceEUR = priceEUR;
                     
                     // Convert USD to EUR for crypto
-                    if (isCrypto) {
+                    if (isCrypto && Number.isFinite(priceEUR)) {
                         const exchangeRates = await fetch('http://localhost:3000/api/exchange-rates').then(r => r.json()).catch(() => ({ USD: 1.16 }));
-                        priceEUR = parseFloat(price) / exchangeRates.USD;
+                        allocPriceEUR = priceEUR / exchangeRates.USD;
+                    }
+                    // If EUR missing but GBP available, convert GBP→EUR for allocation
+                    if ((!Number.isFinite(allocPriceEUR) || allocPriceEUR <= 0) && Number.isFinite(priceGBP) && priceGBP > 0) {
+                        const rates = await fetch('http://localhost:3000/api/exchange-rates').then(r => r.json()).catch(() => ({ GBP: 0.86 }));
+                        allocPriceEUR = priceGBP / (rates.GBP || 0.86);
                     }
                     
-                    const allocation = shares * priceEUR;
-                    cells[4].textContent = `€${allocation.toFixed(2)}`;
+                    if (Number.isFinite(allocPriceEUR) && allocPriceEUR > 0 && Number.isFinite(shares) && shares > 0) {
+                        const allocation = shares * allocPriceEUR;
+                        cells[4].textContent = `€${allocation.toFixed(2)}`;
+                    }
                     
                     // Update weight
                     updateWeightForRow(row);
@@ -162,10 +180,12 @@ async function refreshStockPrices() {
                     // Save updated price to database (in original currency)
                     const stockId = row.dataset.id;
                     if (stockId) {
+                        // Persist the displayed price with its currency
+                        let displayText = cells[6].textContent || '';
                         await fetch(`${API_URL}/${stockId}`, {
                             method: 'PUT',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ share_price: currency + price })
+                            body: JSON.stringify({ share_price: displayText })
                         });
                     }
                 }
@@ -462,15 +482,13 @@ async function exportStocksToCSV() {
     }
 }
 
-// Fetch stock price from API via server proxy
+// Fetch stock price from API via server proxy (always return full object)
 async function fetchStockPrice(symbol) {
     try {
         const response = await fetch(`http://localhost:3000/api/stock-price/${symbol}`);
         const data = await response.json();
-        
-        if (data.price) {
-            // Return full data object if it contains crypto info, otherwise just the price
-            return data.isCrypto ? data : data.price;
+        if (data && (data.price != null || data.priceEUR != null)) {
+            return data;
         }
         return null;
     } catch (error) {
@@ -548,14 +566,21 @@ async function exitEditMode() {
                 const price = await fetchStockPrice(symbol);
                 if (price) {
                     const broker = cells[7].textContent.trim();
-                    const numericPrice = parseFloat(price);
-                    const decimals = (broker === 'Crypto' || numericPrice < 0.1) ? 6 : 2;
-                    cells[6].textContent = `€${numericPrice.toFixed(decimals)}`;
+                    const numericPrice = Number.parseFloat(price);
+                    if (Number.isFinite(numericPrice) && numericPrice > 0) {
+                        const decimals = (broker === 'Crypto' || numericPrice < 0.1) ? 6 : 2;
+                        cells[6].textContent = `€${numericPrice.toFixed(decimals)}`;
+                    } else {
+                        console.warn(`Skipping UI price update for ${symbol}: invalid/zero price`, price);
+                    }
                     
                     // Calculate Allocation (Shares * Share Price in EUR)
                     const shares = parseFloat(cells[5].textContent) || 0;
-                    const allocation = shares * parseFloat(price);
-                    cells[4].textContent = `€${allocation.toFixed(2)}`;
+                    const priceVal = Number.parseFloat(price);
+                    if (Number.isFinite(priceVal) && priceVal > 0 && Number.isFinite(shares) && shares > 0) {
+                        const allocation = shares * priceVal;
+                        cells[4].textContent = `€${allocation.toFixed(2)}`;
+                    }
                     
                     // Calculate Weight (Allocation / Balance * 100)
                     updateWeightForRow(currentEditingRow);
