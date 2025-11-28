@@ -15,7 +15,7 @@
 
 .stocks-table thead tr {
     display: grid;
-    grid-template-columns: 60px 70px 90px 1fr 140px 90px 70px 140px 140px 160px 80px; /* Price column halved */
+    grid-template-columns: 60px 70px 90px 1fr 140px 90px 70px 140px 140px 160px 160px 90px; /* add explicit Risk then Actions */
     gap: 8px;
 }
 .stocks-table thead th {
@@ -30,15 +30,24 @@
 
 #stocks-tbody tr {
     display: grid;
-    grid-template-columns: 60px 70px 90px 1fr 140px 90px 70px 140px 140px 160px 80px; /* Price column halved */
+    grid-template-columns: 60px 70px 90px 1fr 140px 90px 70px 140px 140px 160px 160px 90px; /* add explicit Risk then Actions */
     gap: 3px;
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.03));
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    /* Darker card background for clear breakdown contrast */
+    background: linear-gradient(135deg, rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.5));
+    border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 10px;
-    padding: 5px;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+    padding: 6px;
+    box-shadow: 0 6px 16px rgba(0,0,0,0.55);
     min-height: unset;
     align-items: center;
+    transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+#stocks-tbody tr:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 26px rgba(0,0,0,0.6);
+    border-color: rgba(255, 255, 255, 0.22);
+    background: linear-gradient(135deg, rgba(0, 0, 0, 0.74), rgba(0, 0, 0, 0.54));
 }
 
 #stocks-tbody td {
@@ -135,8 +144,10 @@
 }
 
 #stocks-tbody td.action-buttons {
-    justify-content: center;
-    gap: 10px;
+    justify-content: flex-end; /* place buttons at end of row */
+    align-items: center;
+    gap: 8px;
+    grid-column: 12; /* force actions cell to the final grid column */
 }
 
 .stocks-table .sort-icon {
