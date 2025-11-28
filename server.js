@@ -536,6 +536,7 @@ async function getExchangeRates() {
     
     exchangeRatesCache = {
       USD: data.rates.USD || 1.16,
+      GBP: data.rates.GBP || 0.86,
       RON: bnrRate || data.rates.RON || 5.09  // Priority: BNR > exchangerate-api > fallback
     };
     lastFetchTime = now;
@@ -610,6 +611,13 @@ app.get('/api/stock-price/:symbol', async (req, res) => {
               price = price / rates.USD;
             } else if (currency === 'RON') {
               price = price / rates.RON;
+            } else if (currency === 'GBP') {
+              // GBP to EUR
+              price = price / (rates.GBP || 0.86);
+            } else if (currency === 'GBp') {
+              // London prices in pence: convert to GBP then to EUR
+              const gbpPrice = price / 100;
+              price = gbpPrice / (rates.GBP || 0.86);
             }
             
             if (price) {
