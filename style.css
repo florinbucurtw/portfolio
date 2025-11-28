@@ -15,7 +15,7 @@
 
 .stocks-table thead tr {
     display: grid;
-    grid-template-columns: 60px 70px 90px 1fr 140px 90px 140px 140px 140px 160px 80px;
+    grid-template-columns: 60px 70px 90px 1fr 140px 90px 70px 140px 140px 160px 80px; /* Price column halved */
     gap: 8px;
 }
 .stocks-table thead th {
@@ -30,7 +30,7 @@
 
 #stocks-tbody tr {
     display: grid;
-    grid-template-columns: 60px 70px 90px 1fr 140px 90px 140px 140px 140px 160px 80px; /* map to existing 11 cells */
+    grid-template-columns: 60px 70px 90px 1fr 140px 90px 70px 140px 140px 160px 80px; /* Price column halved */
     gap: 3px;
     background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.03));
     border: 1px solid rgba(255, 255, 255, 0.1);
@@ -85,6 +85,19 @@
 #stocks-tbody td[data-field="share_price"],
 #stocks-tbody td[data-field="price_change"] {
     font-weight: 600;
+}
+
+/* Center content in Price column */
+#stocks-tbody td[data-field="share_price"] {
+    justify-content: center !important;
+    text-align: center !important;
+    padding-left: 0;
+    padding-right: 0;
+}
+
+/* Center Price header label */
+.stocks-table thead th:nth-child(7) {
+    text-align: center;
 }
 
 /* Center content in Shares column */
