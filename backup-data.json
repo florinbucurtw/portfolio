@@ -451,7 +451,7 @@
       "company": "Virgin Galactic",
       "allocation": "€478.50",
       "shares": "150",
-      "share_price": "€3.32",
+      "share_price": "€3.34",
       "broker": "Trading212",
       "risk": "🟥 High Risk",
       "sector": "Space Industry"
@@ -463,7 +463,7 @@
       "company": "Aduro Clean Technologies",
       "allocation": "€2407.50",
       "shares": "225",
-      "share_price": "€11.46",
+      "share_price": "€11.43",
       "broker": "Trading212",
       "risk": "🟥 High Risk",
       "sector": "Industrials"
@@ -499,7 +499,7 @@
       "company": "D-wave Quantum",
       "allocation": "€2492.28",
       "shares": "129",
-      "share_price": "€19.51",
+      "share_price": "€19.54",
       "broker": "XTB-USD",
       "risk": "🟥 High Risk",
       "sector": "Technology"
@@ -511,7 +511,7 @@
       "company": "Rigetti Computing",
       "allocation": "€3526.40",
       "shares": "160",
-      "share_price": "€22.12",
+      "share_price": "€22.04",
       "broker": "Trading212",
       "risk": "🟥 High Risk",
       "sector": "Technology"
@@ -523,7 +523,7 @@
       "company": "RedWire Space",
       "allocation": "€504.85",
       "shares": "109.039",
-      "share_price": "€4.72",
+      "share_price": "€4.75",
       "broker": "Trading212",
       "risk": "🟥 High Risk",
       "sector": "Space Industry"
@@ -547,7 +547,7 @@
       "company": "Rocket Lab",
       "allocation": "€4482.60",
       "shares": "124",
-      "share_price": "€36.34",
+      "share_price": "€36.33",
       "broker": "Trading212",
       "risk": "🟥 High Risk",
       "sector": "Space Industry"
@@ -559,7 +559,7 @@
       "company": "IONQ",
       "allocation": "€929.89",
       "shares": "23",
-      "share_price": "€42.45",
+      "share_price": "€42.50",
       "broker": "XTB-USD",
       "risk": "🟥 High Risk",
       "sector": "Technology"
@@ -571,7 +571,7 @@
       "company": "KULR",
       "allocation": "€84.70",
       "shares": "35",
-      "share_price": "€2.78",
+      "share_price": "€2.77",
       "broker": "XTB-USD",
       "risk": "🟥 High Risk",
       "sector": "Technology"
@@ -583,7 +583,7 @@
       "company": "Big Bear",
       "allocation": "€186.84",
       "shares": "36",
-      "share_price": "€5.44",
+      "share_price": "€5.47",
       "broker": "XTB-USD",
       "risk": "🟥 High Risk",
       "sector": "Technology"
@@ -607,7 +607,7 @@
       "company": "UI PATH",
       "allocation": "€246.12",
       "shares": "21",
-      "share_price": "€11.94",
+      "share_price": "€11.95",
       "broker": "XTB-USD",
       "risk": "🟥 High Risk",
       "sector": "Technology"
@@ -619,7 +619,7 @@
       "company": "SOFI",
       "allocation": "€1301.68",
       "shares": "53",
-      "share_price": "€25.38",
+      "share_price": "€25.62",
       "broker": "XTB-USD",
       "risk": "🟥 High Risk",
       "sector": "Financial Services"
@@ -655,7 +655,7 @@
       "company": "i-80 Gold",
       "allocation": "€10.42",
       "shares": "11.09",
-      "share_price": "€1.00",
+      "share_price": "€1.01",
       "broker": "Trading212",
       "risk": "🟥 High Risk",
       "sector": "Basic Materials"
@@ -667,7 +667,7 @@
       "company": "Tenaya Therapeutics",
       "allocation": "€5.81",
       "shares": "4.962",
-      "share_price": "€1.19",
+      "share_price": "€1.21",
       "broker": "Trading212",
       "risk": "🟥 High Risk",
       "sector": "Healthcare"
@@ -679,7 +679,7 @@
       "company": "SeaStar Medical",
       "allocation": "€4.47",
       "shares": "17.21",
-      "share_price": "€0.26",
+      "share_price": "€0.27",
       "broker": "Trading212",
       "risk": "🟥 High Risk",
       "sector": "Healthcare"
@@ -763,7 +763,7 @@
       "company": "Binance",
       "allocation": "€NaN",
       "shares": "30867",
-      "share_price": "$0.007390",
+      "share_price": "$0.006347",
       "broker": "Crypto",
       "risk": "🟥 High Risk",
       "sector": "Cryptocurrency"
@@ -775,7 +775,7 @@
       "company": "ByBit",
       "allocation": "€NaN",
       "shares": "12283",
-      "share_price": "$0.058406",
+      "share_price": "$0.049930",
       "broker": "Crypto",
       "risk": "🟥 High Risk",
       "sector": "Cryptocurrency"

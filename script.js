@@ -60,7 +60,8 @@ const refreshStocksBtn = document.getElementById('refresh-stocks-btn');
 const exportStocksBtn = document.getElementById('export-stocks-btn');
 const stocksTbody = document.getElementById('stocks-tbody');
 let currentEditingRow = null;
-const API_URL = 'http://localhost:3000/api/stocks';
+const API_BASE = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
+const API_URL = `${API_BASE}/api/stocks`;
 
 // Floating button visibility based on scroll
 function handleFloatingButtonVisibility() {
@@ -134,15 +135,21 @@ async function refreshStockPrices() {
             try {
                 const priceData = await fetchStockPrice(symbol);
                 if (priceData) {
+                    // For PREM skip unvalidated interim prices
+                    if ((symbol.toUpperCase() === 'PREM' || symbol.toUpperCase() === 'PREM.L') && !priceData.validated) {
+                        console.warn('Skipping PREM unvalidated price (auto-refresh)', priceData);
+                        continue;
+                    }
                     const isCrypto = !!priceData.isCrypto;
                     const priceEUR = Number.parseFloat(priceData.priceEUR ?? priceData.price);
                     const priceGBP = Number.parseFloat(priceData.priceGBP);
                     const priceGBp = Number.parseFloat(priceData.priceGBp);
                     
-                    // Display: prefer pence (GBp) visually if available for UK micro-prices, else GBP, else EUR
+                    // Display: prefer GBP (convert from GBp if needed) for UK micro-prices, else EUR
                     if (!isCrypto && Number.isFinite(priceGBp) && priceGBp > 0) {
-                        const decimalsP = priceGBp < 1 ? 6 : 4;
-                        cells[6].textContent = `${priceGBp.toFixed(decimalsP)}p`;
+                        const gbpFromPence = priceGBp / 100;
+                        const decimalsGBP = gbpFromPence < 0.1 ? 6 : 4;
+                        cells[6].textContent = `£${gbpFromPence.toFixed(decimalsGBP)}`;
                     } else if (Number.isFinite(priceGBP) && priceGBP > 0 && !isCrypto) {
                         const decimalsGBP = priceGBP < 0.1 ? 6 : 4;
                         cells[6].textContent = `£${priceGBP.toFixed(decimalsGBP)}`;
@@ -160,17 +167,30 @@ async function refreshStockPrices() {
                     
                     // Convert USD to EUR for crypto
                     if (isCrypto && Number.isFinite(priceEUR)) {
-                        const exchangeRates = await fetch('http://localhost:3000/api/exchange-rates').then(r => r.json()).catch(() => ({ USD: 1.16 }));
+                        const exchangeRates = await fetch(`${API_BASE}/api/exchange-rates`).then(r => r.json()).catch(() => ({ USD: 1.16 }));
                         allocPriceEUR = priceEUR / exchangeRates.USD;
                     }
                     // If EUR missing but GBP available, convert GBP→EUR for allocation
                     if ((!Number.isFinite(allocPriceEUR) || allocPriceEUR <= 0) && Number.isFinite(priceGBP) && priceGBP > 0) {
-                        const rates = await fetch('http://localhost:3000/api/exchange-rates').then(r => r.json()).catch(() => ({ GBP: 0.86 }));
+                        const rates = await fetch(`${API_BASE}/api/exchange-rates`).then(r => r.json()).catch(() => ({ GBP: 0.86 }));
                         allocPriceEUR = priceGBP / (rates.GBP || 0.86);
                     }
                     
                     if (Number.isFinite(allocPriceEUR) && allocPriceEUR > 0 && Number.isFinite(shares) && shares > 0) {
-                        const allocation = shares * allocPriceEUR;
+                        let allocation = shares * allocPriceEUR;
+                        // Special-case PREM: compute using displayed GBP, convert to EUR (no extra divide)
+                        if (symbol.toUpperCase() === 'PREM' || symbol.toUpperCase() === 'PREM.L') {
+                            const display = (cells[6].textContent || '').trim();
+                            const rateResp = await fetch(`${API_BASE}/api/exchange-rates`).then(r => r.json()).catch(() => ({ GBP: 0.86 }));
+                            const gbpRate = rateResp.GBP || 0.86;
+                            let displayValue = parseFloat(display.replace(/[^0-9.\-]/g, '')) || 0;
+                            // If display is in pounds (prefixed with £), use directly; else fall back to computed EUR path
+                            if (display.startsWith('£') && displayValue > 0) {
+                                const amountGBP = shares * displayValue;
+                                const amountEUR = amountGBP / gbpRate;
+                                allocation = amountEUR;
+                            }
+                        }
                         cells[4].textContent = `€${allocation.toFixed(2)}`;
                     }
                     
@@ -485,7 +505,7 @@ async function exportStocksToCSV() {
 // Fetch stock price from API via server proxy (always return full object)
 async function fetchStockPrice(symbol) {
     try {
-        const response = await fetch(`http://localhost:3000/api/stock-price/${symbol}`);
+        const response = await fetch(`${API_BASE}/api/stock-price/${symbol}`);
         const data = await response.json();
         if (data && (data.price != null || data.priceEUR != null)) {
             return data;
@@ -539,7 +559,7 @@ async function exitEditMode() {
                 if (!isNaN(manualPrice) && manualPrice > 0) {
                     // Convert RON to EUR for Bank Deposits
                     try {
-                        const response = await fetch('http://localhost:3000/api/exchange-rates');
+                        const response = await fetch(`${API_BASE}/api/exchange-rates`);
                         const rates = await response.json();
                         const ronToEur = 1 / rates.RON; // RON rate is EUR to RON, so we inverse it
                         
@@ -563,27 +583,58 @@ async function exitEditMode() {
                 // Update weight
                 updateWeightForRow(currentEditingRow);
             } else if (symbol && symbol !== '-') {
-                const price = await fetchStockPrice(symbol);
-                if (price) {
-                    const broker = cells[7].textContent.trim();
-                    const numericPrice = Number.parseFloat(price);
-                    if (Number.isFinite(numericPrice) && numericPrice > 0) {
-                        const decimals = (broker === 'Crypto' || numericPrice < 0.1) ? 6 : 2;
-                        cells[6].textContent = `€${numericPrice.toFixed(decimals)}`;
+                const priceObj = await fetchStockPrice(symbol);
+                if (priceObj) {
+                    if ((symbol.toUpperCase() === 'PREM' || symbol.toUpperCase() === 'PREM.L') && !priceObj.validated) {
+                        console.warn('Skipping PREM unvalidated price (edit)', priceObj);
                     } else {
-                        console.warn(`Skipping UI price update for ${symbol}: invalid/zero price`, price);
+                        const broker = cells[7].textContent.trim();
+                        const priceEUR = Number.parseFloat(priceObj.priceEUR ?? priceObj.price);
+                        const priceGBP = Number.parseFloat(priceObj.priceGBP);
+                        const priceGBp = Number.parseFloat(priceObj.priceGBp);
+                        // Display hierarchy: GBP (convert from GBp if needed) -> EUR
+                        if (Number.isFinite(priceGBp) && priceGBp > 0) {
+                            const gbpFromPence = priceGBp / 100;
+                            const decimalsGBP = gbpFromPence < 0.1 ? 6 : 4;
+                            cells[6].textContent = `£${gbpFromPence.toFixed(decimalsGBP)}`;
+                        } else if (Number.isFinite(priceGBP) && priceGBP > 0) {
+                            const decimalsGBP = priceGBP < 0.1 ? 6 : 4;
+                            cells[6].textContent = `£${priceGBP.toFixed(decimalsGBP)}`;
+                        } else if (Number.isFinite(priceEUR) && priceEUR > 0) {
+                            const decimals = (broker === 'Crypto' || priceEUR < 0.1) ? 6 : 2;
+                            cells[6].textContent = `€${priceEUR.toFixed(decimals)}`;
+                        } else {
+                            console.warn(`Skipping UI price update for ${symbol}: invalid/zero`, priceObj);
+                        }
+                        // Allocation uses EUR (fallback convert GBP→EUR if needed)
+                        let allocEur = priceEUR;
+                        if ((!Number.isFinite(allocEur) || allocEur <= 0) && Number.isFinite(priceGBP) && priceGBP > 0) {
+                            try {
+                                const rates = await fetch(`${API_BASE}/api/exchange-rates`).then(r => r.json());
+                                allocEur = priceGBP / (rates.GBP || 0.86);
+                            } catch {}
+                        }
+                        const shares = parseFloat(cells[5].textContent) || 0;
+                        if (Number.isFinite(allocEur) && allocEur > 0 && shares > 0) {
+                            let allocation = shares * allocEur;
+                            // Special-case PREM: compute using displayed GBP, convert to EUR (no extra divide)
+                            if (symbol.toUpperCase() === 'PREM' || symbol.toUpperCase() === 'PREM.L') {
+                                const display = (cells[6].textContent || '').trim();
+                                try {
+                                    const rateResp = await fetch(`${API_BASE}/api/exchange-rates`).then(r => r.json());
+                                    const gbpRate = rateResp.GBP || 0.86;
+                                    let displayValue = parseFloat(display.replace(/[^0-9.\-]/g, '')) || 0;
+                                    if (display.startsWith('£') && displayValue > 0) {
+                                        const amountGBP = shares * displayValue;
+                                        const amountEUR = amountGBP / gbpRate;
+                                        allocation = amountEUR;
+                                    }
+                                } catch {}
+                            }
+                            cells[4].textContent = `€${allocation.toFixed(2)}`;
+                        }
+                        updateWeightForRow(currentEditingRow);
                     }
-                    
-                    // Calculate Allocation (Shares * Share Price in EUR)
-                    const shares = parseFloat(cells[5].textContent) || 0;
-                    const priceVal = Number.parseFloat(price);
-                    if (Number.isFinite(priceVal) && priceVal > 0 && Number.isFinite(shares) && shares > 0) {
-                        const allocation = shares * priceVal;
-                        cells[4].textContent = `€${allocation.toFixed(2)}`;
-                    }
-                    
-                    // Calculate Weight (Allocation / Balance * 100)
-                    updateWeightForRow(currentEditingRow);
                 }
             }
             
@@ -874,7 +925,7 @@ async function computeUnifiedPortfolioBalanceEUR() {
     try {
         const [stocksResponse, rates] = await Promise.all([
             fetch('/api/stocks'),
-            fetch('http://localhost:3000/api/exchange-rates').then(r => r.json()).catch(() => ({ USD: 1.16, RON: 4.95 }))
+            fetch(`${API_BASE}/api/exchange-rates`).then(r => r.json()).catch(() => ({ USD: 1.16, RON: 4.95 }))
         ]);
         const stocks = await stocksResponse.json();
         let total = 0;
@@ -1161,7 +1212,7 @@ let balancePieChart = null;
 const depositsTbody = document.getElementById('deposits-tbody');
 const addDepositBtn = document.getElementById('add-deposit-btn');
 let currentEditingDeposit = null;
-const DEPOSITS_API_URL = 'http://localhost:3000/api/deposits';
+const DEPOSITS_API_URL = `${API_BASE}/api/deposits`;
 
 // Load deposits from database
 async function loadDepositsData() {
@@ -1478,7 +1529,7 @@ async function updateBalanceBreakdown() {
         const [stocksResponse, depositsResponse, exchangeRates] = await Promise.all([
             fetch('/api/stocks'),
             fetch('/api/deposits'),
-            fetch('http://localhost:3000/api/exchange-rates').then(r => r.json()).catch(() => ({ USD: 1.16 }))
+            fetch(`${API_BASE}/api/exchange-rates`).then(r => r.json()).catch(() => ({ USD: 1.16 }))
         ]);
         
         const stocks = await stocksResponse.json();

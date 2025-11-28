@@ -8,6 +8,20 @@ const { exportData, importData } = require('./db-backup');
 const app = express();
 let PORT = parseInt(process.env.PORT || '3000', 10);
 
+// In-memory cache for PREM validated price
+const premCache = {
+  pence: null,      // raw pence value (GBp)
+  gbp: null,        // price in GBP
+  eur: null,        // price in EUR
+  updatedAt: 0,     // timestamp ms
+  source: null      // 'LSE' | 'Yahoo'
+};
+
+function isPremPencePlausible(p) {
+  // Basic sanity: positive, not absurd (e.g., > 10 GBp unlikely for current microcap state), not zero
+  return Number.isFinite(p) && p > 0 && p < 10;
+}
+
 // Fetch shim: use global fetch if available (Node 18+), else node-fetch v2
 let fetchFn = global.fetch;
 if (!fetchFn) {
@@ -611,15 +625,27 @@ app.get('/api/stock-price/:symbol', async (req, res) => {
           const gbp = pence / 100;
           const eur = gbp / (rates.GBP || 0.86);
           console.log(`PREM LSE scrape: pence=${pence}, GBP=${gbp.toFixed(6)}, EUR=${eur.toFixed(6)}, GBP rate=${rates.GBP}`);
-          return res.json({ 
-            price: eur.toFixed(6), 
-            priceEUR: eur, 
-            priceGBP: gbp, 
-            priceGBp: pence,
-            symbol: 'PREM.L', 
-            originalSymbol: symbol, 
-            originalCurrency: 'GBp' 
-          });
+          if (isPremPencePlausible(pence)) {
+            premCache.pence = pence;
+            premCache.gbp = gbp;
+            premCache.eur = eur;
+            premCache.updatedAt = Date.now();
+            premCache.source = 'LSE';
+            return res.json({ 
+              price: eur.toFixed(6), 
+              priceEUR: eur, 
+              priceGBP: gbp, 
+              priceGBp: pence,
+              symbol: 'PREM.L', 
+              originalSymbol: symbol, 
+              originalCurrency: 'GBp',
+              validated: true,
+              source: 'LSE',
+              cached: false
+            });
+          } else {
+            console.warn('LSE pence value not plausible, ignoring:', pence);
+          }
         }
       } catch (err) {
         console.log('PREM LSE scrape failed, falling back to Yahoo:', err.message);
@@ -645,60 +671,95 @@ app.get('/api/stock-price/:symbol', async (req, res) => {
           console.log(`✓ Found data for ${altSymbol}: price=${price}, currency=${currency}`);
           
           // Convert to EUR if needed (skip conversion for crypto symbols ending with -USD)
-          if (price && currency) {
+          if (price != null && currency) {
             const isCrypto = symbol.endsWith('-USD') && (symbol.includes('JASMY') || symbol.includes('KAS') || symbol.match(/^[A-Z]{3,}-USD$/));
             const rates = await getExchangeRates();
-            
-            if (!isCrypto && currency === 'USD') {
-              price = price / rates.USD;
-            } else if (currency === 'RON') {
-              price = price / rates.RON;
-            } else if (currency === 'GBP') {
-              // GBP to EUR
-              priceGBP = price; // keep GBP for UI display
-              price = price / (rates.GBP || 0.86);
-            } else if (currency === 'GBp') {
-              // London prices in pence: convert to GBP then to EUR
-              if (Number.isFinite(price) && price > 0) {
-                const gbpPrice = price / 100;
-                priceGBP = gbpPrice; // keep GBP for UI display
-                priceGBp = price;    // original pence
-                price = gbpPrice / (rates.GBP || 0.86);
-              } else {
-                // Yahoo returned invalid pence; try LSE scrape fallback
-                try {
-                  const lseUrl = 'https://www.lse.co.uk/SharePrice.html?shareprice=PREM&share=Premier-african-minerals';
-                  const htmlResp = await fetch(lseUrl);
-                  const html = await htmlResp.text();
-                  const m = html.match(/([0-9]+\.?[0-9]*)\s*p\b/i);
-                  if (m && m[1]) {
-                    const pence = parseFloat(m[1]);
-                    const gbp = pence / 100;
-                    priceGBP = gbp;
-                    priceGBp = pence;
-                    price = gbp / (rates.GBP || 0.86);
-                    console.log(`Yahoo GBp was invalid; LSE fallback used: pence=${pence}, GBP=${gbp}`);
+            // Currency conversions (non-crypto first)
+            if (!isCrypto) {
+              if (currency === 'USD') {
+                price = price / rates.USD;
+              } else if (currency === 'RON') {
+                price = price / rates.RON;
+              } else if (currency === 'GBP') {
+                priceGBP = price;
+                price = price / (rates.GBP || 0.86);
+              } else if (currency === 'GBp') {
+                if (Number.isFinite(price) && price > 0) {
+                  const gbpPrice = price / 100;
+                  priceGBP = gbpPrice;
+                  priceGBp = price;
+                  price = gbpPrice / (rates.GBP || 0.86);
+                } else {
+                  // fallback scrape
+                  try {
+                    const lseUrl = 'https://www.lse.co.uk/SharePrice.html?shareprice=PREM&share=Premier-african-minerals';
+                    const htmlResp = await fetch(lseUrl);
+                    const html = await htmlResp.text();
+                    const m = html.match(/([0-9]+\.?[0-9]*)\s*p\b/i);
+                    if (m && m[1]) {
+                      const pence = parseFloat(m[1]);
+                      const gbp = pence / 100;
+                      priceGBP = gbp;
+                      priceGBp = pence;
+                      price = gbp / (rates.GBP || 0.86);
+                      console.log(`Yahoo GBp invalid -> LSE fallback pence=${pence}`);
+                    }
+                  } catch (e) {
+                    console.warn('GBp invalid; fallback scrape failed:', e.message);
                   }
-                } catch (e) {
-                  console.warn('GBp invalid and LSE fallback failed:', e.message);
+                }
+              }
+            } else {
+              // Crypto USD → EUR if tagged USD
+              if (currency === 'USD') {
+                price = price / rates.USD;
+              }
+            }
+            // Validation / smoothing for PREM
+            let validatedFlag = true;
+            let sourceUsed = currency === 'GBp' ? 'Yahoo' : currency;
+            if ((symbol.toUpperCase() === 'PREM' || symbol.toUpperCase() === 'PREM.L')) {
+              // Absolute plausibility
+              if (priceGBp != null && !isPremPencePlausible(priceGBp)) {
+                validatedFlag = false;
+              }
+              // EUR should be micro (< 0.01)
+              if (!(Number.isFinite(price) && price > 0 && price < 0.01)) {
+                validatedFlag = false;
+              }
+              // Relative smoothing vs cache
+              if (validatedFlag && premCache.eur != null) {
+                const ratio = price / premCache.eur;
+                if (!(ratio > 0.25 && ratio < 4)) {
+                  validatedFlag = false;
                 }
               }
             }
-            console.log(`Converted ${altSymbol}: EUR price=${price}, rates=${JSON.stringify(rates)}`);
-            // Guard: skip invalid/zero price
-            if (Number.isFinite(price) && price > 0) {
-              return res.json({ 
-                price: price.toFixed(isCrypto ? 6 : 2), 
-                priceEUR: price, 
-                priceGBP: priceGBP, 
+            if (validatedFlag && Number.isFinite(price) && price > 0) {
+              if (symbol.toUpperCase() === 'PREM' || symbol.toUpperCase() === 'PREM.L') {
+                premCache.pence = priceGBp || premCache.pence;
+                premCache.gbp = priceGBP || premCache.gbp;
+                premCache.eur = price;
+                premCache.updatedAt = Date.now();
+                premCache.source = sourceUsed;
+              }
+              console.log(`Converted ${altSymbol}: EUR=${price} validated=${validatedFlag}`);
+              return res.json({
+                price: price.toFixed(isCrypto ? 6 : 2),
+                priceEUR: price,
+                priceGBP: priceGBP,
                 priceGBp: priceGBp,
                 symbol: altSymbol,
                 originalSymbol: symbol,
                 originalCurrency: currency,
-                isCrypto: isCrypto
+                isCrypto: isCrypto,
+                validated: validatedFlag,
+                source: sourceUsed,
+                cached: false
               });
             } else {
-              console.warn(`Ignored non-finite/zero price from Yahoo for ${altSymbol}:`, price);
+              console.warn(`Rejected ${altSymbol} price=${price} validated=${validatedFlag}`);
+              // Continue to next alternative
             }
           }
         }
@@ -708,8 +769,24 @@ app.get('/api/stock-price/:symbol', async (req, res) => {
     }
     
     // If all alternatives failed, return error
-    console.log(`No price data available for ${symbol} or its alternatives`);
-    res.status(404).json({ error: 'Price data not available for this symbol' });
+    if ((symbol.toUpperCase() === 'PREM' || symbol.toUpperCase() === 'PREM.L') && premCache.eur != null) {
+      console.log('Returning cached PREM price (no fresh validated fetched).');
+      return res.json({
+        price: premCache.eur.toFixed(6),
+        priceEUR: premCache.eur,
+        priceGBP: premCache.gbp,
+        priceGBp: premCache.pence,
+        symbol: 'PREM.L',
+        originalSymbol: symbol,
+        originalCurrency: 'GBp',
+        validated: true,
+        source: premCache.source,
+        cached: true,
+        ageMs: Date.now() - premCache.updatedAt
+      });
+    }
+    console.log(`No price data available for ${symbol} or its alternatives (and no cache).`);
+    res.status(404).json({ error: 'Price data not available for this symbol', validated: false });
     
   } catch (error) {
     console.error(`Error fetching stock price for ${symbol}:`, error.message);
