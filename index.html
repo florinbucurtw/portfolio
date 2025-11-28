@@ -5,11 +5,371 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Aplicația Mea Web</title>
     <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-stats">
+                <span class="stat-item">Balance: <span id="total-balance">0.00</span> €</span>
+                <span class="stat-item">Profit: <span id="total-profit">0.00</span> €</span>
+            </div>
+            <ul class="nav-menu">
+                <li><a href="#dashboard" class="nav-link active" data-section="dashboard">Dashboard</a></li>
+                <li><a href="#stocks" class="nav-link" data-section="stocks">Stocks</a></li>
+                <li><a href="#sectors" class="nav-link" data-section="sectors">Allocation</a></li>
+                <li><a href="#deposits" class="nav-link" data-section="deposits">Deposits</a></li>
+                <li><a href="#dividends" class="nav-link" data-section="dividends">Dividends</a></li>
+                <li><a href="#admin" class="nav-link" data-section="admin">Admin</a></li>
+            </ul>
+        </div>
+    </nav>
+    
     <div class="container">
-        <h1>Bine ai venit!</h1>
+        <div id="dashboard-section" class="section active">
+            <div class="dashboard-grid">
+                <div class="chart-container">
+                    <h2>Balance by Risk</h2>
+                    <canvas id="balance-pie-chart"></canvas>
+                </div>
+                
+                <div class="performance-chart-container">
+                    <div class="chart-header">
+                        <h2>Portfolio Performance <span id="performance-return" style="color: #4CAF50; font-size: 0.9em; margin-left: 15px;"></span></h2>
+                        <div class="time-range-selector">
+                            <button class="time-btn" data-range="1h">1H</button>
+                            <button class="time-btn active" data-range="1d">1D</button>
+                            <button class="time-btn" data-range="1w">1W</button>
+                            <button class="time-btn" data-range="1m">1M</button>
+                            <button class="time-btn" data-range="6m">6M</button>
+                            <button class="time-btn" data-range="ytd">YTD</button>
+                            <button class="time-btn" data-range="1y">1Y</button>
+                            <button class="time-btn" data-range="5y">5Y</button>
+                            <button class="time-btn" data-range="max">MAX</button>
+                        </div>
+                    </div>
+                    <div class="chart-legend">
+                        <label class="legend-item legend-checkbox">
+                            <input type="checkbox" class="legend-toggle" data-dataset="0" checked>
+                            <span class="legend-color" style="background: #00d9ff;"></span>
+                            <span class="legend-label">Portfolio Balance</span>
+                        </label>
+                        <label class="legend-item legend-checkbox">
+                            <input type="checkbox" class="legend-toggle" data-dataset="1" checked>
+                            <span class="legend-color" style="background: #ffffff;"></span>
+                            <span class="legend-label">Total Deposits</span>
+                        </label>
+                        <label class="legend-item legend-checkbox">
+                            <input type="checkbox" class="legend-toggle" data-dataset="2" checked>
+                            <span class="legend-color" style="background: #FFC107;"></span>
+                            <span class="legend-label">S&P 500</span>
+                        </label>
+                        <label class="legend-item legend-checkbox">
+                            <input type="checkbox" class="legend-toggle" data-dataset="3" checked>
+                            <span class="legend-color" style="background: #ff8a80;"></span>
+                            <span class="legend-label">BET-TR</span>
+                        </label>
+                    </div>
+                    <canvas id="performance-chart"></canvas>
+                </div>
+            </div>
+            
+            <div class="wide-panel-container">
+                <div class="wide-panel-grid">
+                    <div class="panel-zone">
+                        <div class="deposits-breakdown">
+                            <h3 class="panel-zone-title">Balance:</h3>
+                            <div class="breakdown-item">
+                                <span class="breakdown-label">XTB EUR</span>
+                                <span class="breakdown-value breakdown-value-balance" id="xtb-eur-balance-value">0.00 €</span>
+                            </div>
+                            <div class="breakdown-item">
+                                <span class="breakdown-label">Tradeville</span>
+                                <span class="breakdown-value breakdown-value-balance" id="tradeville-balance-value">0.00 €</span>
+                            </div>
+                            <div class="breakdown-item">
+                                <span class="breakdown-label">T212 + XTB USD</span>
+                                <span class="breakdown-value breakdown-value-balance" id="t212-xtb-usd-balance-value">0.00 €</span>
+                            </div>
+                            <div class="breakdown-item">
+                                <span class="breakdown-label">Crypto</span>
+                                <span class="breakdown-value breakdown-value-balance" id="crypto-balance-value">0.00 €</span>
+                            </div>
+                            <div class="breakdown-item">
+                                <span class="breakdown-label">Bank Deposits</span>
+                                <span class="breakdown-value breakdown-value-balance" id="bank-deposit-balance-value">0.00 €</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="panel-zone">
+                        <div class="deposits-breakdown">
+                            <h3 class="panel-zone-title">Money invested:</h3>
+                            <div class="breakdown-item">
+                                <span class="breakdown-label">XTB EUR</span>
+                                <span class="breakdown-value breakdown-value-white" id="xtb-eur-value">0.00 €</span>
+                            </div>
+                            <div class="breakdown-item">
+                                <span class="breakdown-label">Tradeville</span>
+                                <span class="breakdown-value breakdown-value-white" id="tradeville-value">0.00 €</span>
+                            </div>
+                            <div class="breakdown-item">
+                                <span class="breakdown-label">T212 + XTB USD</span>
+                                <span class="breakdown-value breakdown-value-white" id="t212-xtb-usd-value">0.00 €</span>
+                            </div>
+                            <div class="breakdown-item">
+                                <span class="breakdown-label">Crypto</span>
+                                <span class="breakdown-value breakdown-value-white" id="crypto-value">0.00 €</span>
+                            </div>
+                            <div class="breakdown-item">
+                                <span class="breakdown-label">Bank Deposits</span>
+                                <span class="breakdown-value breakdown-value-white" id="bank-deposits-value">0.00 €</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="panel-zone">
+                        <div class="deposits-breakdown">
+                            <h3 class="panel-zone-title">Profit:</h3>
+                            <div class="breakdown-item">
+                                <span class="breakdown-label">XTB EUR</span>
+                                <span class="breakdown-value breakdown-value-profit" id="xtb-eur-profit-value">0.00 €</span><span id="xtb-eur-return-percentage"></span>
+                            </div>
+                            <div class="breakdown-item">
+                                <span class="breakdown-label">Tradeville</span>
+                                <span class="breakdown-value breakdown-value-profit" id="tradeville-profit-value">0.00 €</span><span id="tradeville-return-percentage"></span>
+                            </div>
+                            <div class="breakdown-item breakdown-item-compact">
+                                <span class="breakdown-label">T212 + XTB USD</span>
+                                <span class="breakdown-value breakdown-value-profit" id="t212-xtb-usd-profit-value">0.00 €</span><span id="t212-xtb-usd-return-percentage"></span>
+                            </div>
+                            <div class="breakdown-item">
+                                <span class="breakdown-label">Crypto</span>
+                                <span class="breakdown-value breakdown-value-profit" id="crypto-profit-value">0.00 €</span><span id="crypto-return-percentage"></span>
+                            </div>
+                            <div class="breakdown-item">
+                                <span class="breakdown-label">Bank Deposits</span>
+                                <span class="breakdown-value breakdown-value-profit" id="bank-deposits-profit-value">0.00 €</span><span id="bank-deposits-return-percentage"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="stocks-section" class="section">
+            <div class="table-header">
+                <button id="add-row-btn" class="add-btn">+</button>
+                <button id="refresh-stocks-btn" class="refresh-btn" title="Refresh Prices">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="23 4 23 10 17 10"></polyline>
+                        <polyline points="1 20 1 14 7 14"></polyline>
+                        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                    </svg>
+                </button>
+                <button id="export-stocks-btn" class="export-btn">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="7 10 12 15 17 10"></polyline>
+                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                    </svg>
+                </button>
+            </div>
+            
+            <!-- Floating Add Button (appears when main button is not visible) -->
+            <button id="floating-add-btn" class="floating-add-btn" title="Add Stock">+</button>
+            
+            <!-- Risk Tooltip -->
+            <div class="tooltip" id="risk-tooltip">
+                <div class="tooltip-title">Risk Categories</div>
+                <div class="tooltip-item">🟩 Very Safe: Bank deposits, Government bonds</div>
+                <div class="tooltip-item">🟦 Safe: Low-vol dividend ETFs, Broad-market ETFs</div>
+                <div class="tooltip-item">🟨 Medium: Nasdaq ETFs, Large-cap stocks</div>
+                <div class="tooltip-item">🟥 High Risk: Thematic ETFs, Small-caps, Crypto</div>
+            </div>
+            
+            <table class="stocks-table">
+                <thead>
+                    <tr>
+                        <th>Nr.</th>
+                        <th>Symbol</th>
+                        <th class="sortable" data-column="weight">Weight <span class="sort-icon">⇅</span></th>
+                        <th>Company</th>
+                        <th class="sortable" data-column="allocation">Allocation <span class="sort-icon">⇅</span></th>
+                        <th>Shares</th>
+                        <th>Share_Price (€)</th>
+                        <th>Price Change</th>
+                        <th class="sortable" data-column="broker">Broker <span class="sort-icon">⇅</span></th>
+                        <th class="sortable" data-column="sector">Sector <span class="sort-icon">⇅</span></th>
+                        <th class="risk-header sortable" data-column="risk">
+                            Risk 
+                            <span class="info-icon" id="risk-info">
+                                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                                    <circle cx="8" cy="8" r="7" fill="none" stroke="currentColor" stroke-width="1.5"/>
+                                    <text x="8" y="12" text-anchor="middle" font-size="12" font-weight="bold" fill="currentColor">i</text>
+                                </svg>
+                            </span>
+                            <span class="sort-icon">⇅</span>
+                        </th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="stocks-tbody">
+                    <!-- Data will be added here -->
+                </tbody>
+            </table>
+        </div>
+        
+        <div id="deposits-section" class="section">
+            <div class="table-header">
+                <button id="add-deposit-btn" class="add-btn">+</button>
+            </div>
+            
+            <div class="deposits-total">
+                <span>Total Deposits:</span>
+                <span id="total-deposits-amount">0.00 €</span>
+            </div>
+            
+            <table class="stocks-table">
+                <thead>
+                    <tr>
+                        <th>Count</th>
+                        <th>Date</th>
+                        <th>Amount (€)</th>
+                        <th>Account</th>
+                        <th>Month</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="deposits-tbody">
+                    <!-- Data will be added here -->
+                </tbody>
+            </table>
+        </div>
+        
+        <div id="dividends-section" class="section">
+            <!-- Dividends Chart -->
+            <div class="chart-container" style="margin-bottom: 2rem;">
+                <canvas id="dividendsChart"></canvas>
+            </div>
+            
+            <div class="table-header">
+                <button id="add-dividend-btn" class="add-btn">+</button>
+            </div>
+            
+            <button id="floating-add-dividend-btn" class="floating-add-btn">+</button>
+            
+            <table id="dividends-table">
+                    <thead>
+                        <tr>
+                            <th>Nr.</th>
+                            <th>Year</th>
+                            <th>Annual Dividend</th>
+                            <th>Dividend / Month</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="dividends-table-body">
+                        <!-- Dividends will be populated here -->
+                    </tbody>
+                </table>
+        </div>
+
+        <div id="sectors-section" class="section" style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 70vh;">
+            <!-- Toggle buttons -->
+            <div style="display: flex; justify-content: center; gap: 1rem; margin: 2rem 0;">
+                <button id="toggle-sectors-btn" class="toggle-btn active" style="padding: 0.75rem 2rem; font-size: 1rem; border: 2px solid #4CAF50; background: #4CAF50; color: white; border-radius: 8px; cursor: pointer; font-weight: 500; transition: all 0.3s;">
+                    Sectors
+                </button>
+                <button id="toggle-countries-btn" class="toggle-btn" style="padding: 0.75rem 2rem; font-size: 1rem; border: 2px solid #ddd; background: white; color: #333; border-radius: 8px; cursor: pointer; font-weight: 500; transition: all 0.3s;">
+                    Countries
+                </button>
+            </div>
+            
+            <!-- Chart and Stats Container -->
+            <div class="allocation-container" style="max-width: 960px; margin: 0 auto; display: flex; gap: 2rem; align-items: flex-start; margin-left: calc(50% - 485px);">
+                <!-- Chart (Left side) -->
+                <div class="chart-container" style="flex: 0 0 300px; width: 300px; height: 300px; position: relative;">
+                    <canvas id="allocation-pie-chart"></canvas>
+                </div>
+                
+                <!-- Top List (Right side) -->
+                <div class="allocation-stats" style="flex: 0 0 520px; padding: 1rem; max-height: 300px;">
+                    <h2 style="color: white; margin-bottom: 0.75rem; font-size: 1.1rem;">Top Allocations</h2>
+                    <div id="allocation-list" style="display: grid; grid-template-rows: repeat(6, 1fr); grid-auto-flow: column; gap: 0.4rem;"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="admin-section" class="section">
+            <h1>Admin - Performance Snapshots</h1>
+            <div class="admin-controls">
+                <button id="refresh-snapshots-btn" class="btn-primary">🔄 Refresh</button>
+                <button id="export-snapshots-btn" class="btn-primary">📥 Export CSV</button>
+                <button id="reset-baseline-btn" class="btn-warning" style="background-color: #ff9800;">🔄 Reset T0 (New Start)</button>
+                <button id="delete-old-snapshots-btn" class="btn-danger">🗑️ Delete Old (>30 days)</button>
+                <button id="delete-all-snapshots-btn" class="btn-danger">⚠️ Delete All</button>
+            </div>
+            <div class="admin-controls" style="margin-top: 1rem;">
+                <label style="color: white; margin-right: 0.5rem;">Delete ID Range:</label>
+                <input type="number" id="delete-range-from" placeholder="From ID" style="width: 100px; margin-right: 0.5rem;" min="1">
+                <label style="color: white; margin: 0 0.5rem;">to</label>
+                <input type="number" id="delete-range-to" placeholder="To ID" style="width: 100px; margin-right: 0.5rem;" min="1">
+                <button id="delete-range-btn" class="btn-danger">🗑️ Delete Range</button>
+            </div>
+            <div class="snapshots-stats">
+                <div class="stat-card">
+                    <span class="stat-label">Total Snapshots:</span>
+                    <span id="total-snapshots-count">0</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Date Range:</span>
+                    <span id="snapshots-date-range">-</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Database Size:</span>
+                    <span id="snapshots-size">0 KB</span>
+                </div>
+            </div>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Date & Time</th>
+                            <th>Balance</th>
+                            <th>Portfolio %</th>
+                            <th>Deposits %</th>
+                            <th>S&P 500 %</th>
+                            <th>BET-TR %</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="snapshots-tbody">
+                        <tr><td colspan="8" style="text-align: center; padding: 2rem;">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
-    <script src="script.js"></script>
+    
+    <!-- Delete Confirmation Dialog -->
+    <div class="modal-overlay" id="delete-modal">
+        <div class="modal-content">
+            <div class="modal-icon">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#f44336" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="8" x2="12" y2="12"></line>
+                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                </svg>
+            </div>
+            <h2 class="modal-title">Delete Stock?</h2>
+            <p class="modal-message">Are you sure you want to delete <strong id="stock-name"></strong>? This action cannot be undone.</p>
+            <div class="modal-actions">
+                <button class="modal-btn modal-btn-cancel" id="cancel-delete">Cancel</button>
+                <button class="modal-btn modal-btn-confirm" id="confirm-delete">Delete</button>
+            </div>
+        </div>
+    </div>
+    
+    <script src="script.js?v=1.2"></script>
 </body>
 </html>

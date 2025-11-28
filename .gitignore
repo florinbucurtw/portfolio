@@ -1,6 +1,13 @@
 # Dependencies
 node_modules/
 
+# Database
+portfolio.db
+*.db
+
+# Backup data (include this if you want to keep backups in git)
+# backup-data.json
+
 # System Files
 .DS_Store
 Thumbs.db
