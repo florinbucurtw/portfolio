@@ -585,6 +585,26 @@ app.get('/api/stock-price/:symbol', async (req, res) => {
   
   try {
     const fetch = (await import('node-fetch')).default;
+    // Special handling for PREM from LSE (price in pence "p")
+    if (symbol.toUpperCase() === 'PREM') {
+      try {
+        const lseUrl = 'https://www.lse.co.uk/SharePrice.html?shareprice=PREM&share=Premier-african-minerals';
+        const htmlResp = await fetch(lseUrl);
+        const html = await htmlResp.text();
+        // Try to find a price like 0.0575p (allow variations with spaces)
+        const match = html.match(/([0-9]+\.?[0-9]*)\s*p/i);
+        if (match && match[1]) {
+          const pence = parseFloat(match[1]);
+          const rates = await getExchangeRates();
+          // Convert pence -> GBP -> EUR
+          const gbp = pence / 100;
+          const eur = gbp / (rates.GBP || 0.86);
+          return res.json({ price: eur.toFixed(6), symbol: 'PREM', originalSymbol: symbol, originalCurrency: 'GBp' });
+        }
+      } catch (err) {
+        console.log('PREM LSE scrape failed, falling back to Yahoo:', err.message);
+      }
+    }
     const alternatives = tryAlternativeSymbols(symbol);
     
     console.log(`Fetching price for ${symbol}, trying alternatives:`, alternatives);
