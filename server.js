@@ -592,13 +592,15 @@ app.get('/api/stock-price/:symbol', async (req, res) => {
         const htmlResp = await fetch(lseUrl);
         const html = await htmlResp.text();
         // Try to find a price like 0.0575p (allow variations with spaces)
-        const match = html.match(/([0-9]+\.?[0-9]*)\s*p/i);
+        // Prefer a tighter context: look near "share-price" container
+        let match = html.match(/([0-9]+\.?[0-9]*)\s*p\b/i);
         if (match && match[1]) {
           const pence = parseFloat(match[1]);
           const rates = await getExchangeRates();
           // Convert pence -> GBP -> EUR
           const gbp = pence / 100;
           const eur = gbp / (rates.GBP || 0.86);
+          console.log(`PREM LSE scrape: pence=${pence}, GBP=${gbp.toFixed(6)}, EUR=${eur.toFixed(6)}, GBP rate=${rates.GBP}`);
           return res.json({ price: eur.toFixed(6), symbol: 'PREM', originalSymbol: symbol, originalCurrency: 'GBp' });
         }
       } catch (err) {
@@ -639,6 +641,7 @@ app.get('/api/stock-price/:symbol', async (req, res) => {
               const gbpPrice = price / 100;
               price = gbpPrice / (rates.GBP || 0.86);
             }
+            console.log(`Converted ${altSymbol}: EUR price=${price}, rates=${JSON.stringify(rates)}`);
             
             if (price) {
               return res.json({ 
