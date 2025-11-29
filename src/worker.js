@@ -415,6 +415,86 @@ export default {
       }
     }
 
+    // Allocation by sectors (percentages from EUR balances)
+    if (path === '/api/allocation/sectors' && method === 'GET') {
+      try {
+        const rows = await env.DB.prepare('SELECT symbol, sector, broker, shares, share_price FROM stocks').all();
+        const rates = await fetch('https://api.exchangerate-api.com/v4/latest/EUR').then(r => r.json()).catch(() => ({ rates: { USD: 1.16, GBP: 0.86, RON: 5.09 } }));
+        const USD = rates?.rates?.USD ?? 1.16;
+        const GBP = rates?.rates?.GBP ?? 0.86;
+        const RON = rates?.rates?.RON ?? 5.09;
+        const totals = {};
+        let grand = 0;
+        for (const r of (rows.results || [])) {
+          const shares = parseFloat(String(r.shares || '0').replace(/[^0-9.-]/g, '')) || 0;
+          const raw = String(r.share_price || '0');
+          const num = parseFloat(raw.replace(/[^0-9.-]/g, '')) || 0;
+          let priceEUR = num;
+          if (raw.includes('$') || r.broker === 'Crypto') priceEUR = num / USD;
+          else if (raw.includes('£')) priceEUR = num / GBP;
+          else if (/GBX|GBp|p\b/.test(raw)) priceEUR = (num / 100) / GBP;
+          else if (/RON|Lei|lei/i.test(raw)) priceEUR = num / RON;
+          const value = shares * (priceEUR || 0);
+          const sector = r.sector || 'Unknown';
+          totals[sector] = (totals[sector] || 0) + value;
+          grand += value;
+        }
+        const out = Object.entries(totals)
+          .filter(([_, v]) => v > 0 && _ !== 'Cash')
+          .map(([name, v]) => ({ name, percentage: grand > 0 ? (v / grand) * 100 : 0 }))
+          .sort((a, b) => b.percentage - a.percentage);
+        return json(out);
+      } catch (e) {
+        return json({ error: e.message }, 500);
+      }
+    }
+
+    // Allocation by countries (heuristics + ETF buckets)
+    if (path === '/api/allocation/countries' && method === 'GET') {
+      try {
+        const rows = await env.DB.prepare('SELECT symbol, sector, broker, shares, share_price FROM stocks').all();
+        const rates = await fetch('https://api.exchangerate-api.com/v4/latest/EUR').then(r => r.json()).catch(() => ({ rates: { USD: 1.16, GBP: 0.86, RON: 5.09 } }));
+        const USD = rates?.rates?.USD ?? 1.16;
+        const GBP = rates?.rates?.GBP ?? 0.86;
+        const RON = rates?.rates?.RON ?? 5.09;
+        const totals = {};
+        let grand = 0;
+        const assignCountry = (row) => {
+          const sector = (row.sector || '').toLowerCase();
+          const sym = String(row.symbol || '').toUpperCase();
+          const broker = String(row.broker || '');
+          if (sym.endsWith('.RO') || broker === 'Tradeville' || sym.includes('TLV.RO')) return 'Romania';
+          if (sector.startsWith('etf us')) return 'United States';
+          if (sector.startsWith('etf europe')) return 'Europe';
+          if (sector.startsWith('etf uk')) return 'United Kingdom';
+          if (sector.startsWith('etf')) return 'Global';
+          if (broker === 'XTB-USD' || broker === 'Trading212') return 'United States';
+          return 'United States';
+        };
+        for (const r of (rows.results || [])) {
+          const shares = parseFloat(String(r.shares || '0').replace(/[^0-9.-]/g, '')) || 0;
+          const raw = String(r.share_price || '0');
+          const num = parseFloat(raw.replace(/[^0-9.-]/g, '')) || 0;
+          let priceEUR = num;
+          if (raw.includes('$') || r.broker === 'Crypto') priceEUR = num / USD;
+          else if (raw.includes('£')) priceEUR = num / GBP;
+          else if (/GBX|GBp|p\b/.test(raw)) priceEUR = (num / 100) / GBP;
+          else if (/RON|Lei|lei/i.test(raw)) priceEUR = num / RON;
+          const value = shares * (priceEUR || 0);
+          const country = assignCountry(r);
+          totals[country] = (totals[country] || 0) + value;
+          grand += value;
+        }
+        const out = Object.entries(totals)
+          .filter(([name, v]) => v > 0 && name !== 'Cash')
+          .map(([name, v]) => ({ name, percentage: grand > 0 ? (v / grand) * 100 : 0 }))
+          .sort((a, b) => b.percentage - a.percentage);
+        return json(out);
+      } catch (e) {
+        return json({ error: e.message }, 500);
+      }
+    }
+
     // Quotes placeholder for production (frontend optional feature)
     if (path === '/api/quotes' && method === 'GET') {
       return json({ cached: true, data: [] });
