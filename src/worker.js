@@ -51,10 +51,18 @@ export default {
         const sharesStr = typeof r.shares === 'string' ? r.shares : (r.shares == null ? '-' : String(r.shares));
         const priceStr = typeof r.share_price === 'string' ? r.share_price : (r.share_price == null ? '-' : String(r.share_price));
 
-        const shares_num = parseFloat(String(sharesStr).replace(/[^0-9.-]/g, '')) || 0;
-        const weight_num = parseFloat(String(weightStr).replace(/[^0-9.-]/g, '')) || 0;
-        const allocation_num = parseFloat(String(allocationStr).replace(/[^0-9.-]/g, '')) || 0;
-        const share_price_num = parseFloat(String(priceStr).replace(/[^0-9.-]/g, '')) || 0;
+        const shares_num = typeof r.shares === 'number'
+          ? Number(r.shares)
+          : (() => { const n = parseFloat(String(sharesStr).replace(/[^0-9.-]/g, '')); return Number.isFinite(n) ? n : null; })();
+        const weight_num = typeof r.weight === 'number'
+          ? Number(r.weight)
+          : (() => { const n = parseFloat(String(weightStr).replace(/[^0-9.-]/g, '')); return Number.isFinite(n) ? n : null; })();
+        const allocation_num = typeof r.allocation === 'number'
+          ? Number(r.allocation)
+          : (() => { const n = parseFloat(String(allocationStr).replace(/[^0-9.-]/g, '')); return Number.isFinite(n) ? n : null; })();
+        const share_price_num = typeof r.share_price === 'number'
+          ? Number(r.share_price)
+          : (() => { const n = parseFloat(String(priceStr).replace(/[^0-9.-]/g, '')); return Number.isFinite(n) ? n : null; })();
 
         return {
           id: r.id,
