@@ -561,6 +561,17 @@ export default {
       return json({ range, snapshots: rows.results || [] });
     }
 
+    // Performance snapshot: delete by id
+    if (path.startsWith('/api/performance-snapshot/') && method === 'DELETE') {
+      const idStr = path.split('/').pop();
+      const id = Number(idStr);
+      if (!Number.isFinite(id)) return json({ error: 'Invalid snapshot id' }, 400);
+      const exists = await env.DB.prepare('SELECT id FROM performance_snapshots WHERE id = ?').bind(id).first();
+      if (!exists) return json({ error: 'Snapshot not found' }, 404);
+      await env.DB.prepare('DELETE FROM performance_snapshots WHERE id = ?').bind(id).run();
+      return json({ message: 'Snapshot deleted', id });
+    }
+
     return json({ error: 'Not Found' }, 404);
   },
 
