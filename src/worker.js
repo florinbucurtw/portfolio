@@ -45,18 +45,35 @@ export default {
     // Stocks
     if (path === '/api/stocks' && method === 'GET') {
       const rows = await env.DB.prepare('SELECT * FROM stocks').all();
-      const out = (rows.results || []).map(r => ({
-        id: r.id,
-        symbol: r.symbol ?? '-',
-        weight: typeof r.weight === 'string' ? r.weight : (r.weight == null ? '-' : String(r.weight)),
-        company: r.company ?? '-',
-        allocation: typeof r.allocation === 'string' ? r.allocation : (r.allocation == null ? '-' : String(r.allocation)),
-        shares: typeof r.shares === 'string' ? r.shares : (r.shares == null ? '-' : String(r.shares)),
-        share_price: typeof r.share_price === 'string' ? r.share_price : (r.share_price == null ? '-' : String(r.share_price)),
-        broker: r.broker ?? '-',
-        risk: r.risk ?? '-',
-        sector: r.sector ?? '-'
-      }));
+      const out = (rows.results || []).map(r => {
+        const weightStr = typeof r.weight === 'string' ? r.weight : (r.weight == null ? '-' : String(r.weight));
+        const allocationStr = typeof r.allocation === 'string' ? r.allocation : (r.allocation == null ? '-' : String(r.allocation));
+        const sharesStr = typeof r.shares === 'string' ? r.shares : (r.shares == null ? '-' : String(r.shares));
+        const priceStr = typeof r.share_price === 'string' ? r.share_price : (r.share_price == null ? '-' : String(r.share_price));
+
+        const shares_num = parseFloat(String(sharesStr).replace(/[^0-9.-]/g, '')) || 0;
+        const weight_num = parseFloat(String(weightStr).replace(/[^0-9.-]/g, '')) || 0;
+        const allocation_num = parseFloat(String(allocationStr).replace(/[^0-9.-]/g, '')) || 0;
+        const share_price_num = parseFloat(String(priceStr).replace(/[^0-9.-]/g, '')) || 0;
+
+        return {
+          id: r.id,
+          symbol: r.symbol ?? '-',
+          weight: weightStr,
+          company: r.company ?? '-',
+          allocation: allocationStr,
+          shares: sharesStr,
+          share_price: priceStr,
+          broker: r.broker ?? '-',
+          risk: r.risk ?? '-',
+          sector: r.sector ?? '-',
+          // Normalized numeric helpers (non-breaking extras)
+          shares_num,
+          weight_num,
+          allocation_num,
+          share_price_num
+        };
+      });
       return json(out);
     }
     if (path === '/api/stocks' && method === 'POST') {
