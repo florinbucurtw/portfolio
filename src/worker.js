@@ -122,7 +122,8 @@ export default {
 
     // Dividends
     if (path === '/api/dividends' && method === 'GET') {
-      const rows = await env.DB.prepare('SELECT * FROM dividends ORDER BY id').all();
+      // Order by year descending for consistent chart ordering
+      const rows = await env.DB.prepare('SELECT * FROM dividends ORDER BY year DESC').all();
       return json(rows.results || []);
     }
     if (path === '/api/dividends' && method === 'POST') {
@@ -135,10 +136,18 @@ export default {
     if (path.startsWith('/api/dividends/') && method === 'PUT') {
       const id = path.split('/').pop();
       const body = await request.json();
-      const { annual_dividend } = body;
-      await env.DB.prepare('UPDATE dividends SET annual_dividend = ? WHERE id = ?')
-        .bind(annual_dividend, id).run();
-      return json({ id: Number(id), annual_dividend });
+      const { year, annual_dividend } = body;
+      // If year omitted, keep existing year
+      if (year === undefined) {
+        const existing = await env.DB.prepare('SELECT year FROM dividends WHERE id = ?').bind(id).first();
+        await env.DB.prepare('UPDATE dividends SET year = ?, annual_dividend = ? WHERE id = ?')
+          .bind(existing?.year, annual_dividend, id).run();
+        return json({ id: Number(id), year: existing?.year, annual_dividend });
+      } else {
+        await env.DB.prepare('UPDATE dividends SET year = ?, annual_dividend = ? WHERE id = ?')
+          .bind(year, annual_dividend, id).run();
+        return json({ id: Number(id), year, annual_dividend });
+      }
     }
     if (path.startsWith('/api/dividends/') && method === 'DELETE') {
       const id = path.split('/').pop();
@@ -333,6 +342,37 @@ export default {
         return json(payload);
       } catch (e) {
         return json({ symbol, error: e.message }, 500);
+      }
+    }
+
+    // Historical price data (needed for performance chart fallback)
+    if (path.startsWith('/api/historical/') && method === 'GET') {
+      const symbol = decodeURIComponent(path.replace('/api/historical/', ''));
+      const range = url.searchParams.get('range') || '1m';
+      const rangeMap = {
+        '1h': { interval: '1m', range: '1d' },
+        '1d': { interval: '1h', range: '1d' },
+        '1w': { interval: '1d', range: '5d' },
+        '1m': { interval: '1d', range: '1mo' },
+        '6m': { interval: '1d', range: '6mo' },
+        'ytd': { interval: '1d', range: 'ytd' },
+        '1y': { interval: '1d', range: '1y' },
+        '5y': { interval: '1wk', range: '5y' },
+        'max': { interval: '1mo', range: 'max' }
+      };
+      const params = rangeMap[range] || rangeMap['1m'];
+      try {
+        const yfUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=${params.interval}&range=${params.range}`;
+        const resp = await fetch(yfUrl);
+        const data = await resp.json();
+        const result = data?.chart?.result?.[0];
+        if (!result) return json({ symbol, range, data: [] }, 200);
+        const timestamps = result.timestamp || [];
+        const closes = result.indicators?.quote?.[0]?.close || [];
+        const points = timestamps.map((t, i) => ({ timestamp: t * 1000, price: closes[i] })).filter(p => p.price != null);
+        return json({ symbol, range, data: points });
+      } catch (e) {
+        return json({ symbol, range, error: e.message, data: [] }, 500);
       }
     }
 
