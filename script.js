@@ -3562,7 +3562,7 @@ async function deleteSnapshotRange(fromId, toId) {
 async function resetBaseline() {
     try {
         // Get latest snapshot data to use as new baseline
-        const snapshotsResponse = await fetch('/api/performance-snapshots?range=max');
+        const snapshotsResponse = await fetch(`${API_BASE}/api/performance-snapshots?range=max`);
         const snapshotsData = await snapshotsResponse.json();
         const snapshots = snapshotsData.snapshots || [];
         
@@ -3576,7 +3576,7 @@ async function resetBaseline() {
         const portfolioBalance = latestSnapshot.portfolio_balance;
         
         // Calculate total deposits from deposits API
-        const depositsResponse = await fetch('/api/deposits');
+        const depositsResponse = await fetch(`${API_BASE}/api/deposits`);
         const depositsData = await depositsResponse.json();
         
         const totalDeposits = depositsData.reduce((sum, deposit) => {
@@ -3586,7 +3586,7 @@ async function resetBaseline() {
         
         console.log(`🔄 Resetting baseline to: Portfolio=${portfolioBalance}€, Deposits=${totalDeposits}€`);
         
-        const response = await fetch('/api/performance-baseline/reset', {
+        const response = await fetch(`${API_BASE}/api/performance-baseline/reset`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'

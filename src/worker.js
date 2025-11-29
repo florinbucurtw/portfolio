@@ -561,6 +561,32 @@ export default {
       return json({ range, snapshots: rows.results || [] });
     }
 
+    // Performance baseline: reset to provided values
+    if (path === '/api/performance-baseline/reset' && method === 'POST') {
+      try {
+        const body = await request.json();
+        const portfolio_balance = Number(body.portfolio_balance || 0);
+        const total_deposits = Number(body.total_deposits || 0);
+        const timestamp = Date.now();
+
+        const baseline = await env.DB.prepare('SELECT * FROM performance_baseline WHERE id = 1').first();
+        if (baseline) {
+          await env.DB.prepare('UPDATE performance_baseline SET timestamp=?, portfolio_balance=?, total_deposits=? WHERE id = 1')
+            .bind(timestamp, portfolio_balance, total_deposits).run();
+        } else {
+          await env.DB.prepare('INSERT INTO performance_baseline (id, timestamp, portfolio_balance, total_deposits, sp500_price, bet_price) VALUES (1, ?, ?, ?, 0, 0)')
+            .bind(timestamp, portfolio_balance, total_deposits).run();
+        }
+        // Insert a zeroed snapshot to mark reset moment
+        await env.DB.prepare(
+          'INSERT INTO performance_snapshots (timestamp, portfolio_balance, portfolio_percent, deposits_percent, sp500_percent, bet_percent) VALUES (?, ?, 0, 0, 0, 0)'
+        ).bind(timestamp, portfolio_balance).run();
+        return json({ id: 1, timestamp, portfolio_balance, total_deposits, reset: true });
+      } catch (e) {
+        return json({ error: e.message }, 500);
+      }
+    }
+
     // Performance snapshot: delete by id
     if (path.startsWith('/api/performance-snapshot/') && method === 'DELETE') {
       const idStr = path.split('/').pop();
