@@ -136,6 +136,73 @@ export default {
       return json({ message: 'Dividend deleted successfully' });
     }
 
+    // Admin: bulk import stocks (upsert by symbol)
+    if (path === '/api/admin/import-stocks' && method === 'POST') {
+      const items = await request.json();
+      if (!Array.isArray(items)) return json({ error: 'Expected an array of stocks' }, 400);
+      const results = [];
+      for (const it of items) {
+        const { symbol, weight, company, allocation, shares, share_price, broker, risk, sector } = it;
+        if (!symbol) { results.push({ symbol, status: 'skip', reason: 'missing symbol' }); continue; }
+        const existing = await env.DB.prepare('SELECT id FROM stocks WHERE symbol = ?').bind(symbol).first();
+        if (existing) {
+          await env.DB.prepare(
+            'UPDATE stocks SET weight=?, company=?, allocation=?, shares=?, share_price=?, broker=?, risk=?, sector=? WHERE id = ?'
+          ).bind(weight, company, allocation, shares, share_price, broker, risk, sector, existing.id).run();
+          results.push({ symbol, status: 'updated' });
+        } else {
+          const res = await env.DB.prepare(
+            'INSERT INTO stocks (symbol, weight, company, allocation, shares, share_price, broker, risk, sector) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+          ).bind(symbol, weight, company, allocation, shares, share_price, broker, risk, sector).run();
+          results.push({ symbol, status: 'inserted', id: res.lastRowId });
+        }
+      }
+      return json({ count: results.length, results });
+    }
+
+    // Admin: bulk import dividends (replace by year)
+    if (path === '/api/admin/import-dividends' && method === 'POST') {
+      const items = await request.json();
+      if (!Array.isArray(items)) return json({ error: 'Expected an array of dividends' }, 400);
+      const results = [];
+      for (const it of items) {
+        const { year, annual_dividend } = it;
+        if (year == null) { results.push({ year, status: 'skip', reason: 'missing year' }); continue; }
+        const existing = await env.DB.prepare('SELECT id FROM dividends WHERE year = ?').bind(year).first();
+        if (existing) {
+          await env.DB.prepare('UPDATE dividends SET annual_dividend = ? WHERE id = ?').bind(annual_dividend, existing.id).run();
+          results.push({ year, status: 'updated' });
+        } else {
+          const res = await env.DB.prepare('INSERT INTO dividends (year, annual_dividend) VALUES (?, ?)').bind(year, annual_dividend).run();
+          results.push({ year, status: 'inserted', id: res.lastRowId });
+        }
+      }
+      return json({ count: results.length, results });
+    }
+
+    // Admin: bulk import performance snapshots (idempotent by timestamp)
+    if (path === '/api/admin/import-snapshots' && method === 'POST') {
+      const items = await request.json();
+      if (!Array.isArray(items)) return json({ error: 'Expected an array of snapshots' }, 400);
+      const results = [];
+      for (const s of items) {
+        const ts = Number(s.timestamp);
+        if (!ts || Number.isNaN(ts)) { results.push({ timestamp: s.timestamp, status: 'skip', reason: 'invalid timestamp' }); continue; }
+        const exists = await env.DB.prepare('SELECT timestamp FROM performance_snapshots WHERE timestamp = ?').bind(ts).first();
+        if (exists) { results.push({ timestamp: ts, status: 'exists' }); continue; }
+        const portfolio_balance = Number(s.portfolio_balance ?? 0);
+        const portfolio_percent = Number(s.portfolio_percent ?? 0);
+        const deposits_percent = Number(s.deposits_percent ?? 0);
+        const sp500_percent = Number(s.sp500_percent ?? 0);
+        const bet_percent = Number(s.bet_percent ?? 0);
+        await env.DB.prepare(
+          'INSERT INTO performance_snapshots (timestamp, portfolio_balance, portfolio_percent, deposits_percent, sp500_percent, bet_percent) VALUES (?, ?, ?, ?, ?, ?)'
+        ).bind(ts, portfolio_balance, portfolio_percent, deposits_percent, sp500_percent, bet_percent).run();
+        results.push({ timestamp: ts, status: 'inserted' });
+      }
+      return json({ count: results.length, results });
+    }
+
     // Performance snapshots: save
     if (path === '/api/performance-snapshot' && method === 'POST') {
       try {
