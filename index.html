@@ -12,7 +12,7 @@
             (function(){
                 const isLocal = ['localhost','127.0.0.1'].includes(location.hostname);
                 // Înlocuiește cu URL-ul Worker-ului după deploy
-                const workerUrl = 'https://portfolio-api.REPLACE.workers.dev';
+                const workerUrl = 'https://portfolio-api.florinportfolio.workers.dev';
                 if (!isLocal && workerUrl.startsWith('https://')) {
                     window.API_BASE_OVERRIDE = workerUrl;
                     console.log('API_BASE_OVERRIDE activ:', workerUrl);
