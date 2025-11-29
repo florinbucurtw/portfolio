@@ -64,12 +64,38 @@ export default {
           ? Number(r.share_price)
           : (() => { const n = parseFloat(String(priceStr).replace(/[^0-9.-]/g, '')); return Number.isFinite(n) ? n : null; })();
 
+        // Server-side fix: if allocation is NaN or missing, recompute safely from shares * price (convert to EUR)
+        let fixedAllocationStr = allocationStr;
+        let fixedAllocationNum = allocation_num;
+        try {
+          const needsFix = fixedAllocationStr.includes('NaN') || fixedAllocationNum == null || !Number.isFinite(fixedAllocationNum);
+          if (needsFix && shares_num != null && shares_num > 0 && share_price_num != null && share_price_num >= 0) {
+            // Determine currency from priceStr
+            const isUSD = /^\$/.test(priceStr) || /-USD$/.test(String(r.symbol || '')) || String(r.broker || '') === 'Crypto';
+            const isGBP = /^£/.test(priceStr);
+            const isGBX = /^GBX|^GBp|p\b/i.test(priceStr);
+            const isRON = /^RON|Lei|lei/i.test(priceStr);
+            // Fetch FX (best-effort cached by CF)
+            // Note: no await inside map without Promise.all; we keep best-effort by default values to avoid blocking
+            const USD = 1.16, GBP = 0.86, RON = 5.09;
+            // Compute EUR price
+            let priceEUR = share_price_num;
+            if (isUSD) priceEUR = share_price_num / USD;
+            else if (isGBP) priceEUR = share_price_num / GBP;
+            else if (isGBX) priceEUR = (share_price_num / 100) / GBP;
+            else if (isRON) priceEUR = share_price_num / RON;
+            const alloc = shares_num * (priceEUR || 0);
+            fixedAllocationNum = Number.isFinite(alloc) ? Math.round(alloc * 100) / 100 : 0;
+            fixedAllocationStr = `€${fixedAllocationNum.toFixed(2)}`;
+          }
+        } catch {}
+
         return {
           id: r.id,
           symbol: r.symbol ?? '-',
           weight: weightStr,
           company: r.company ?? '-',
-          allocation: allocationStr,
+          allocation: fixedAllocationStr,
           shares: sharesStr,
           share_price: priceStr,
           broker: r.broker ?? '-',
@@ -78,7 +104,7 @@ export default {
           // Normalized numeric helpers (non-breaking extras)
           shares_num,
           weight_num,
-          allocation_num,
+          allocation_num: fixedAllocationNum,
           share_price_num
         };
       });
