@@ -1298,7 +1298,14 @@ app.get('/api/allocation/sectors', (req, res) => {
     
     stocks.forEach(stock => {
       // Parse weight percentage (e.g., "8.79%" -> 8.79)
-      const weight = parseFloat(stock.weight.toString().replace(/%/g, ''));
+      let weight = 0;
+      if (stock.weight !== null && stock.weight !== undefined) {
+        const raw = String(stock.weight).trim();
+        if (raw) {
+          const parsed = parseFloat(raw.replace(/%/g, ''));
+          if (!isNaN(parsed)) weight = parsed; // default stays 0 if NaN
+        }
+      }
       
       // Check if stock is an ETF (by ISIN pattern or sector starting with 'ETF')
       const isETF = stock.sector && stock.sector.startsWith('ETF');
@@ -1382,7 +1389,14 @@ app.get('/api/allocation/countries', (req, res) => {
     
     stocks.forEach(stock => {
       // Parse weight percentage (e.g., "8.79%" -> 8.79)
-      const weight = parseFloat(stock.weight.toString().replace(/%/g, ''));
+      let weight = 0;
+      if (stock.weight !== null && stock.weight !== undefined) {
+        const raw = String(stock.weight).trim();
+        if (raw) {
+          const parsed = parseFloat(raw.replace(/%/g, ''));
+          if (!isNaN(parsed)) weight = parsed;
+        }
+      }
       
       // Check if stock is an ETF
       const isETF = stock.sector && stock.sector.startsWith('ETF');
@@ -1429,7 +1443,8 @@ app.get('/api/allocation/countries', (req, res) => {
         
         // For individual stocks, determine country based on symbol
         let country = 'United States'; // Default
-        if (stock.symbol.endsWith('.RO')) {
+        const sym = typeof stock.symbol === 'string' ? stock.symbol : '';
+        if (sym.endsWith('.RO')) {
           country = 'Romania';
         }
         
