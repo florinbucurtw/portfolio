@@ -203,6 +203,49 @@ export default {
       return json({ count: results.length, results });
     }
 
+    // Stock price fetch (frontend expects this route)
+    if (path.startsWith('/api/stock-price/') && method === 'GET') {
+      const symbol = decodeURIComponent(path.replace('/api/stock-price/', ''));
+      try {
+        const fx = await fetch('https://api.exchangerate-api.com/v4/latest/EUR').then(r => r.json()).catch(() => ({ rates: { USD: 1.16, GBP: 0.86, RON: 5.09 } }));
+        const USD = fx?.rates?.USD ?? 1.16;
+        const GBP = fx?.rates?.GBP ?? 0.86;
+        const RON = fx?.rates?.RON ?? 5.09;
+
+        // Yahoo price fetch
+        const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1m&range=1d`;
+        const resp = await fetch(url);
+        const data = await resp.json();
+        const result = data?.chart?.result?.[0];
+        const meta = result?.meta || {};
+        let price = meta.regularMarketPrice ?? meta.previousClose ?? null;
+        if (price == null && result?.indicators?.quote?.[0]?.close) {
+          const closes = result.indicators.quote[0].close.filter(v => v != null);
+          if (closes.length > 0) price = closes[closes.length - 1];
+        }
+        const currency = (meta.currency || '').toUpperCase();
+        let priceEUR = null, priceGBP = null, priceGBp = null;
+        if (price != null) {
+          if (currency === 'EUR') { priceEUR = price; }
+          else if (currency === 'USD') { priceEUR = price / USD; }
+          else if (currency === 'GBP') { priceGBP = price; priceEUR = price / GBP; }
+          else if (currency === 'GBp') { priceGBp = price; priceGBP = price / 100; priceEUR = (price/100) / GBP; }
+          else if (currency === 'RON') { priceEUR = price / RON; }
+          else { priceEUR = price; }
+        }
+        const isCrypto = /-USD$/.test(symbol) || currency === 'USD' && /BTC|ETH|USDT|USDC|KAS|JASMY/i.test(symbol);
+        const validated = price != null;
+        return json({ symbol, price, priceEUR, priceGBP, priceGBp, originalCurrency: currency, isCrypto, validated });
+      } catch (e) {
+        return json({ symbol, error: e.message }, 500);
+      }
+    }
+
+    // Quotes placeholder for production (frontend optional feature)
+    if (path === '/api/quotes' && method === 'GET') {
+      return json({ cached: true, data: [] });
+    }
+
     // Performance snapshots: save
     if (path === '/api/performance-snapshot' && method === 'POST') {
       try {
