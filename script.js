@@ -258,36 +258,27 @@ async function refreshStockPrices() {
                         console.warn(`Skipping UI price update for ${symbol}: invalid/zero price`, priceData);
                     }
                     
-                    // Recalculate Allocation (always in EUR)
+                    // Recalculate Allocation (always in EUR) from DISPLAYED price to avoid mismatches
                     const shares = parseFloat(cells[5].textContent) || 0;
-                    let allocPriceEUR = priceEUR;
-                    
-                    // Convert USD to EUR for crypto
-                    if (isCrypto && Number.isFinite(priceEUR)) {
-                        const exchangeRates = await fetch(`${API_BASE}/api/exchange-rates`).then(r => r.json()).catch(() => ({ USD: 1.16 }));
-                        allocPriceEUR = priceEUR / exchangeRates.USD;
+                    const displayPrice = (cells[6].textContent || '').trim();
+                    let allocPriceEUR = null;
+                    try {
+                        const rates = await fetch(`${API_BASE}/api/exchange-rates`).then(r => r.json()).catch(() => ({ USD: 1.16, GBP: 0.86, RON: 4.95 }));
+                        const USD = rates.USD || 1.16;
+                        const GBP = rates.GBP || 0.86;
+                        const RON = rates.RON || 4.95;
+                        const num = parseFloat(displayPrice.replace(/[^0-9.\-]/g, '')) || 0;
+                        if (displayPrice.startsWith('$')) allocPriceEUR = num / USD;
+                        else if (displayPrice.startsWith('£')) allocPriceEUR = num / GBP;
+                        else if (/^GBX|^GBp|\bp\b/i.test(displayPrice)) allocPriceEUR = (num / 100) / GBP;
+                        else if (/^RON/i.test(displayPrice)) allocPriceEUR = num / RON;
+                        else allocPriceEUR = num; // assume EUR if no symbol
+                    } catch {
+                        allocPriceEUR = Number.isFinite(priceEUR) ? priceEUR : null;
                     }
-                    // If EUR missing but GBP available, convert GBP→EUR for allocation
-                    if ((!Number.isFinite(allocPriceEUR) || allocPriceEUR <= 0) && Number.isFinite(priceGBP) && priceGBP > 0) {
-                        const rates = await fetch(`${API_BASE}/api/exchange-rates`).then(r => r.json()).catch(() => ({ GBP: 0.86 }));
-                        allocPriceEUR = priceGBP / (rates.GBP || 0.86);
-                    }
-                    
+
                     if (Number.isFinite(allocPriceEUR) && allocPriceEUR > 0 && Number.isFinite(shares) && shares > 0) {
-                        let allocation = shares * allocPriceEUR;
-                        // Special-case PREM: compute using displayed GBP, convert to EUR (no extra divide)
-                        if (symbol.toUpperCase() === 'PREM' || symbol.toUpperCase() === 'PREM.L') {
-                            const display = (cells[6].textContent || '').trim();
-                            const rateResp = await fetch(`${API_BASE}/api/exchange-rates`).then(r => r.json()).catch(() => ({ GBP: 0.86 }));
-                            const gbpRate = rateResp.GBP || 0.86;
-                            let displayValue = parseFloat(display.replace(/[^0-9.\-]/g, '')) || 0;
-                            // If display is in pounds (prefixed with £), use directly; else fall back to computed EUR path
-                            if (display.startsWith('£') && displayValue > 0) {
-                                const amountGBP = shares * displayValue;
-                                const amountEUR = amountGBP / gbpRate;
-                                allocation = amountEUR;
-                            }
-                        }
+                        const allocation = shares * allocPriceEUR;
                         cells[4].textContent = `€${allocation.toFixed(2)}`;
                     }
                     
