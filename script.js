@@ -27,6 +27,15 @@ const AVAILABLE_SECTORS = [
     'Utilities'
 ];
 
+// Helper: format a numeric price with max 3 decimals, trimming trailing zeros
+function formatMax3(value) {
+    if (value == null || !isFinite(value)) return '-';
+    let s = Number(value).toFixed(3); // always produce 3 decimals then trim
+    // Remove trailing zeros and optional leftover decimal point
+    s = s.replace(/\.0+$/,'').replace(/(\.[0-9]*?)0+$/,'$1').replace(/\.$/,'');
+    return s;
+}
+
 // Navigation functionality
 const navLinks = document.querySelectorAll('.nav-link');
 const sections = document.querySelectorAll('.section');
@@ -170,7 +179,7 @@ async function refreshStockPrices() {
                     const gbx = Number(priceData.priceGBp);
                     const shares = parseFloat(cells[5].textContent) || 0;
                     const decimalsGBX = gbx < 1 ? 4 : 2;
-                    cells[6].textContent = `GBX ${gbx.toFixed(decimalsGBX)}`;
+                    cells[6].textContent = `GBX ${formatMax3(gbx)}`;
                     // Allocation din priceEUR furnizat de backend
                     const priceEUR = Number(priceData.priceEUR);
                     if (shares > 0 && Number.isFinite(priceEUR)) {
@@ -215,10 +224,10 @@ async function refreshStockPrices() {
                     if (!isCrypto && Number.isFinite(priceGBp) && priceGBp > 0) {
                         const gbpFromPence = priceGBp / 100;
                         const decimalsGBP = gbpFromPence < 0.1 ? 6 : 4;
-                        cells[6].textContent = `£${gbpFromPence.toFixed(decimalsGBP)}`;
+                        cells[6].textContent = `£${formatMax3(gbpFromPence)}`;
                     } else if (Number.isFinite(priceGBP) && priceGBP > 0 && !isCrypto) {
                         const decimalsGBP = priceGBP < 0.1 ? 6 : 4;
-                        cells[6].textContent = `£${priceGBP.toFixed(decimalsGBP)}`;
+                        cells[6].textContent = `£${formatMax3(priceGBP)}`;
                     } else if (Number.isFinite(priceEUR) && priceEUR > 0) {
                         // For US stocks: display USD, keep allocation in EUR
                         const originalCurrency = (priceData.originalCurrency || '').toUpperCase();
@@ -230,15 +239,15 @@ async function refreshStockPrices() {
                                 const rates = await fetch(`${API_BASE}/api/exchange-rates`).then(r => r.json());
                                 const usdPrice = priceEUR * (rates.USD || 1.16);
                                 const decimalsUSD = usdPrice < 0.1 ? 6 : 2;
-                                cells[6].textContent = `$${usdPrice.toFixed(decimalsUSD)}`;
+                                cells[6].textContent = `$${formatMax3(usdPrice)}`;
                             } catch {
                                 const decimalsEUR = priceEUR < 0.1 ? 6 : 2;
-                                cells[6].textContent = `€${priceEUR.toFixed(decimalsEUR)}`;
+                                cells[6].textContent = `€${formatMax3(priceEUR)}`;
                             }
                         } else {
                             const decimalsEUR = (broker === 'Crypto' || priceEUR < 0.1) ? 6 : 2;
                             const currency = isCrypto ? '$' : '€';
-                            cells[6].textContent = `${currency}${priceEUR.toFixed(decimalsEUR)}`;
+                            cells[6].textContent = `${currency}${formatMax3(priceEUR)}`;
                         }
                     } else {
                         console.warn(`Skipping UI price update for ${symbol}: invalid/zero price`, priceData);
@@ -741,7 +750,7 @@ async function exitEditMode() {
                             const gbx = Number(priceData.priceGBp);
                             const shares = parseFloat(cells[5].textContent) || 0;
                             const decimalsGBX = gbx < 1 ? 4 : 2;
-                            cells[6].textContent = `GBX ${gbx.toFixed(decimalsGBX)}`;
+                            cells[6].textContent = `GBX ${formatMax3(gbx)}`;
                             const priceEUR = Number(priceData.priceEUR);
                             if (shares > 0 && Number.isFinite(priceEUR)) {
                                 const allocation = shares * priceEUR;
@@ -768,10 +777,10 @@ async function exitEditMode() {
                         if (Number.isFinite(priceGBp) && priceGBp > 0) {
                             const gbpFromPence = priceGBp / 100;
                             const decimalsGBP = gbpFromPence < 0.1 ? 6 : 4;
-                            cells[6].textContent = `£${gbpFromPence.toFixed(decimalsGBP)}`;
+                            cells[6].textContent = `£${formatMax3(gbpFromPence)}`;
                         } else if (Number.isFinite(priceGBP) && priceGBP > 0) {
                             const decimalsGBP = priceGBP < 0.1 ? 6 : 4;
-                            cells[6].textContent = `£${priceGBP.toFixed(decimalsGBP)}`;
+                            cells[6].textContent = `£${formatMax3(priceGBP)}`;
                         } else if (Number.isFinite(priceEUR) && priceEUR > 0) {
                             // For US stocks: display USD, keep allocation in EUR
                             const originalCurrency = (priceObj.originalCurrency || '').toUpperCase();
@@ -1188,8 +1197,8 @@ async function updateTotalBalance() {
     const balanceElement = document.getElementById('total-balance');
     if (balanceElement && finalTotal != null) {
         balanceElement.textContent = finalTotal.toLocaleString('en-US', {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
         });
         updateProfit();
         updateAllWeights(finalTotal);
@@ -1742,11 +1751,11 @@ async function updateDepositsBreakdown() {
         });
         
         // Update UI - Money invested section
-        document.getElementById('xtb-eur-value').textContent = xtbEur.toFixed(2) + ' €';
-        document.getElementById('tradeville-value').textContent = tradeville.toFixed(2) + ' €';
-        document.getElementById('t212-xtb-usd-value').textContent = t212XtbUsd.toFixed(2) + ' €';
-        document.getElementById('crypto-value').textContent = crypto.toFixed(2) + ' €';
-        document.getElementById('bank-deposits-value').textContent = bankDeposits.toFixed(2) + ' €';
+        document.getElementById('xtb-eur-value').textContent = Math.round(xtbEur).toLocaleString('en-US') + ' €';
+        document.getElementById('tradeville-value').textContent = Math.round(tradeville).toLocaleString('en-US') + ' €';
+        document.getElementById('t212-xtb-usd-value').textContent = Math.round(t212XtbUsd).toLocaleString('en-US') + ' €';
+        document.getElementById('crypto-value').textContent = Math.round(crypto).toLocaleString('en-US') + ' €';
+        document.getElementById('bank-deposits-value').textContent = Math.round(bankDeposits).toLocaleString('en-US') + ' €';
         
     } catch (error) {
         console.error('Error updating deposits breakdown:', error);
@@ -1912,27 +1921,27 @@ async function updateBalanceBreakdown() {
         // Update UI - Balance section (values are EUR)
         const xtbEurBalanceElement = document.getElementById('xtb-eur-balance-value');
         if (xtbEurBalanceElement) {
-            xtbEurBalanceElement.textContent = xtbEurBalance.toFixed(2) + ' €';
+            xtbEurBalanceElement.textContent = Math.round(xtbEurBalance).toLocaleString('en-US') + ' €';
         }
         
         const tradevilleBalanceElement = document.getElementById('tradeville-balance-value');
         if (tradevilleBalanceElement) {
-            tradevilleBalanceElement.textContent = tradevilleBalance.toFixed(2) + ' €';
+            tradevilleBalanceElement.textContent = Math.round(tradevilleBalance).toLocaleString('en-US') + ' €';
         }
         
         const t212XtbUsdBalanceElement = document.getElementById('t212-xtb-usd-balance-value');
         if (t212XtbUsdBalanceElement) {
-            t212XtbUsdBalanceElement.textContent = t212XtbUsdBalance.toFixed(2) + ' €';
+            t212XtbUsdBalanceElement.textContent = Math.round(t212XtbUsdBalance).toLocaleString('en-US') + ' €';
         }
         
         const cryptoBalanceElement = document.getElementById('crypto-balance-value');
         if (cryptoBalanceElement) {
-            cryptoBalanceElement.textContent = cryptoBalance.toFixed(2) + ' €';
+            cryptoBalanceElement.textContent = Math.round(cryptoBalance).toLocaleString('en-US') + ' €';
         }
         
         const bankDepositBalanceElement = document.getElementById('bank-deposit-balance-value');
         if (bankDepositBalanceElement) {
-            bankDepositBalanceElement.textContent = bankDepositBalance.toFixed(2) + ' €';
+            bankDepositBalanceElement.textContent = Math.round(bankDepositBalance).toLocaleString('en-US') + ' €';
         }
         
         // Recalculate XTB EUR profit from UI values
@@ -1949,7 +1958,7 @@ async function updateBalanceBreakdown() {
             
             if (profitElement) {
                 // Set profit value
-                profitElement.textContent = profit.toFixed(2) + ' €';
+                profitElement.textContent = Math.round(profit).toLocaleString('en-US') + ' €';
                 
                 // Apply color based on profit value
                 if (profit >= 0) {
@@ -1964,7 +1973,7 @@ async function updateBalanceBreakdown() {
             if (returnElement) {
                 // Add return percentage with space (no vertical bar)
                 const returnSign = returnPercent >= 0 ? '+' : '';
-                returnElement.textContent = `  ${returnSign}${returnPercent.toFixed(2)}%`;
+                returnElement.textContent = `  ${returnSign}${Math.round(returnPercent)}%`;
                 returnElement.style.fontWeight = '700';
                 returnElement.style.fontSize = '0.85rem';
                 
@@ -1990,7 +1999,7 @@ async function updateBalanceBreakdown() {
         const unifiedTop = xtbEurBalance + tradevilleBalance + t212XtbUsdBalance + cryptoBalance + bankDepositBalance;
         const balanceElement = document.getElementById('total-balance');
         if (balanceElement) {
-            balanceElement.textContent = unifiedTop.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            balanceElement.textContent = Math.round(unifiedTop).toLocaleString('en-US');
         }
         updateProfit();
         updateAllWeights(unifiedTop);
@@ -2011,8 +2020,8 @@ function updateProfit() {
         const profit = balance - deposits;
         
         profitElement.textContent = profit.toLocaleString('en-US', {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
         });
     }
 }
@@ -2471,6 +2480,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 loadAllocationData('sectors');
             }, 100);
         });
+    }
+
+    // Ensure allocation chart loads on initial page load (direct navigation or first visit)
+    const allocationSection = document.getElementById('sectors-section');
+    if (allocationSection) {
+        setTimeout(() => {
+            setupAllocationToggle();
+            loadAllocationData('sectors');
+        }, 150);
     }
     
     // Load dividends when dividends section is opened
@@ -3709,16 +3727,17 @@ function createAllocationPieChart(data, title) {
 function updateAllocationList(data) {
     const listDiv = document.getElementById('allocation-list');
     if (!listDiv) return;
-    
-    listDiv.innerHTML = data.map((item, index) => `
-        <div style="display: flex; flex-direction: column; gap: 0.1rem; padding: 0.4rem; background: rgba(255, 255, 255, 0.05); border-radius: 4px; border-left: 2px solid ${CHART_COLORS[index % CHART_COLORS.length]};">
-            <div style="display: flex; align-items: center; gap: 0.3rem;">
-                <div style="width: 6px; height: 6px; border-radius: 1px; background: ${CHART_COLORS[index % CHART_COLORS.length]}; flex-shrink: 0;"></div>
-                <span style="color: white; font-weight: 500; font-size: 0.65rem; line-height: 1.1;">${item.name}</span>
+    listDiv.innerHTML = data.map((item, index) => {
+        const color = CHART_COLORS[index % CHART_COLORS.length];
+        return `
+        <div class="allocation-item" style="border-left:4px solid ${color};">
+            <div style="display:flex; align-items:center; gap:0.4rem;">
+                <div style="width:8px; height:8px; border-radius:2px; background:${color}; flex-shrink:0;"></div>
+                <span class="allocation-name">${item.name}</span>
             </div>
-            <span style="color: #00ff88; font-weight: bold; font-size: 0.75rem; padding-left: 0.9rem;">${item.percentage.toFixed(2)}%</span>
-        </div>
-    `).join('');
+            <span class="allocation-percentage">${item.percentage.toFixed(2)}%</span>
+        </div>`;
+    }).join('');
 }
 
 async function loadAllocationData(view) {
@@ -3842,42 +3861,59 @@ function setupAllocationToggle() {
         console.error('Toggle buttons not found!');
         return;
     }
-    
+    const switchContainer = sectorsBtn.parentElement?.parentElement?.querySelector('.allocation-switch');
+    function applyActive(view) {
+        if (!switchContainer) return;
+        if (view === 'sectors') {
+            switchContainer.classList.add('sectors-active');
+            switchContainer.classList.remove('countries-active');
+            sectorsBtn.classList.add('active');
+            countriesBtn.classList.remove('active');
+        } else {
+            switchContainer.classList.add('countries-active');
+            switchContainer.classList.remove('sectors-active');
+            countriesBtn.classList.add('active');
+            sectorsBtn.classList.remove('active');
+        }
+    }
     sectorsBtn.addEventListener('click', () => {
         if (currentView !== 'sectors') {
             currentView = 'sectors';
-            
-            // Update button styles
-            sectorsBtn.style.background = '#4CAF50';
-            sectorsBtn.style.color = 'white';
-            sectorsBtn.style.borderColor = '#4CAF50';
-            
-            countriesBtn.style.background = 'white';
-            countriesBtn.style.color = '#333';
-            countriesBtn.style.borderColor = '#ddd';
-            
-            // Load sectors data
+            applyActive('sectors');
             loadAllocationData('sectors');
+            sectorsBtn.setAttribute('aria-selected','true');
+            countriesBtn.setAttribute('aria-selected','false');
+            sectorsBtn.setAttribute('tabindex','0');
+            countriesBtn.setAttribute('tabindex','-1');
         }
     });
-    
     countriesBtn.addEventListener('click', () => {
         if (currentView !== 'countries') {
             currentView = 'countries';
-            
-            // Update button styles
-            countriesBtn.style.background = '#4CAF50';
-            countriesBtn.style.color = 'white';
-            countriesBtn.style.borderColor = '#4CAF50';
-            
-            sectorsBtn.style.background = 'white';
-            sectorsBtn.style.color = '#333';
-            sectorsBtn.style.borderColor = '#ddd';
-            
-            // Load countries data
+            applyActive('countries');
             loadAllocationData('countries');
+            countriesBtn.setAttribute('aria-selected','true');
+            sectorsBtn.setAttribute('aria-selected','false');
+            countriesBtn.setAttribute('tabindex','0');
+            sectorsBtn.setAttribute('tabindex','-1');
         }
     });
+    // Keyboard accessibility
+    [sectorsBtn, countriesBtn].forEach(btn => {
+        btn.addEventListener('keydown', e => {
+            if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+                e.preventDefault();
+                if (document.activeElement === sectorsBtn) {
+                    countriesBtn.click();
+                    countriesBtn.focus();
+                } else {
+                    sectorsBtn.click();
+                    sectorsBtn.focus();
+                }
+            }
+        });
+    });
+    applyActive(currentView);
 }
 
 
