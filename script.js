@@ -63,6 +63,39 @@ let currentEditingRow = null;
 const API_BASE = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
 const API_URL = `${API_BASE}/api/stocks`;
 
+// Optional Cloudflare Worker API override
+(function attachApiBaseOverride() {
+    if (typeof window === 'undefined') return;
+    const override = window.API_BASE_OVERRIDE;
+    if (!override || typeof override !== 'string' || !override.startsWith('http')) return;
+    const originalFetch = window.fetch.bind(window);
+    window.fetch = function(input, init) {
+        try {
+            if (typeof input === 'string') {
+                if (input.startsWith('/api/')) {
+                    return originalFetch(override + input, init);
+                }
+                if (input.startsWith(window.location.origin + '/api/')) {
+                    const suffix = input.slice(window.location.origin.length);
+                    return originalFetch(override + suffix, init);
+                }
+            } else if (input instanceof Request) {
+                const reqUrl = input.url;
+                if (reqUrl.startsWith(window.location.origin + '/api/')) {
+                    const suffix = reqUrl.slice(window.location.origin.length);
+                    const newUrl = override + suffix;
+                    const newReq = new Request(newUrl, input);
+                    return originalFetch(newReq, init);
+                }
+            }
+        } catch (e) {
+            console.warn('API_BASE_OVERRIDE fetch rewrite error', e);
+        }
+        return originalFetch(input, init);
+    };
+    console.log('API_BASE_OVERRIDE active:', override);
+})();
+
 // Floating button visibility based on scroll
 function handleFloatingButtonVisibility() {
     if (!addRowBtn || !floatingAddBtn) return;
