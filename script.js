@@ -3758,6 +3758,16 @@ async function loadAllocationData(view) {
             }
         }
         
+        // If backend returns nothing, compute client-side from /api/stocks
+        if (!data.length) {
+            console.log('Computing allocation client-side from /api/stocks');
+            const stocksResp = await fetch(`${API_BASE}/api/stocks`);
+            const stocks = await stocksResp.json();
+            if (Array.isArray(stocks) && stocks.length) {
+                data = view === 'sectors' ? computeSectorsAllocation(stocks) : computeCountriesAllocation(stocks);
+            }
+        }
+
         // For countries view, recalculate Romania percentage from UI balances
         if (view === 'countries') {
             data = await adjustCountriesWithRealBalances(data);
@@ -3770,6 +3780,60 @@ async function loadAllocationData(view) {
     } catch (error) {
         console.error(`Error loading ${view} allocation:`, error);
     }
+}
+
+function computeSectorsAllocation(stocks) {
+    const totals = {};
+    let grand = 0;
+    stocks.forEach(stock => {
+        const sector = stock.sector || 'Unknown';
+        if (sector === 'Cash') return; // exclude Cash
+        const shares = parseFloat(String(stock.shares).replace(/[^0-9.-]/g, '')) || 0;
+        const raw = String(stock.share_price || '0');
+        const num = parseFloat(raw.replace(/[^0-9.-]/g, '')) || 0;
+        // Best effort: treat displayed price as EUR; client-side FX requires extra calls
+        const value = shares * num;
+        totals[sector] = (totals[sector] || 0) + value;
+        grand += value;
+    });
+    const out = Object.entries(totals)
+        .filter(([_, v]) => v > 0)
+        .map(([name, v]) => ({ name, percentage: grand > 0 ? (v / grand) * 100 : 0 }))
+        .sort((a, b) => b.percentage - a.percentage);
+    return out;
+}
+
+function computeCountriesAllocation(stocks) {
+    const totals = {};
+    let grand = 0;
+    function assignCountry(stock) {
+        const sector = (stock.sector || '').toLowerCase();
+        const sym = String(stock.symbol || '').toUpperCase();
+        const broker = String(stock.broker || '');
+        if (sym.endsWith('.RO') || broker === 'Tradeville' || sym.includes('TLV.RO')) return 'Romania';
+        if (sector.startsWith('etf us')) return 'United States';
+        if (sector.startsWith('etf europe')) return 'Europe';
+        if (sector.startsWith('etf uk')) return 'United Kingdom';
+        if (sector.startsWith('etf')) return 'Global';
+        if (broker === 'XTB-USD' || broker === 'Trading212') return 'United States';
+        return 'United States';
+    }
+    stocks.forEach(stock => {
+        const sector = stock.sector || '';
+        if (sector === 'Cash' || sector === 'Cryptocurrency') return;
+        const shares = parseFloat(String(stock.shares).replace(/[^0-9.-]/g, '')) || 0;
+        const raw = String(stock.share_price || '0');
+        const num = parseFloat(raw.replace(/[^0-9.-]/g, '')) || 0;
+        const value = shares * num;
+        const country = assignCountry(stock);
+        totals[country] = (totals[country] || 0) + value;
+        grand += value;
+    });
+    const out = Object.entries(totals)
+        .filter(([name, v]) => v > 0 && name !== 'Cash')
+        .map(([name, v]) => ({ name, percentage: grand > 0 ? (v / grand) * 100 : 0 }))
+        .sort((a, b) => b.percentage - a.percentage);
+    return out;
 }
 
 async function adjustCountriesWithRealBalances(countriesData) {
