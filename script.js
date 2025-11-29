@@ -3782,17 +3782,27 @@ async function loadAllocationData(view) {
     }
 }
 
-function computeSectorsAllocation(stocks) {
+async function computeSectorsAllocation(stocks) {
+    // Fetch FX for EUR reference
+    const rates = await fetch(`${API_BASE}/api/exchange-rates`).then(r => r.json()).catch(() => ({ USD: 1.16, GBP: 0.86, RON: 5.09 }));
+    const USD = rates.USD ?? 1.16;
+    const GBP = rates.GBP ?? 0.86;
+    const RON = rates.RON ?? 5.09;
     const totals = {};
     let grand = 0;
     stocks.forEach(stock => {
         const sector = stock.sector || 'Unknown';
-        if (sector === 'Cash') return; // exclude Cash
+        if (sector === 'Cash' || sector === 'Cryptocurrency') return; // exclude Cash/Crypto
         const shares = parseFloat(String(stock.shares).replace(/[^0-9.-]/g, '')) || 0;
         const raw = String(stock.share_price || '0');
         const num = parseFloat(raw.replace(/[^0-9.-]/g, '')) || 0;
-        // Best effort: treat displayed price as EUR; client-side FX requires extra calls
-        const value = shares * num;
+        let priceEUR = num;
+        const broker = String(stock.broker || '');
+        if (raw.includes('$') || broker === 'Crypto') priceEUR = num / USD;
+        else if (raw.includes('£')) priceEUR = num / GBP;
+        else if (/GBX|GBp|p\b/.test(raw)) priceEUR = (num / 100) / GBP;
+        else if (/RON|Lei|lei/i.test(raw)) priceEUR = num / RON;
+        const value = shares * (priceEUR || 0);
         totals[sector] = (totals[sector] || 0) + value;
         grand += value;
     });
@@ -3803,7 +3813,12 @@ function computeSectorsAllocation(stocks) {
     return out;
 }
 
-function computeCountriesAllocation(stocks) {
+async function computeCountriesAllocation(stocks) {
+    // Fetch FX for EUR reference
+    const rates = await fetch(`${API_BASE}/api/exchange-rates`).then(r => r.json()).catch(() => ({ USD: 1.16, GBP: 0.86, RON: 5.09 }));
+    const USD = rates.USD ?? 1.16;
+    const GBP = rates.GBP ?? 0.86;
+    const RON = rates.RON ?? 5.09;
     const totals = {};
     let grand = 0;
     function assignCountry(stock) {
@@ -3824,7 +3839,13 @@ function computeCountriesAllocation(stocks) {
         const shares = parseFloat(String(stock.shares).replace(/[^0-9.-]/g, '')) || 0;
         const raw = String(stock.share_price || '0');
         const num = parseFloat(raw.replace(/[^0-9.-]/g, '')) || 0;
-        const value = shares * num;
+        let priceEUR = num;
+        const broker = String(stock.broker || '');
+        if (raw.includes('$') || broker === 'Crypto') priceEUR = num / USD;
+        else if (raw.includes('£')) priceEUR = num / GBP;
+        else if (/GBX|GBp|p\b/.test(raw)) priceEUR = (num / 100) / GBP;
+        else if (/RON|Lei|lei/i.test(raw)) priceEUR = num / RON;
+        const value = shares * (priceEUR || 0);
         const country = assignCountry(stock);
         totals[country] = (totals[country] || 0) + value;
         grand += value;
