@@ -70,3 +70,39 @@ Nota: Dacă există deja date în D1, inserările duplicate pe `symbol` vor eșu
 ### Override API în producție
 
 În `index.html` există un snippet care setează `window.API_BASE_OVERRIDE` dacă nu e localhost. Actualizează URL-ul Worker după deploy.
+
+## Hosting Frontend: GitHub Pages (Varianta 1)
+
+Site-ul static este în rădăcina repo-ului. Workflow-ul `deploy-pages.yml` publică automat la fiecare push pe `main`.
+
+### Activare manuală (prima dată):
+1. Mergi în Settings → Pages.
+2. La Source selectează: `GitHub Actions` (dacă apare) sau verifică că workflow-ul rulează.
+3. După primul run vei primi un URL: `https://florinbucurtw.github.io/portfolio/`.
+
+### Verificare override API
+După ce ai deploy Worker și ai pus URL-ul lui în snippet:
+- Deschide pagina publică.
+- Console (DevTools): vezi mesajul `API_BASE_OVERRIDE activ: ...`.
+- Verifică rețea: cererile către `/api/...` sunt redirecționate spre Worker.
+
+### Ajustare URL Worker
+În `index.html` caută:
+```html
+const workerUrl = 'https://portfolio-api.REPLACE.workers.dev';
+```
+Înlocuiește cu URL-ul real (ex: `https://portfolio-api.florin.workers.dev`).
+
+### Comenzi utile
+Rulare workflow manual:
+```bash
+gh workflow run Deploy_GitHub_Pages
+```
+Inspect logs:
+```bash
+gh run list --workflow Deploy_GitHub_Pages
+```
+
+### Notă
+- Calea `/api/...` cu override funcționează chiar dacă site-ul e servit la `/portfolio/`.
+- Dacă migrezi ulterior la Cloudflare Pages + route Worker, poți elimina complet snippet-ul override.
