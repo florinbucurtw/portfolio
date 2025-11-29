@@ -521,6 +521,42 @@ export default {
       }
     }
 
+    // Admin: normalize stocks (fix share_price currency and recompute allocation in EUR)
+    if (path === '/api/admin/normalize-stocks' && method === 'POST') {
+      try {
+        const rows = await env.DB.prepare('SELECT id, symbol, broker, sector, shares, share_price, allocation FROM stocks').all();
+        const ratesResp = await fetch('https://api.exchangerate-api.com/v4/latest/EUR').then(r => r.json()).catch(() => ({ rates: { USD: 1.16, GBP: 0.86, RON: 5.09 } }));
+        const USD = ratesResp?.rates?.USD ?? 1.16;
+        const GBP = ratesResp?.rates?.GBP ?? 0.86;
+        const RON = ratesResp?.rates?.RON ?? 5.09;
+        const results = [];
+        for (const r of (rows.results || [])) {
+          const id = r.id;
+          const priceStr = String(r.share_price || '');
+          const shares = parseFloat(String(r.shares || '0').replace(/[^0-9.-]/g, '')) || 0;
+          const num = parseFloat(priceStr.replace(/[^0-9.-]/g, ''));
+          if (!Number.isFinite(num)) { results.push({ id, symbol: r.symbol, status: 'skip', reason: 'invalid price' }); continue; }
+          const isUSD = /^\$/.test(priceStr) || /-USD$/.test(String(r.symbol || '')) || String(r.broker || '') === 'Crypto';
+          const isGBP = /^£/.test(priceStr);
+          const isGBX = /^GBX|^GBp|p\b/i.test(priceStr);
+          const isRON = /^RON|Lei|lei/i.test(priceStr);
+          let priceEUR = num;
+          if (isUSD) priceEUR = num / USD;
+          else if (isGBP) priceEUR = num / GBP;
+          else if (isGBX) priceEUR = (num / 100) / GBP;
+          else if (isRON) priceEUR = num / RON;
+          const allocationEUR = Math.round(((shares * (priceEUR || 0)) + Number.EPSILON) * 100) / 100;
+          const allocationStr = `€${allocationEUR.toFixed(2)}`;
+          // Persist normalized allocation; keep original share_price text
+          await env.DB.prepare('UPDATE stocks SET allocation = ? WHERE id = ?').bind(allocationStr, id).run();
+          results.push({ id, symbol: r.symbol, status: 'updated', allocation: allocationStr });
+        }
+        return json({ count: results.length, results });
+      } catch (e) {
+        return json({ error: e.message }, 500);
+      }
+    }
+
     // Quotes placeholder for production (frontend optional feature)
     if (path === '/api/quotes' && method === 'GET') {
       return json({ cached: true, data: [] });
