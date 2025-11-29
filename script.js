@@ -3746,8 +3746,8 @@ function updateAllocationList(data) {
 
 async function loadAllocationData(view) {
     try {
-        const endpoint = view === 'sectors' ? '/api/allocation/sectors' : '/api/allocation/countries';
-        const response = await fetch(endpoint);
+        const endpointPath = view === 'sectors' ? '/api/allocation/sectors' : '/api/allocation/countries';
+        const response = await fetch(`${API_BASE}${endpointPath}`);
         let data = await response.json();
         if (!Array.isArray(data)) {
             // Some backends may wrap the payload
