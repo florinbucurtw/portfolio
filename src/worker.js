@@ -4,10 +4,23 @@ export default {
     const path = url.pathname;
     const method = request.method;
 
+    // CORS headers
+    const corsHeaders = {
+      'content-type': 'application/json',
+      'access-control-allow-origin': '*',
+      'access-control-allow-methods': 'GET,POST,PUT,DELETE,OPTIONS',
+      'access-control-allow-headers': 'Content-Type, Authorization'
+    };
+
+    // Respond to CORS preflight
+    if (method === 'OPTIONS') {
+      return new Response(null, { status: 204, headers: corsHeaders });
+    }
+
     // Simple JSON response helper
     const json = (obj, status = 200) => new Response(JSON.stringify(obj), {
       status,
-      headers: { 'content-type': 'application/json' }
+      headers: corsHeaders
     });
 
     // Exchange rates endpoint (USD/GBP/RON -> EUR reference)

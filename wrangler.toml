@@ -6,8 +6,16 @@ compatibility_date = "2024-11-01"
 [[d1_databases]]
 binding = "DB"
 database_name = "portfolio"
-database_id = "REPLACE_WITH_D1_ID"
+database_id = "1fb040bd-7b49-4796-a5cb-8933b2eb9efc"
 
 [triggers]
 # Run every minute
 crons = ["*/1 * * * *"]
+
+[env.production]
+name = "portfolio-api"
+
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "portfolio"
+database_id = "1fb040bd-7b49-4796-a5cb-8933b2eb9efc"

@@ -1,5 +1,4 @@
--- Cloudflare D1 initial schema for Portfolio app
-BEGIN TRANSACTION;
+-- Cloudflare D1 initial schema for Portfolio app (no explicit BEGIN/COMMIT for remote)
 
 CREATE TABLE IF NOT EXISTS stocks (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -48,4 +47,4 @@ CREATE TABLE IF NOT EXISTS dividends (
   annual_dividend REAL NOT NULL
 );
 
-COMMIT;
+-- End of schema

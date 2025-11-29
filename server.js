@@ -150,6 +150,7 @@ db.run(`
   CREATE TABLE IF NOT EXISTS performance_snapshots (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     timestamp INTEGER NOT NULL,
+    portfolio_balance REAL,
     portfolio_percent REAL NOT NULL,
     deposits_percent REAL NOT NULL,
     sp500_percent REAL NOT NULL,
@@ -161,6 +162,12 @@ db.run(`
     console.error('Error creating performance_snapshots table:', err);
   } else {
     console.log('Performance snapshots table ready');
+    // Ensure column exists for older databases
+    db.run(`ALTER TABLE performance_snapshots ADD COLUMN portfolio_balance REAL`, (e) => {
+      if (e && !String(e.message || '').includes('duplicate column')) {
+        console.warn('Could not add portfolio_balance column (may already exist):', e.message);
+      }
+    });
   }
 });
 
@@ -1606,3 +1613,162 @@ process.on('SIGTERM', async () => {
   await exportData();
   process.exit(0);
 });
+
+// ================= Server-side Cron: Save Performance Snapshots =================
+async function computePortfolioBalanceEURFromDB() {
+  return new Promise((resolve) => {
+    db.all('SELECT shares, share_price, broker FROM stocks', [], async (err, rows) => {
+      if (err) {
+        console.error('Error reading stocks for balance:', err);
+        return resolve(0);
+      }
+      const rates = await getExchangeRates().catch(() => ({ USD: 1.16, GBP: 0.86, RON: 5.09 }));
+      let total = 0;
+      for (const row of rows) {
+        const shares = parseFloat(String(row.shares || '0').replace(/[^0-9.-]/g, '')) || 0;
+        const raw = String(row.share_price || '0');
+        const num = parseFloat(raw.replace(/[^0-9.-]/g, '')) || 0;
+        let priceEUR = num;
+        if (raw.includes('$') || row.broker === 'Crypto') {
+          priceEUR = num / (rates.USD || 1.16);
+        } else if (raw.includes('£')) {
+          priceEUR = num / (rates.GBP || 0.86);
+        } else if (/RON|Lei|lei/i.test(raw)) {
+          priceEUR = num / (rates.RON || 5.09);
+        }
+        total += shares * (priceEUR || 0);
+      }
+      resolve(Math.round(total * 100) / 100);
+    });
+  });
+}
+
+async function computeTotalDepositsEURFromDB() {
+  return new Promise((resolve) => {
+    db.all('SELECT amount FROM deposits', [], (err, rows) => {
+      if (err) {
+        console.error('Error reading deposits for total:', err);
+        return resolve(0);
+      }
+      const total = rows.reduce((sum, r) => {
+        const val = parseFloat(String(r.amount || '0').replace(/[^0-9.-]/g, '')) || 0;
+        return sum + val;
+      }, 0);
+      resolve(Math.round(total * 100) / 100);
+    });
+  });
+}
+
+async function fetchIndexLatestPercent(baselinePrice, yfSymbol) {
+  try {
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${yfSymbol}?interval=1m&range=1d`;
+    const resp = await fetchFn(url);
+    const data = await resp.json();
+    const result = data?.chart?.result?.[0];
+    const meta = result?.meta || {};
+    let price = meta.regularMarketPrice ?? meta.previousClose ?? null;
+    if (price == null && result?.indicators?.quote?.[0]?.close) {
+      const closes = result.indicators.quote[0].close.filter(v => v != null);
+      if (closes.length > 0) price = closes[closes.length - 1];
+    }
+    if (baselinePrice > 0 && price != null) {
+      return ((price - baselinePrice) / baselinePrice) * 100;
+    }
+  } catch (e) {
+    console.log('Index fetch failed for', yfSymbol, e.message);
+  }
+  return 0;
+}
+
+async function cronSaveSnapshotOnce() {
+  try {
+    const now = Date.now();
+    // Duplicate protection: check last snapshot timestamp
+    const last = await new Promise((resolve) => {
+      db.get('SELECT timestamp FROM performance_snapshots ORDER BY timestamp DESC LIMIT 1', [], (err, row) => {
+        if (err) {
+          console.error('Error checking last snapshot:', err);
+          return resolve(null);
+        }
+        resolve(row?.timestamp || null);
+      });
+    });
+    if (last && (now - last) < 55000) {
+      console.log(`⏭️ Cron skip: last snapshot ${Math.round((now - last)/1000)}s ago`);
+      return;
+    }
+
+    const portfolio_balance = await computePortfolioBalanceEURFromDB();
+    if (!portfolio_balance || portfolio_balance <= 0) {
+      console.log('⏭️ Cron skip: portfolio balance unavailable');
+      return;
+    }
+    const total_deposits = await computeTotalDepositsEURFromDB();
+
+    // Read baseline
+    const baseline = await new Promise((resolve) => {
+      db.get('SELECT * FROM performance_baseline WHERE id = 1', [], (err, row) => {
+        if (err) {
+          console.error('Error reading baseline:', err);
+          return resolve(null);
+        }
+        resolve(row);
+      });
+    });
+
+    const timestamp = now;
+    if (!baseline) {
+      // Create baseline and first snapshot (0%)
+      const sp500Percent = 0;
+      const betPercent = 0;
+      await new Promise((resolve) => {
+        db.run(
+          `INSERT INTO performance_baseline (id, timestamp, portfolio_balance, total_deposits, sp500_price, bet_price)
+           VALUES (1, ?, ?, ?, ?, ?)`,
+          [timestamp, portfolio_balance, total_deposits, null, null],
+          (err) => { if (err) console.error('Cron baseline insert error:', err); resolve(); }
+        );
+      });
+      await new Promise((resolve) => {
+        db.run(
+          `INSERT INTO performance_snapshots (timestamp, portfolio_balance, portfolio_percent, deposits_percent, sp500_percent, bet_percent)
+           VALUES (?, ?, 0, 0, ?, ?)`,
+          [timestamp, portfolio_balance, sp500Percent, betPercent],
+          (err) => { if (err) console.error('Cron first snapshot error:', err); resolve(); }
+        );
+      });
+      console.log('✅ Cron: baseline created and first snapshot saved');
+      return;
+    }
+
+    // Percentages
+    const portfolioPercent = baseline.portfolio_balance > 0
+      ? ((portfolio_balance - baseline.portfolio_balance) / baseline.portfolio_balance) * 100
+      : 0;
+    const depositDiff = Math.abs((total_deposits ?? 0) - (baseline.total_deposits ?? 0));
+    const depositsPercent = baseline.total_deposits > 0
+      ? (depositDiff < 0.01 ? 0 : ((total_deposits - baseline.total_deposits) / baseline.total_deposits) * 100)
+      : 0;
+
+    // Indices vs baseline prices
+    const sp500Percent = await fetchIndexLatestPercent(baseline.sp500_price || 0, '^GSPC');
+    const betPercent = await fetchIndexLatestPercent(baseline.bet_price || 0, '^BET-TRN.RO');
+
+    await new Promise((resolve) => {
+      db.run(
+        `INSERT INTO performance_snapshots (timestamp, portfolio_balance, portfolio_percent, deposits_percent, sp500_percent, bet_percent)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [timestamp, portfolio_balance, portfolioPercent, depositsPercent, sp500Percent, betPercent],
+        (err) => { if (err) console.error('Cron snapshot insert error:', err); resolve(); }
+      );
+    });
+    console.log(`✅ Cron snapshot: portfolio=${portfolioPercent.toFixed(4)}%, deposits=${depositsPercent.toFixed(4)}%, sp500=${sp500Percent.toFixed(4)}%, bet=${betPercent.toFixed(4)}%`);
+  } catch (e) {
+    console.error('Cron error:', e);
+  }
+}
+
+// Run every minute
+setInterval(cronSaveSnapshotOnce, 60000);
+// Attempt once shortly after server start
+setTimeout(cronSaveSnapshotOnce, 10000);
