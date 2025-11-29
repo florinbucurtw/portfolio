@@ -45,7 +45,19 @@ export default {
     // Stocks
     if (path === '/api/stocks' && method === 'GET') {
       const rows = await env.DB.prepare('SELECT * FROM stocks').all();
-      return json(rows.results || []);
+      const out = (rows.results || []).map(r => ({
+        id: r.id,
+        symbol: r.symbol ?? '-',
+        weight: typeof r.weight === 'string' ? r.weight : (r.weight == null ? '-' : String(r.weight)),
+        company: r.company ?? '-',
+        allocation: typeof r.allocation === 'string' ? r.allocation : (r.allocation == null ? '-' : String(r.allocation)),
+        shares: typeof r.shares === 'string' ? r.shares : (r.shares == null ? '-' : String(r.shares)),
+        share_price: typeof r.share_price === 'string' ? r.share_price : (r.share_price == null ? '-' : String(r.share_price)),
+        broker: r.broker ?? '-',
+        risk: r.risk ?? '-',
+        sector: r.sector ?? '-'
+      }));
+      return json(out);
     }
     if (path === '/api/stocks' && method === 'POST') {
       const body = await request.json();
@@ -301,7 +313,7 @@ export default {
           attempt++;
         }
         if (!data || !data.chart) {
-          // Fallback: use last stored DB price from stocks
+          // Fallback: use last stored DB price from stocks (robust)
           const row = await env.DB.prepare('SELECT share_price, broker FROM stocks WHERE symbol = ?').bind(symbol).first();
           if (row && row.share_price) {
             const raw = String(row.share_price);
@@ -310,13 +322,15 @@ export default {
             let priceEUR = null, priceGBP = null, priceGBp = null, currency = 'EUR';
             if (raw.includes('$') || broker === 'Crypto') { priceEUR = num / USD; currency = 'USD'; }
             else if (raw.includes('£')) { priceGBP = num; priceEUR = num / GBP; currency = 'GBP'; }
+            else if (/GBX|GBp|p\b/.test(raw)) { priceGBp = num; priceGBP = num / 100; priceEUR = (num/100) / GBP; currency = 'GBp'; }
             else if (/RON|Lei|lei/i.test(raw)) { priceEUR = num / RON; currency = 'RON'; }
             else { priceEUR = num; }
             const payload = { symbol, price: num, priceEUR, priceGBP, priceGBp, originalCurrency: currency, isCrypto: broker === 'Crypto', validated: true, fallback: true };
             globalThis.__PRICE_CACHE__[cacheKey] = { ts: nowTs, payload };
             return json(payload);
           }
-          return json({ symbol, error: 'Rate limited or invalid response' }, 429);
+          // As a last resort, return a 204 with minimal payload to avoid hard failures
+          return json({ symbol, validated: false, fallback: false }, 204);
         }
         const result = data?.chart?.result?.[0];
         const meta = result?.meta || {};
