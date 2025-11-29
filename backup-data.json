@@ -735,24 +735,12 @@
     {
       "id": 69,
       "symbol": "Bank Deposit",
-      "weight": "11.31%",
+      "weight": "11.19%",
       "company": "Banca Transilvania",
-      "allocation": "€7975.18",
+      "allocation": "€7978.13",
       "shares": "1",
-      "share_price": "€7975.18",
+      "share_price": "RON 40650.00",
       "broker": "Bank Deposit",
-      "risk": "🟩 Very Safe",
-      "sector": "Cash"
-    },
-    {
-      "id": 70,
-      "symbol": "Cash Tradeville",
-      "weight": "0.07%",
-      "company": "Tradeville",
-      "allocation": "€44.62",
-      "shares": "1",
-      "share_price": "€44.62",
-      "broker": "Cash",
       "risk": "🟩 Very Safe",
       "sector": "Cash"
     },
@@ -794,15 +782,27 @@
     },
     {
       "id": 76,
-      "symbol": "PREM.L",
-      "weight": "20.23%",
-      "company": "Premier Mineral Africans",
-      "allocation": "€14395.55",
-      "shares": "36030",
-      "share_price": "€0.000575",
-      "broker": "Trading212",
-      "risk": "🟥 High Risk",
-      "sector": "Basic Materials"
+      "symbol": null,
+      "weight": null,
+      "company": null,
+      "allocation": "€23.65",
+      "shares": null,
+      "share_price": "GBX 0.0575",
+      "broker": null,
+      "risk": null,
+      "sector": null
+    },
+    {
+      "id": 82,
+      "symbol": "Cash Tradeville",
+      "weight": "0.36%",
+      "company": "Cash Tradeville",
+      "allocation": "€227.27",
+      "shares": "1",
+      "share_price": "RON 1158.00",
+      "broker": "Cash",
+      "risk": "🟩 Very Safe",
+      "sector": "Cash"
     }
   ],
   "deposits": [

@@ -162,30 +162,41 @@ async function refreshStockPrices() {
         if (cells.length === 0) continue;
         
         const symbol = cells[1].textContent.trim();
-        // Hardcode PREM.L share price to stabilize UI
+        // PREM / PREM.L: Fetch live GBX (pence) price from Google Finance and convert
         if (symbol.toUpperCase() === 'PREM' || symbol.toUpperCase() === 'PREM.L') {
-            const shares = parseFloat(cells[5].textContent) || 0;
-            const hardEUR = 0.000575;
-            cells[6].textContent = `€${hardEUR.toFixed(6)}`;
-            const allocation = shares * hardEUR;
-            cells[4].textContent = `€${allocation.toFixed(2)}`;
-            updateWeightForRow(row);
-            // Persist the displayed price to DB
-            const stockId = row.dataset.id;
-            if (stockId) {
-                await fetch(`${API_URL}/${stockId}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ share_price: cells[6].textContent })
-                });
-            }
-            continue; // Skip network fetch for PREM
+            try {
+                const priceData = await fetchStockPrice(symbol);
+                if (priceData && priceData.priceGBp != null) {
+                    const gbx = Number(priceData.priceGBp);
+                    const shares = parseFloat(cells[5].textContent) || 0;
+                    const decimalsGBX = gbx < 1 ? 4 : 2;
+                    cells[6].textContent = `GBX ${gbx.toFixed(decimalsGBX)}`;
+                    // Allocation din priceEUR furnizat de backend
+                    const priceEUR = Number(priceData.priceEUR);
+                    if (shares > 0 && Number.isFinite(priceEUR)) {
+                        const allocation = shares * priceEUR;
+                        cells[4].textContent = `€${allocation.toFixed(2)}`;
+                    }
+                    updateWeightForRow(row);
+                    const stockId = row.dataset.id;
+                    if (stockId) {
+                        await fetch(`${API_URL}/${stockId}`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ share_price: cells[6].textContent, allocation: cells[4].textContent })
+                        });
+                    }
+                }
+            } catch (e) { console.error('PREM backend fetch error:', e); }
+            continue; // Skip rest for PREM
         }
         const broker = cells[7].textContent.trim();
+        const sectorText = (cells[9].textContent || '').trim();
+        const isCashSector = sectorText.toLowerCase() === 'cash';
         const symbolLower = symbol.toLowerCase();
-        const isManualPrice = symbolLower.includes('bank deposit') || broker === 'Bank Deposit' || broker === 'Cash';
+        const isManualPrice = symbolLower.includes('bank deposit') || broker === 'Bank Deposit' || broker === 'Cash' || isCashSector;
         
-        // Only fetch price for non-manual stocks
+        // Only fetch price for non-manual stocks; handle manual (Cash/Bank) locally
         if (!isManualPrice && symbol && symbol !== '-') {
             try {
                 const priceData = await fetchStockPrice(symbol);
@@ -283,6 +294,47 @@ async function refreshStockPrices() {
                 }
             } catch (error) {
                 console.error(`Error refreshing price for ${symbol}:`, error);
+            }
+        } else if (isManualPrice) {
+            // Handle Cash/Bank Deposit: compute Allocation, adjust display for Cash
+            const sector = cells[9].textContent.trim();
+            const shares = parseFloat(cells[5].textContent) || 0;
+            const priceTextRaw = (cells[6].textContent || '').trim();
+            // Cash: Share Price should be shown in RON; Allocation in EUR
+            if (sector === 'Cash') {
+                try {
+                    const response = await fetch(`${API_BASE}/api/exchange-rates`);
+                    const rates = await response.json();
+                    const ronPerEur = rates.RON || 4.95; // EUR→RON
+                    // Extract numeric from either `RON xxx` or plain number
+                    const ronValue = parseFloat(priceTextRaw.replace(/[^0-9.\-]/g, '')) || 0;
+                    if (ronValue > 0) {
+                        // Ensure display shows RON
+                        cells[6].textContent = `RON ${ronValue.toFixed(2)}`;
+                        const priceEur = ronValue / ronPerEur;
+                        const allocation = shares * priceEur;
+                        cells[4].textContent = `€${allocation.toFixed(2)}`;
+                        updateWeightForRow(row);
+                    }
+                } catch (e) {
+                    console.warn('Cash RON→EUR conversion failed during refresh:', e);
+                }
+            } else {
+                // Bank Deposit: if price stored as EUR, allocation already fine; if RON, convert similar to edit path
+                try {
+                    const response = await fetch(`${API_BASE}/api/exchange-rates`);
+                    const rates = await response.json();
+                    const ronPerEur = rates.RON || 4.95;
+                    const val = parseFloat(priceTextRaw.replace(/[^0-9.\-]/g, '')) || 0;
+                    if (val > 0) {
+                        // If display lacks currency, assume EUR as current behavior; else convert if tagged RON
+                        const isRon = /^RON\s*/i.test(priceTextRaw);
+                        const priceEur = isRon ? (val / ronPerEur) : val;
+                        const allocation = shares * priceEur;
+                        cells[4].textContent = `€${allocation.toFixed(2)}`;
+                        updateWeightForRow(row);
+                    }
+                } catch {}
             }
         }
     }
@@ -613,57 +665,95 @@ async function exitEditMode() {
             const sharePriceInput = sharePriceCell.querySelector('input');
             if (sharePriceInput) {
                 const priceValue = sharePriceInput.value.trim();
-                sharePriceCell.textContent = priceValue ? `€${priceValue}` : '-';
+                // If Sector is Cash, keep plain numeric now; will render as RON below
+                const sectorNow = cells[9].textContent.trim();
+                if (priceValue) {
+                    sharePriceCell.textContent = sectorNow === 'Cash' ? priceValue : `€${priceValue}`;
+                } else {
+                    sharePriceCell.textContent = '-';
+                }
             }
             
             // Fetch stock price based on symbol and broker
             const symbol = cells[1].textContent.trim();
             const broker = cells[7].textContent.trim();
+            const sector = cells[9].textContent.trim();
             const symbolLower = symbol.toLowerCase();
-            const isManualPrice = symbolLower.includes('bank deposit') || broker === 'Bank Deposit' || broker === 'Cash';
+            const isManualPrice = symbolLower.includes('bank deposit') || broker === 'Bank Deposit' || broker === 'Cash' || (sector || '').trim().toLowerCase() === 'cash';
             
             // Special handling for Bank Deposit and Cash - use manual price, calculate allocation
             if (isManualPrice) {
                 // Get manually entered Share_Price (in RON for Bank Deposits)
-                const priceText = cells[6].textContent.replace('€', '').trim();
+                const priceText = cells[6].textContent.replace('€', '').replace(/RON\s*/i, '').trim();
                 let manualPrice = parseFloat(priceText);
                 
                 if (!isNaN(manualPrice) && manualPrice > 0) {
-                    // Convert RON to EUR for Bank Deposits
-                    try {
-                        const response = await fetch(`${API_BASE}/api/exchange-rates`);
-                        const rates = await response.json();
-                        const ronToEur = 1 / rates.RON; // RON rate is EUR to RON, so we inverse it
-                        
-                        // Convert the price from RON to EUR
-                        const priceInEur = manualPrice * ronToEur;
-                        cells[6].textContent = `€${priceInEur.toFixed(2)}`;
-                        
-                        // Calculate Allocation (Shares * Share Price in EUR)
-                        const shares = parseFloat(cells[5].textContent) || 0;
-                        const allocation = shares * priceInEur;
-                        cells[4].textContent = `€${allocation.toFixed(2)}`;
-                    } catch (error) {
-                        console.error('Error fetching exchange rates:', error);
-                        // Fallback: use the price as-is if conversion fails
-                        const shares = parseFloat(cells[5].textContent) || 0;
-                        const allocation = shares * manualPrice;
-                        cells[4].textContent = `€${allocation.toFixed(2)}`;
+                    if (sector === 'Cash') {
+                        // Keep Share Price displayed in RON; Allocation in EUR
+                        try {
+                            const response = await fetch(`${API_BASE}/api/exchange-rates`);
+                            const rates = await response.json();
+                            const ronPerEur = rates.RON || 4.95; // EUR→RON
+                            const priceInEur = manualPrice / ronPerEur; // RON→EUR
+                            // Display share price in RON
+                            cells[6].textContent = `RON ${manualPrice.toFixed(2)}`;
+                            // Calculate Allocation (Shares * EUR price)
+                            const shares = parseFloat(cells[5].textContent) || 0;
+                            const allocation = shares * priceInEur;
+                            cells[4].textContent = `€${allocation.toFixed(2)}`;
+                        } catch (error) {
+                            console.error('Error fetching exchange rates (Cash RON→EUR):', error);
+                            // Fallback: keep RON display; no allocation change without rates
+                        }
+                        updateWeightForRow(currentEditingRow);
+                    } else {
+                        // Convert RON to EUR for Bank Deposits
+                        try {
+                            const response = await fetch(`${API_BASE}/api/exchange-rates`);
+                            const rates = await response.json();
+                            const ronToEur = 1 / rates.RON; // RON rate is EUR to RON, so we inverse it
+                            
+                            // Convert the price from RON to EUR
+                            const priceInEur = manualPrice * ronToEur;
+                            cells[6].textContent = `€${priceInEur.toFixed(2)}`;
+                            
+                            // Calculate Allocation (Shares * Share Price in EUR)
+                            const shares = parseFloat(cells[5].textContent) || 0;
+                            const allocation = shares * priceInEur;
+                            cells[4].textContent = `€${allocation.toFixed(2)}`;
+                        } catch (error) {
+                            console.error('Error fetching exchange rates:', error);
+                            // Fallback: use the price as-is if conversion fails
+                            const shares = parseFloat(cells[5].textContent) || 0;
+                            const allocation = shares * manualPrice;
+                            cells[4].textContent = `€${allocation.toFixed(2)}`;
+                        }
+                        // Update weight
+                        updateWeightForRow(currentEditingRow);
                     }
                 }
-                
-                // Update weight
-                updateWeightForRow(currentEditingRow);
             } else if (symbol && symbol !== '-') {
                 // Hardcode PREM in edit-save path as well
                 if (symbol.toUpperCase() === 'PREM' || symbol.toUpperCase() === 'PREM.L') {
-                    const hardEUR = 0.000575;
-                    cells[6].textContent = `€${hardEUR.toFixed(6)}`;
-                    const shares = parseFloat(cells[5].textContent) || 0;
-                    const allocation = shares * hardEUR;
-                    cells[4].textContent = `€${allocation.toFixed(2)}`;
-                    updateWeightForRow(currentEditingRow);
-                    return; // Skip fetch
+                    try {
+                        const priceData = await fetchStockPrice(symbol);
+                        if (priceData && priceData.priceGBp != null) {
+                            const gbx = Number(priceData.priceGBp);
+                            const shares = parseFloat(cells[5].textContent) || 0;
+                            const decimalsGBX = gbx < 1 ? 4 : 2;
+                            cells[6].textContent = `GBX ${gbx.toFixed(decimalsGBX)}`;
+                            const priceEUR = Number(priceData.priceEUR);
+                            if (shares > 0 && Number.isFinite(priceEUR)) {
+                                const allocation = shares * priceEUR;
+                                cells[4].textContent = `€${allocation.toFixed(2)}`;
+                            }
+                            updateWeightForRow(currentEditingRow);
+                        }
+                        return; // Skip generic fetch logic for PREM
+                    } catch (err) {
+                        console.error('PREM (edit) backend fetch error:', err);
+                        return;
+                    }
                 }
                 const priceObj = await fetchStockPrice(symbol);
                 if (priceObj) {
@@ -936,12 +1026,14 @@ function attachRowEventListeners(row) {
             // Add listener on Symbol and Broker fields to handle Share_Price editability for Bank Deposits
             const symbolInput = row.querySelector('[data-field="symbol"] input');
             const brokerSelect = row.querySelector('[data-field="broker"] select');
+            const sectorInput = row.querySelector('[data-field="sector"] input');
             const sharePriceCell = row.querySelector('[data-field="share_price"]');
             
             const updateSharePriceField = () => {
                 const symbolValue = symbolInput?.value.trim().toLowerCase() || '';
                 const brokerValue = brokerSelect?.value || '';
-                const isManualPrice = symbolValue.includes('bank deposit') || brokerValue === 'Bank Deposit' || brokerValue === 'Cash';
+                const sectorValue = (sectorInput?.value || row.querySelector('[data-field="sector"]').textContent || '').trim();
+                const isManualPrice = symbolValue.includes('bank deposit') || brokerValue === 'Bank Deposit' || brokerValue === 'Cash' || sectorValue.toLowerCase() === 'cash';
                 
                 if (isManualPrice && sharePriceCell && !sharePriceCell.querySelector('input')) {
                     // Make Share_Price editable for Bank Deposits
@@ -978,6 +1070,9 @@ function attachRowEventListeners(row) {
             // Listen for changes in Broker dropdown
             if (brokerSelect) {
                 brokerSelect.addEventListener('change', updateSharePriceField);
+            }
+            if (sectorInput) {
+                sectorInput.addEventListener('input', updateSharePriceField);
             }
             
             // Focus first input
@@ -1030,9 +1125,11 @@ async function computeUnifiedPortfolioBalanceEUR() {
         let total = 0;
         stocks.forEach(stock => {
             const shares = parseFloat(stock.shares) || 0;
-            let priceStr = String(stock.share_price || '0').replace(/[$€\s]/g, '').replace(',', '.');
+            let priceStrRaw = String(stock.share_price || '0');
+            let priceStr = priceStrRaw.replace(/[$€\s]/g, '').replace(',', '.');
             let price = parseFloat(priceStr) || 0;
             const broker = stock.broker || '';
+            const sector = stock.sector || '';
             const symbol = (stock.symbol || '').toLowerCase();
             // Crypto prices are USD -> convert to EUR
             if (broker === 'Crypto' || String(stock.share_price).includes('$')) {
@@ -1041,6 +1138,15 @@ async function computeUnifiedPortfolioBalanceEUR() {
             // Bank Deposit may be entered in EUR already; if in RON, convert (heuristic: symbol contains 'bank deposit' and price was large)
             if (broker === 'Bank Deposit' && rates.RON) {
                 // If original string had no currency and seems RON (fallback heuristic), keep as-is; conversion handled when editing
+            }
+            // Cash sector uses RON in Share Price; convert RON→EUR for balance
+            if (sector === 'Cash') {
+                const isRonLabeled = /^\s*RON\s*/i.test(priceStrRaw);
+                const ronPerEur = rates.RON || 4.95;
+                if (isRonLabeled) {
+                    // price currently parsed without RON text; treat as RON amount
+                    price = price / ronPerEur;
+                }
             }
             total += shares * price;
         });
@@ -1051,19 +1157,42 @@ async function computeUnifiedPortfolioBalanceEUR() {
     }
 }
 
-// Calculate and update total balance using unified computation
+// Total din coloana Allocation (DOM) – sursa primară; fallback DB
+function computeTotalFromAllocationCells() {
+    let sum = 0;
+    try {
+        const rows = stocksTbody.querySelectorAll('tr');
+        rows.forEach(r => {
+            const allocCell = r.querySelector('td[data-field="allocation"]');
+            if (!allocCell) return;
+            const raw = allocCell.textContent.trim();
+            if (!raw || raw === '-' ) return;
+            const val = parseFloat(raw.replace(/[^0-9.\-]/g, ''));
+            if (!isNaN(val)) sum += val;
+        });
+    } catch (e) {
+        console.warn('computeTotalFromAllocationCells fallback', e.message);
+    }
+    return sum;
+}
+
+// Calculate and update total balance prioritizând Allocation din tabel
 async function updateTotalBalance() {
-    const unifiedTotal = await computeUnifiedPortfolioBalanceEUR();
+    const domTotal = computeTotalFromAllocationCells();
+    let finalTotal = domTotal;
+    if (finalTotal <= 0) {
+        // Fallback la calcul unificat dacă DOM nu are valori
+        const unified = await computeUnifiedPortfolioBalanceEUR();
+        if (unified != null) finalTotal = unified;
+    }
     const balanceElement = document.getElementById('total-balance');
-    if (balanceElement && unifiedTotal != null) {
-        balanceElement.textContent = unifiedTotal.toLocaleString('en-US', {
+    if (balanceElement && finalTotal != null) {
+        balanceElement.textContent = finalTotal.toLocaleString('en-US', {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2
         });
-        // Update profit after balance changes
         updateProfit();
-        // Update all weights after balance changes (weights still based on table allocations)
-        updateAllWeights(unifiedTotal);
+        updateAllWeights(finalTotal);
     }
 }
 
@@ -1669,17 +1798,33 @@ async function updateBalanceBreakdown() {
             }
         });
         
-        // Calculate Tradeville balance (all stocks with broker 'Tradeville' + Cash Tradeville)
+        // Calculate Tradeville balance using Allocation (includes 'Cash Tradeville')
         let tradevilleBalance = 0;
-        
-        stocks.forEach(stock => {
-            if (stock.broker === 'Tradeville' || stock.symbol === 'Cash Tradeville') {
-                const shares = parseFloat(stock.shares) || 0;
-                let priceStr = String(stock.share_price || '0').replace(/[€$\s]/g, '').replace(',', '.');
-                const price = parseFloat(priceStr) || 0;
-                tradevilleBalance += shares * price;
-            }
-        });
+        try {
+            const rows = stocksTbody.querySelectorAll('tr');
+            rows.forEach(row => {
+                const brokerCell = row.querySelector('td[data-field="broker"]');
+                const symbolCell = row.querySelector('td[data-field="symbol"]');
+                const allocCell = row.querySelector('td[data-field="allocation"]');
+                const brokerTxt = brokerCell ? brokerCell.textContent.trim() : '';
+                const symbolTxt = symbolCell ? symbolCell.textContent.trim() : '';
+                if (brokerTxt === 'Tradeville' || symbolTxt === 'Cash Tradeville') {
+                    const allocTxt = allocCell ? allocCell.textContent.trim() : '€0';
+                    const allocVal = parseFloat(allocTxt.replace(/[^0-9.\-]/g, '')) || 0;
+                    tradevilleBalance += allocVal;
+                }
+            });
+        } catch (e) {
+            // Fallback to API-based computation if DOM not available
+            stocks.forEach(stock => {
+                if (stock.broker === 'Tradeville' || stock.symbol === 'Cash Tradeville') {
+                    const shares = parseFloat(stock.shares) || 0;
+                    let priceStr = String(stock.share_price || '0').replace(/[^0-9.\-]/g, '').replace(',', '.');
+                    const price = parseFloat(priceStr) || 0;
+                    tradevilleBalance += shares * price;
+                }
+            });
+        }
         
         // Calculate Crypto balance (prices in USD, need to convert to EUR)
         let cryptoBalance = 0;
@@ -1697,18 +1842,32 @@ async function updateBalanceBreakdown() {
             }
         });
         
-        // Calculate Bank Deposit balance
+        // Calculate Bank Deposit balance (use Allocation from table to respect RON→EUR UI conversion)
         let bankDepositBalance = 0;
-        stocks.forEach(stock => {
-            const broker = stock.broker || '';
-            if (broker === 'Bank Deposit') {
-                const shares = parseFloat(stock.shares) || 0;
-                // Clean price: remove €, spaces, and replace comma with dot
-                let priceStr = String(stock.share_price || '0').replace(/[€\s]/g, '').replace(',', '.');
-                const price = parseFloat(priceStr) || 0;
-                bankDepositBalance += shares * price;
-            }
-        });
+        try {
+            const rows = stocksTbody.querySelectorAll('tr');
+            rows.forEach(row => {
+                const brokerCell = row.querySelector('td[data-field="broker"]');
+                const allocCell = row.querySelector('td[data-field="allocation"]');
+                const brokerTxt = brokerCell ? brokerCell.textContent.trim() : '';
+                if (brokerTxt === 'Bank Deposit') {
+                    const allocTxt = allocCell ? allocCell.textContent.trim() : '€0';
+                    const allocVal = parseFloat(allocTxt.replace(/[^0-9.\-]/g, '')) || 0;
+                    bankDepositBalance += allocVal;
+                }
+            });
+        } catch (e) {
+            // Fallback to API-based computation if DOM not available
+            stocks.forEach(stock => {
+                const broker = stock.broker || '';
+                if (broker === 'Bank Deposit') {
+                    const shares = parseFloat(stock.shares) || 0;
+                    let priceStr = String(stock.share_price || '0').replace(/[^0-9.\-]/g, '').replace(',', '.');
+                    const price = parseFloat(priceStr) || 0;
+                    bankDepositBalance += shares * price;
+                }
+            });
+        }
         
         // Calculate deposits for each broker
         let xtbEurDeposits = 0;

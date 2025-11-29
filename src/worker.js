@@ -66,7 +66,17 @@ export default {
         await env.DB.prepare('UPDATE stocks SET share_price = ? WHERE id = ?').bind(body.share_price, id).run();
         return json({ id: Number(id), share_price: body.share_price });
       }
-      const { symbol, weight, company, allocation, shares, share_price, broker, risk, sector } = body;
+      const current = await env.DB.prepare('SELECT * FROM stocks WHERE id = ?').bind(id).first();
+      const pick = (val, fallback) => (val === undefined || val === '-' || val === '') ? fallback : val;
+      const symbol = pick(body.symbol, current?.symbol);
+      const weight = pick(body.weight, current?.weight);
+      const company = pick(body.company, current?.company);
+      const allocation = pick(body.allocation, current?.allocation);
+      const shares = pick(body.shares, current?.shares);
+      const share_price = pick(body.share_price, current?.share_price);
+      const broker = pick(body.broker, current?.broker);
+      const risk = pick(body.risk, current?.risk);
+      const sector = pick(body.sector, current?.sector);
       if (symbol && symbol !== '-') {
         const dup = await env.DB.prepare('SELECT id FROM stocks WHERE symbol = ? AND id != ?').bind(symbol, id).first();
         if (dup) return json({ error: `Stock with symbol '${symbol}' already exists` }, 409);
@@ -214,6 +224,50 @@ export default {
         const nowTs = Date.now();
         if (cached && (nowTs - cached.ts) < 120000) { // 120s TTL
           return json(cached.payload);
+        }
+
+        // Special-case PREM / PREM.L from Google Finance (GBX price)
+        const upper = symbol.toUpperCase();
+        if (upper === 'PREM' || upper === 'PREM.L') {
+          try {
+            const gfResp = await fetch('https://www.google.com/finance/quote/PREM:LON?hl=en');
+            const html = await gfResp.text();
+            let gbx = null;
+            const regexes = [
+              /data-last-price="([0-9]+(?:\.[0-9]+)?)"/i,
+              /"lastPrice":{"raw":([0-9]+(?:\.[0-9]+)?)","fmt":"[0-9.]+"}/i,
+              />([0-9]+(?:\.[0-9]+)?)<\/div><div class="[^"']*">GBX<\/div>/i,
+              /GBX[^0-9]*([0-9]+(?:\.[0-9]+)?)/i
+            ];
+            for (const r of regexes) {
+              const m = html.match(r);
+              if (m) { gbx = parseFloat(m[1]); break; }
+            }
+            if (!Number.isFinite(gbx) || gbx <= 0) {
+              throw new Error('PREM GBX price not found');
+            }
+            // Get FX for GBP conversion
+            const fx = await fetch('https://api.exchangerate-api.com/v4/latest/EUR').then(r => r.json()).catch(() => ({ rates: { GBP: 0.86 } }));
+            const GBP = fx?.rates?.GBP ?? 0.86; // EUR->GBP rate
+            const priceGBp = gbx; // in pence
+            const priceGBP = gbx / 100; // pounds
+            const priceEUR = priceGBP / GBP; // convert to EUR
+            const payload = {
+              symbol,
+              price: priceGBP,
+              priceEUR,
+              priceGBP,
+              priceGBp,
+              originalCurrency: 'GBX',
+              isCrypto: false,
+              validated: true,
+              source: 'google-finance'
+            };
+            globalThis.__PRICE_CACHE__[cacheKey] = { ts: nowTs, payload };
+            return json(payload);
+          } catch (e) {
+            return json({ symbol, error: e.message, source: 'google-finance' }, 502);
+          }
         }
 
         const fx = await fetch('https://api.exchangerate-api.com/v4/latest/EUR').then(r => r.json()).catch(() => ({ rates: { USD: 1.16, GBP: 0.86, RON: 5.09 } }));
