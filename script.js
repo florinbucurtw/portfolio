@@ -2410,7 +2410,7 @@ async function savePerformanceSnapshot() {
         
         console.log(`💾 Saving snapshot: Balance=${normalizedBalance}€, Deposits=${totalDeposits}€`);
         
-        const response = await fetch('/api/performance-snapshot', {
+        const response = await fetch(`${API_BASE}/api/performance-snapshot`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -3026,7 +3026,7 @@ async function generatePerformanceData(range) {
     try {
         console.log(`📊 Fetching performance snapshots for range: ${range}`);
         
-        const response = await fetch(`/api/performance-snapshots?range=${range}`);
+        const response = await fetch(`${API_BASE}/api/performance-snapshots?range=${range}`);
         const data = await response.json();
         const snapshots = data.snapshots || [];
         
@@ -3035,7 +3035,7 @@ async function generatePerformanceData(range) {
         if (snapshots.length === 0) {
             console.warn('⚠️ No snapshots available yet — using S&P 500 fallback');
             // Fallback: fetch S&P 500 historical and build percent series
-            const hist = await fetch(`/api/historical/^GSPC?range=${range}`).then(r => r.json()).catch(() => null);
+            const hist = await fetch(`${API_BASE}/api/historical/^GSPC?range=${range}`).then(r => r.json()).catch(() => null);
             if (hist && Array.isArray(hist.data) && hist.data.length > 1) {
                 const base = hist.data[0].price;
                 const labels = hist.data.map(p => {
@@ -3104,7 +3104,7 @@ async function generatePerformanceData(range) {
         // If S&P 500 series ended empty (e.g., missing sp500_percent in snapshots), fallback to Yahoo historical
         if (sp500Data.length === 0) {
             try {
-                const hist = await fetch(`/api/historical/^GSPC?range=${range}`).then(r => r.json());
+                const hist = await fetch(`${API_BASE}/api/historical/^GSPC?range=${range}`).then(r => r.json());
                 if (hist && Array.isArray(hist.data) && hist.data.length > 1) {
                     const base = hist.data[0].price;
                     const histLabels = hist.data.map(p => {
@@ -3370,7 +3370,7 @@ async function updatePerformanceChart(range = '1m') {
 // Load all snapshots
 async function loadSnapshotsData() {
     try {
-        const response = await fetch('/api/performance-snapshots?range=max');
+        const response = await fetch(`${API_BASE}/api/performance-snapshots?range=max`);
         const data = await response.json();
         const snapshots = data.snapshots || [];
 
@@ -3460,7 +3460,7 @@ async function deleteSnapshot(id) {
 async function deleteOldSnapshots() {
     try {
         const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
-        const response = await fetch(`/api/performance-snapshots/delete-old?before=${thirtyDaysAgo}`, {
+        const response = await fetch(`${API_BASE}/api/performance-snapshots/delete-old?before=${thirtyDaysAgo}`, {
             method: 'DELETE'
         });
 
@@ -3476,7 +3476,7 @@ async function deleteOldSnapshots() {
 // Delete all snapshots
 async function deleteAllSnapshots() {
     try {
-        const response = await fetch('/api/performance-snapshots/delete-all', {
+        const response = await fetch(`${API_BASE}/api/performance-snapshots/delete-all`, {
             method: 'DELETE'
         });
 
@@ -3535,7 +3535,7 @@ function initDeleteRangeButton() {
 async function deleteSnapshotRange(fromId, toId) {
     console.log('deleteSnapshotRange called with:', fromId, toId);
     try {
-        const url = `/api/performance-snapshots/delete-range?from=${fromId}&to=${toId}`;
+        const url = `${API_BASE}/api/performance-snapshots/delete-range?from=${fromId}&to=${toId}`;
         console.log('Fetching:', url);
         
         const response = await fetch(url, {
@@ -3617,7 +3617,7 @@ async function resetBaseline() {
 
 // Export snapshots to CSV
 function exportSnapshotsToCSV() {
-    fetch('/api/performance-snapshots?range=max')
+    fetch(`${API_BASE}/api/performance-snapshots?range=max`)
         .then(response => response.json())
         .then(data => {
             const snapshots = data.snapshots || [];
