@@ -180,12 +180,17 @@ async function refreshStockPrices() {
                     const shares = parseFloat(cells[5].textContent) || 0;
                     const decimalsGBX = gbx < 1 ? 4 : 2;
                     cells[6].textContent = `GBX ${formatMax3(gbx)}`;
-                    // Allocation din priceEUR furnizat de backend
-                    const priceEUR = Number(priceData.priceEUR);
-                    if (shares > 0 && Number.isFinite(priceEUR)) {
-                        const allocation = shares * priceEUR;
-                        cells[4].textContent = `€${allocation.toFixed(2)}`;
-                    }
+                    // Allocation: convert GBX→GBP→EUR using live FX
+                    try {
+                        const rates = await fetch(`${API_BASE}/api/exchange-rates`).then(r => r.json()).catch(() => ({ GBP: 0.86 }));
+                        const gbpRate = rates.GBP || 0.86; // EUR→GBP
+                        const priceGBP = gbx / 100;
+                        const priceEUR = priceGBP / gbpRate;
+                        if (shares > 0 && Number.isFinite(priceEUR)) {
+                            const allocation = shares * priceEUR;
+                            cells[4].textContent = `€${allocation.toFixed(2)}`;
+                        }
+                    } catch {}
                     updateWeightForRow(row);
                     const stockId = row.dataset.id;
                     if (stockId) {
