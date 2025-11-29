@@ -133,9 +133,11 @@ export default {
 
         const baseline = await env.DB.prepare('SELECT * FROM performance_baseline WHERE id = 1').first();
         if (!baseline) {
+          const spBase = await fetchIndexPrice('^GSPC');
+          const betBase = await fetchIndexPrice('^BET-TRN.RO');
           await env.DB.prepare(
             'INSERT INTO performance_baseline (id, timestamp, portfolio_balance, total_deposits, sp500_price, bet_price) VALUES (1, ?, ?, ?, ?, ?)'
-          ).bind(timestamp, portfolio_balance, total_deposits, null, null).run();
+          ).bind(timestamp, portfolio_balance, total_deposits, spBase, betBase).run();
           await env.DB.prepare(
             'INSERT INTO performance_snapshots (timestamp, portfolio_balance, portfolio_percent, deposits_percent, sp500_percent, bet_percent) VALUES (?, ?, 0, 0, 0, 0)'
           ).bind(timestamp, portfolio_balance).run();
@@ -204,13 +206,15 @@ export default {
     const baseline = await env.DB.prepare('SELECT * FROM performance_baseline WHERE id = 1').first();
     const timestamp = now;
     if (!baseline) {
+      const spBase = await fetchIndexPrice('^GSPC');
+      const betBase = await fetchIndexPrice('^BET-TRN.RO');
       await env.DB.prepare(
         'INSERT INTO performance_baseline (id, timestamp, portfolio_balance, total_deposits, sp500_price, bet_price) VALUES (1, ?, ?, ?, ?, ?)'
-      ).bind(timestamp, portfolio_balance, total_deposits, null, null).run();
+      ).bind(timestamp, portfolio_balance, total_deposits, spBase, betBase).run();
       await env.DB.prepare(
         'INSERT INTO performance_snapshots (timestamp, portfolio_balance, portfolio_percent, deposits_percent, sp500_percent, bet_percent) VALUES (?, ?, 0, 0, 0, 0)'
       ).bind(timestamp, portfolio_balance).run();
-      console.log('Cron: baseline created and first snapshot saved');
+      console.log('Cron: baseline created with index prices');
       return;
     }
 
@@ -251,6 +255,25 @@ async function latestIndexPercent(env, baselinePrice, symbol) {
     console.log('Index fetch failed', symbol, e.message);
   }
   return 0;
+}
+
+async function fetchIndexPrice(symbol) {
+  try {
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1m&range=1d`;
+    const resp = await fetch(url);
+    const data = await resp.json();
+    const result = data?.chart?.result?.[0];
+    const meta = result?.meta || {};
+    let price = meta.regularMarketPrice ?? meta.previousClose ?? null;
+    if (price == null && result?.indicators?.quote?.[0]?.close) {
+      const closes = result.indicators.quote[0].close.filter(v => v != null);
+      if (closes.length > 0) price = closes[closes.length - 1];
+    }
+    return price ?? 0;
+  } catch (e) {
+    console.log('Baseline index fetch failed', symbol, e.message);
+    return 0;
+  }
 }
 
 async function computePortfolioBalanceEUR(env) {

@@ -40,3 +40,33 @@ Worker-ul rulează un cron la fiecare minut (configurat în `wrangler.toml`) car
 - Evită dublurile (<55s de la ultimul snapshot)
 - Calculează balanța portofoliului și depozitele în EUR
 - Salvează snapshot cu procentele portofoliu/depozite/S&P 500/BET față de baseline
+
+### Import date existente în D1
+
+Poți migra datele actuale (SQLite) în D1:
+
+1. Generează fișier SQL:
+```bash
+node scripts/generate-d1-import.js > d1-import.sql
+```
+2. Creează baza (dacă nu e creată) și aplică migrația structurii:
+```bash
+wrangler d1 create portfolio
+wrangler d1 migrations apply portfolio
+```
+3. Execută importul:
+```bash
+wrangler d1 execute portfolio --file=./d1-import.sql
+```
+4. Verifică:
+```bash
+wrangler d1 execute portfolio --command "SELECT COUNT(*) AS c FROM stocks;"
+wrangler d1 execute portfolio --command "SELECT COUNT(*) AS c FROM deposits;"
+wrangler d1 execute portfolio --command "SELECT COUNT(*) AS c FROM dividends;"
+```
+
+Nota: Dacă există deja date în D1, inserările duplicate pe `symbol` vor eșua (UNIQUE). Editează `d1-import.sql` manual înainte de executare dacă vrei doar anumite rânduri.
+
+### Override API în producție
+
+În `index.html` există un snippet care setează `window.API_BASE_OVERRIDE` dacă nu e localhost. Actualizează URL-ul Worker după deploy.
