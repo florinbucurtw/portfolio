@@ -3667,6 +3667,10 @@ const CHART_COLORS = [
 ];
 
 function createAllocationPieChart(data, title) {
+    if (!Array.isArray(data)) {
+        console.warn('Allocation data not array, coercing to empty list');
+        data = [];
+    }
     const ctx = document.getElementById('allocation-pie-chart');
     if (!ctx) {
         console.error('Allocation canvas not found!');
@@ -3745,6 +3749,14 @@ async function loadAllocationData(view) {
         const endpoint = view === 'sectors' ? '/api/allocation/sectors' : '/api/allocation/countries';
         const response = await fetch(endpoint);
         let data = await response.json();
+        if (!Array.isArray(data)) {
+            // Some backends may wrap the payload
+            if (data && Array.isArray(data.data)) data = data.data;
+            else {
+                console.warn('Unexpected allocation payload', data);
+                data = [];
+            }
+        }
         
         // For countries view, recalculate Romania percentage from UI balances
         if (view === 'countries') {
@@ -3762,6 +3774,10 @@ async function loadAllocationData(view) {
 
 async function adjustCountriesWithRealBalances(countriesData) {
     try {
+        if (!Array.isArray(countriesData)) {
+            console.warn('countriesData not array; skipping adjustment');
+            return [];
+        }
         // Fetch stocks to calculate balances
         const stocksResponse = await fetch('/api/stocks');
         const stocks = await stocksResponse.json();
