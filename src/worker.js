@@ -207,6 +207,15 @@ export default {
     if (path.startsWith('/api/stock-price/') && method === 'GET') {
       const symbol = decodeURIComponent(path.replace('/api/stock-price/', ''));
       try {
+        // Simple in-memory cache (per Worker instance)
+        globalThis.__PRICE_CACHE__ ||= {};
+        const cacheKey = `price:${symbol}`;
+        const cached = globalThis.__PRICE_CACHE__[cacheKey];
+        const nowTs = Date.now();
+        if (cached && (nowTs - cached.ts) < 120000) { // 120s TTL
+          return json(cached.payload);
+        }
+
         const fx = await fetch('https://api.exchangerate-api.com/v4/latest/EUR').then(r => r.json()).catch(() => ({ rates: { USD: 1.16, GBP: 0.86, RON: 5.09 } }));
         const USD = fx?.rates?.USD ?? 1.16;
         const GBP = fx?.rates?.GBP ?? 0.86;
@@ -214,8 +223,38 @@ export default {
 
         // Yahoo price fetch
         const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1m&range=1d`;
-        const resp = await fetch(url);
-        const data = await resp.json();
+        // Fetch with basic retry/backoff to mitigate 429
+        let data = null;
+        let attempt = 0;
+        while (attempt < 3 && !data) {
+          const resp = await fetch(url);
+          const text = await resp.text();
+          try {
+            data = JSON.parse(text);
+          } catch {
+            // If rate-limited, wait and retry
+            await new Promise(res => setTimeout(res, 500 * (attempt + 1)));
+          }
+          attempt++;
+        }
+        if (!data || !data.chart) {
+          // Fallback: use last stored DB price from stocks
+          const row = await env.DB.prepare('SELECT share_price, broker FROM stocks WHERE symbol = ?').bind(symbol).first();
+          if (row && row.share_price) {
+            const raw = String(row.share_price);
+            const broker = String(row.broker || '');
+            const num = parseFloat(raw.replace(/[^0-9.-]/g, '')) || 0;
+            let priceEUR = null, priceGBP = null, priceGBp = null, currency = 'EUR';
+            if (raw.includes('$') || broker === 'Crypto') { priceEUR = num / USD; currency = 'USD'; }
+            else if (raw.includes('£')) { priceGBP = num; priceEUR = num / GBP; currency = 'GBP'; }
+            else if (/RON|Lei|lei/i.test(raw)) { priceEUR = num / RON; currency = 'RON'; }
+            else { priceEUR = num; }
+            const payload = { symbol, price: num, priceEUR, priceGBP, priceGBp, originalCurrency: currency, isCrypto: broker === 'Crypto', validated: true, fallback: true };
+            globalThis.__PRICE_CACHE__[cacheKey] = { ts: nowTs, payload };
+            return json(payload);
+          }
+          return json({ symbol, error: 'Rate limited or invalid response' }, 429);
+        }
         const result = data?.chart?.result?.[0];
         const meta = result?.meta || {};
         let price = meta.regularMarketPrice ?? meta.previousClose ?? null;
@@ -235,7 +274,9 @@ export default {
         }
         const isCrypto = /-USD$/.test(symbol) || currency === 'USD' && /BTC|ETH|USDT|USDC|KAS|JASMY/i.test(symbol);
         const validated = price != null;
-        return json({ symbol, price, priceEUR, priceGBP, priceGBp, originalCurrency: currency, isCrypto, validated });
+        const payload = { symbol, price, priceEUR, priceGBP, priceGBp, originalCurrency: currency, isCrypto, validated };
+        globalThis.__PRICE_CACHE__[cacheKey] = { ts: nowTs, payload };
+        return json(payload);
       } catch (e) {
         return json({ symbol, error: e.message }, 500);
       }
