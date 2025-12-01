@@ -20,20 +20,22 @@ function exportData(dbPath = 'portfolio.db') {
         console.log('No stocks data to export');
         stocksRows = [];
       }
-      
+
       db.all('SELECT * FROM deposits', [], (err, depositsRows) => {
         if (err) {
           console.log('No deposits data to export');
           depositsRows = [];
         }
-        
+
         const backupData = {
           stocks: stocksRows,
-          deposits: depositsRows
+          deposits: depositsRows,
         };
-        
+
         fs.writeFileSync(BACKUP_FILE, JSON.stringify(backupData, null, 2));
-        console.log(`✅ Exported ${stocksRows.length} stocks and ${depositsRows.length} deposits to ${BACKUP_FILE}`);
+        console.log(
+          `✅ Exported ${stocksRows.length} stocks and ${depositsRows.length} deposits to ${BACKUP_FILE}`
+        );
         resolve(backupData);
         db.close();
       });
@@ -55,11 +57,11 @@ function importData(db) {
 
     // Load from backup
     const data = JSON.parse(fs.readFileSync(BACKUP_FILE, 'utf8'));
-    
+
     // Handle old format (array) vs new format (object with stocks/deposits)
     let stocksData = [];
     let depositsData = [];
-    
+
     if (Array.isArray(data)) {
       // Old format - just stocks
       stocksData = data;
@@ -68,24 +70,31 @@ function importData(db) {
       stocksData = data.stocks || [];
       depositsData = data.deposits || [];
     }
-    
+
     if (stocksData.length === 0) {
       console.log('Backup stocks empty, using seed data...');
       const seedData = require('./seed-data.js');
       stocksData = seedData;
     }
 
-    console.log(`📥 Importing ${stocksData.length} stocks and ${depositsData.length} deposits from ${BACKUP_FILE}...`);
-    
+    console.log(
+      `📥 Importing ${stocksData.length} stocks and ${depositsData.length} deposits from ${BACKUP_FILE}...`
+    );
+
     // Import stocks
-    insertStocksRecords(db, stocksData, () => {
-      // Import deposits
-      if (depositsData.length > 0) {
-        insertDepositsRecords(db, depositsData, resolve, reject);
-      } else {
-        resolve();
-      }
-    }, reject);
+    insertStocksRecords(
+      db,
+      stocksData,
+      () => {
+        // Import deposits
+        if (depositsData.length > 0) {
+          insertDepositsRecords(db, depositsData, resolve, reject);
+        } else {
+          resolve();
+        }
+      },
+      reject
+    );
   });
 }
 
@@ -136,20 +145,13 @@ function insertDepositsRecords(db, data, resolve, reject) {
 
   let inserted = 0;
   data.forEach((record) => {
-    stmt.run(
-      record.count,
-      record.date,
-      record.amount,
-      record.account,
-      record.month,
-      (err) => {
-        if (err) {
-          console.error('Error inserting deposit:', err);
-        } else {
-          inserted++;
-        }
+    stmt.run(record.count, record.date, record.amount, record.account, record.month, (err) => {
+      if (err) {
+        console.error('Error inserting deposit:', err);
+      } else {
+        inserted++;
       }
-    );
+    });
   });
 
   stmt.finalize((err) => {

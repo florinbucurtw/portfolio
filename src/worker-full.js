@@ -14,25 +14,49 @@ export default {
         const rates = await fetchRates(env);
         const stocks = await getNormalizedStocks(env.DB, rates);
         const total = stocks.reduce((s, x) => s + x.allocation_eur, 0);
-        const withPct = total > 0
-          ? stocks.map(s => ({ ...s, allocation_percent: +(100 * s.allocation_eur / total).toFixed(4) }))
-          : stocks.map(s => ({ ...s, allocation_percent: 0 }));
+        const withPct =
+          total > 0
+            ? stocks.map((s) => ({
+                ...s,
+                allocation_percent: +((100 * s.allocation_eur) / total).toFixed(4),
+              }))
+            : stocks.map((s) => ({ ...s, allocation_percent: 0 }));
         return json({ total_eur: +total.toFixed(2), stocks: withPct });
       }
 
       if (path === '/api/stocks' && method === 'POST') {
         const body = await request.json();
-        const { symbol, company, shares = 0, share_price = '', broker = '', sector = '', risk = '', allocation = '' } = body;
+        const {
+          symbol,
+          company,
+          shares = 0,
+          share_price = '',
+          broker = '',
+          sector = '',
+          risk = '',
+          allocation = '',
+        } = body;
         await env.DB.prepare(
           `INSERT INTO stocks (symbol, company, shares, share_price, broker, sector, risk, allocation)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-        ).bind(symbol, company, shares, share_price, broker, sector, risk, allocation).run();
+        )
+          .bind(symbol, company, shares, share_price, broker, sector, risk, allocation)
+          .run();
         return json({ ok: true }, 201);
       }
       if (path.startsWith('/api/stocks/') && method === 'PUT') {
         const id = path.split('/').pop();
         const body = await request.json();
-        const fields = ['symbol','company','shares','share_price','broker','sector','risk','allocation'];
+        const fields = [
+          'symbol',
+          'company',
+          'shares',
+          'share_price',
+          'broker',
+          'sector',
+          'risk',
+          'allocation',
+        ];
         const updates = [];
         const values = [];
         for (const f of fields) {
@@ -43,7 +67,9 @@ export default {
         }
         if (!updates.length) return json({ error: 'No fields provided' }, 400);
         values.push(id);
-        await env.DB.prepare(`UPDATE stocks SET ${updates.join(', ')} WHERE id = ?`).bind(...values).run();
+        await env.DB.prepare(`UPDATE stocks SET ${updates.join(', ')} WHERE id = ?`)
+          .bind(...values)
+          .run();
         return json({ ok: true });
       }
       if (path.startsWith('/api/stocks/') && method === 'DELETE') {
@@ -59,14 +85,18 @@ export default {
       if (path === '/api/deposits' && method === 'POST') {
         const body = await request.json();
         const { amount, currency = 'EUR', date } = body;
-        await env.DB.prepare('INSERT INTO deposits (amount, currency, date) VALUES (?, ?, ?)').bind(amount, currency, date).run();
+        await env.DB.prepare('INSERT INTO deposits (amount, currency, date) VALUES (?, ?, ?)')
+          .bind(amount, currency, date)
+          .run();
         return json({ ok: true }, 201);
       }
       if (path.startsWith('/api/deposits/') && method === 'PUT') {
         const id = path.split('/').pop();
         const body = await request.json();
         const { amount, currency, date } = body;
-        await env.DB.prepare('UPDATE deposits SET amount = ?, currency = ?, date = ? WHERE id = ?').bind(amount, currency, date, id).run();
+        await env.DB.prepare('UPDATE deposits SET amount = ?, currency = ?, date = ? WHERE id = ?')
+          .bind(amount, currency, date, id)
+          .run();
         return json({ ok: true });
       }
       if (path.startsWith('/api/deposits/') && method === 'DELETE') {
@@ -82,15 +112,22 @@ export default {
       if (path === '/api/dividends' && method === 'POST') {
         const body = await request.json();
         const { amount, currency = 'EUR', date, symbol = '' } = body;
-        await env.DB.prepare('INSERT INTO dividends (amount, currency, date, symbol) VALUES (?, ?, ?, ?)').bind(amount, currency, date, symbol).run();
+        await env.DB.prepare(
+          'INSERT INTO dividends (amount, currency, date, symbol) VALUES (?, ?, ?, ?)'
+        )
+          .bind(amount, currency, date, symbol)
+          .run();
         return json({ ok: true }, 201);
       }
       if (path.startsWith('/api/dividends/') && method === 'PUT') {
         const id = path.split('/').pop();
         const body = await request.json();
         const { amount, currency, date, symbol } = body;
-        await env.DB.prepare('UPDATE dividends SET amount = ?, currency = ?, date = ?, symbol = ? WHERE id = ?')
-          .bind(amount, currency, date, symbol, id).run();
+        await env.DB.prepare(
+          'UPDATE dividends SET amount = ?, currency = ?, date = ?, symbol = ? WHERE id = ?'
+        )
+          .bind(amount, currency, date, symbol, id)
+          .run();
         return json({ ok: true });
       }
       if (path.startsWith('/api/dividends/') && method === 'DELETE') {
@@ -112,14 +149,18 @@ export default {
           balance_eur: balance,
           total_deposits_eur: depositsTotal,
           gain_eur: +(balance - depositsTotal).toFixed(2),
-          gain_percent: depositsTotal ? +((balance - depositsTotal) * 100 / depositsTotal).toFixed(2) : 0,
+          gain_percent: depositsTotal
+            ? +(((balance - depositsTotal) * 100) / depositsTotal).toFixed(2)
+            : 0,
           baseline,
-          index_percent: latestIdxPct
+          index_percent: latestIdxPct,
         });
       }
 
       if (path === '/api/performance-snapshots' && method === 'GET') {
-        const { results } = await env.DB.prepare('SELECT * FROM performance_snapshots ORDER BY created_at DESC').all();
+        const { results } = await env.DB.prepare(
+          'SELECT * FROM performance_snapshots ORDER BY created_at DESC'
+        ).all();
         return json({ snapshots: results });
       }
 
@@ -137,7 +178,7 @@ export default {
       if (path === '/api/allocation/sectors' && method === 'GET') {
         const rates = await fetchRates(env);
         const stocks = await getNormalizedStocks(env.DB, rates);
-        const sectors = buildAllocation(stocks, s => s.sector || 'Unknown');
+        const sectors = buildAllocation(stocks, (s) => s.sector || 'Unknown');
         return json(sectors);
       }
 
@@ -169,14 +210,16 @@ export default {
       const balance = await computePortfolioBalanceEUR(env.DB, rates);
       const depositsTotal = await computeTotalDepositsEUR(env.DB, rates);
       const gain = balance - depositsTotal;
-      const gainPct = depositsTotal ? (gain * 100 / depositsTotal) : 0;
+      const gainPct = depositsTotal ? (gain * 100) / depositsTotal : 0;
       await env.DB.prepare(
         'INSERT INTO performance_snapshots (balance_eur, total_deposits_eur, gain_eur, gain_percent, created_at) VALUES (?, ?, ?, ?, datetime("now"))'
-      ).bind(balance, depositsTotal, gain, gainPct).run();
+      )
+        .bind(balance, depositsTotal, gain, gainPct)
+        .run();
     } catch (e) {
       console.error('scheduled error', e);
     }
-  }
+  },
 };
 
 function json(data, status = 200, extraHeaders = {}) {
@@ -185,13 +228,13 @@ function json(data, status = 200, extraHeaders = {}) {
     headers: {
       'Content-Type': 'application/json',
       'Cache-Control': 'no-cache, no-store, must-revalidate',
-      'Pragma': 'no-cache',
-      'Expires': '0',
+      Pragma: 'no-cache',
+      Expires: '0',
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-      ...extraHeaders
-    }
+      ...extraHeaders,
+    },
   });
 }
 
@@ -205,7 +248,7 @@ async function fetchRates(env) {
   } catch (_) {}
   if (!out.USD || out.USD === 1) out.USD = 0.92;
   if (!out.GBP || out.GBP === 1) out.GBP = 1.16;
-  if (!out.RON || out.RON === 1) out.RON = 0.20;
+  if (!out.RON || out.RON === 1) out.RON = 0.2;
   return out;
 }
 
@@ -229,13 +272,13 @@ function parseSharePriceToEUR(stock, rates) {
   if (currency === 'USD') eur = numeric * (rates.USD || 1);
   else if (currency === 'GBP') eur = numeric * (rates.GBP || 1);
   else if (currency === 'GBX') eur = (numeric / 100) * (rates.GBP || 1);
-  else if (currency === 'RON') eur = numeric * (rates.RON || 0.20);
+  else if (currency === 'RON') eur = numeric * (rates.RON || 0.2);
   return +eur.toFixed(6);
 }
 
 function convertStoredSharePriceToEUR(rawStr, symbol, rates) {
   if (!rawStr) return 0;
-  const numeric = parseFloat(String(rawStr).replace(/[^0-9.\-]/g,'')) || 0;
+  const numeric = parseFloat(String(rawStr).replace(/[^0-9.\-]/g, '')) || 0;
   if (!numeric) return 0;
   let currency = 'EUR';
   if (/^RON/i.test(rawStr)) currency = 'RON';
@@ -251,13 +294,13 @@ function convertStoredSharePriceToEUR(rawStr, symbol, rates) {
   if (currency === 'USD') return +(numeric * (rates.USD || 1)).toFixed(6);
   if (currency === 'GBP') return +(numeric * (rates.GBP || 1)).toFixed(6);
   if (currency === 'GBX') return +((numeric / 100) * (rates.GBP || 1)).toFixed(6);
-  if (currency === 'RON') return +(numeric * (rates.RON || 0.20)).toFixed(6);
+  if (currency === 'RON') return +(numeric * (rates.RON || 0.2)).toFixed(6);
   return +numeric.toFixed(6);
 }
 
 async function getNormalizedStocks(db, rates) {
   const { results } = await db.prepare('SELECT * FROM stocks ORDER BY id ASC').all();
-  return results.map(s => {
+  return results.map((s) => {
     const priceEUR = parseSharePriceToEUR(s, rates);
     const shares = parseFloat(s.shares) || 0;
     const allocationEUR = +(shares * priceEUR).toFixed(6);
@@ -273,11 +316,13 @@ function buildAllocation(stocks, keyFn) {
     const key = keyFn(s);
     totals.set(key, (totals.get(key) || 0) + s.allocation_eur);
   }
-  const items = Array.from(totals.entries()).map(([name, valueEUR]) => ({
-    name,
-    value_eur: +valueEUR.toFixed(2),
-    percentage: grand ? +(100 * valueEUR / grand).toFixed(4) : 0
-  })).sort((a,b) => b.value_eur - a.value_eur);
+  const items = Array.from(totals.entries())
+    .map(([name, valueEUR]) => ({
+      name,
+      value_eur: +valueEUR.toFixed(2),
+      percentage: grand ? +((100 * valueEUR) / grand).toFixed(4) : 0,
+    }))
+    .sort((a, b) => b.value_eur - a.value_eur);
   return { total_eur: +grand.toFixed(2), items };
 }
 
@@ -308,20 +353,26 @@ async function computeTotalDepositsEUR(db, rates) {
     if (r.currency === 'EUR') total += amt;
     else if (r.currency === 'USD') total += amt * (rates.USD || 1);
     else if (r.currency === 'GBP') total += amt * (rates.GBP || 1);
-    else if (r.currency === 'RON') total += amt * (rates.RON || 0.20);
+    else if (r.currency === 'RON') total += amt * (rates.RON || 0.2);
     else total += amt;
   }
   return +total.toFixed(2);
 }
 
-async function indexChart(env) { return []; }
-async function fetchIndexPrice(env) { return { index_price: 1000 }; }
-async function latestIndexPercent(env) { return 0; }
+async function indexChart(env) {
+  return [];
+}
+async function fetchIndexPrice(env) {
+  return { index_price: 1000 };
+}
+async function latestIndexPercent(env) {
+  return 0;
+}
 
 async function getLiveOrFallbackPrice(db, symbol, rates) {
   const now = Date.now();
   const cached = priceCache.get(symbol);
-  if (cached && (now - cached.ts < 120000)) {
+  if (cached && now - cached.ts < 120000) {
     return { symbol, price_eur: cached.priceEUR, cached: true };
   }
 
@@ -355,7 +406,10 @@ async function getLiveOrFallbackPrice(db, symbol, rates) {
 
   if (priceEUR == null) {
     try {
-      const { results } = await db.prepare('SELECT share_price FROM stocks WHERE symbol = ? LIMIT 1').bind(symbol).all();
+      const { results } = await db
+        .prepare('SELECT share_price FROM stocks WHERE symbol = ? LIMIT 1')
+        .bind(symbol)
+        .all();
       if (results.length) {
         priceEUR = convertStoredSharePriceToEUR(results[0].share_price, symbol, rates);
       } else {
@@ -374,14 +428,14 @@ async function getLiveOrFallbackPrice(db, symbol, rates) {
     price_eur: priceEUR,
     yahoo: yahooOk,
     googleFallback: googleFallbackUsed,
-    currency_detected: rawCurrency
+    currency_detected: rawCurrency,
   };
 }
 
 function convertToEUR(value, currency, rates) {
   if (currency === 'USD') return value * (rates.USD || 1);
   if (currency === 'GBP') return value * (rates.GBP || 1);
-  if (currency === 'RON') return value * (rates.RON || 0.20);
+  if (currency === 'RON') return value * (rates.RON || 0.2);
   if (currency === 'GBX') return (value / 100) * (rates.GBP || 1);
   return value;
 }

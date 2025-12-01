@@ -21,11 +21,15 @@ function generateFromJson() {
   const deposits = data.deposits || [];
   const lines = [];
   lines.push('-- Generated from backup-data.json');
-  stocks.forEach(s => {
-    lines.push(`INSERT INTO stocks (symbol, weight, company, allocation, shares, share_price, broker, risk, sector) VALUES (${escapeValue(s.symbol)}, ${escapeValue(s.weight)}, ${escapeValue(s.company)}, ${escapeValue(s.allocation)}, ${escapeValue(s.shares)}, ${escapeValue(s.share_price)}, ${escapeValue(s.broker)}, ${escapeValue(s.risk)}, ${escapeValue(s.sector)});`);
+  stocks.forEach((s) => {
+    lines.push(
+      `INSERT INTO stocks (symbol, weight, company, allocation, shares, share_price, broker, risk, sector) VALUES (${escapeValue(s.symbol)}, ${escapeValue(s.weight)}, ${escapeValue(s.company)}, ${escapeValue(s.allocation)}, ${escapeValue(s.shares)}, ${escapeValue(s.share_price)}, ${escapeValue(s.broker)}, ${escapeValue(s.risk)}, ${escapeValue(s.sector)});`
+    );
   });
-  deposits.forEach(d => {
-    lines.push(`INSERT INTO deposits (count, date, amount, account, month) VALUES (${escapeValue(d.count)}, ${escapeValue(d.date)}, ${escapeValue(d.amount)}, ${escapeValue(d.account)}, ${escapeValue(d.month)});`);
+  deposits.forEach((d) => {
+    lines.push(
+      `INSERT INTO deposits (count, date, amount, account, month) VALUES (${escapeValue(d.count)}, ${escapeValue(d.date)}, ${escapeValue(d.amount)}, ${escapeValue(d.account)}, ${escapeValue(d.month)});`
+    );
   });
   return lines.join('\n');
 }
@@ -37,20 +41,26 @@ function generateFromSqlite() {
     const lines = ['-- Generated from portfolio.db'];
     db.all('SELECT * FROM stocks', [], (err, rows) => {
       if (!err && rows) {
-        rows.forEach(s => {
-          lines.push(`INSERT INTO stocks (symbol, weight, company, allocation, shares, share_price, broker, risk, sector) VALUES (${escapeValue(s.symbol)}, ${escapeValue(s.weight)}, ${escapeValue(s.company)}, ${escapeValue(s.allocation)}, ${escapeValue(s.shares)}, ${escapeValue(s.share_price)}, ${escapeValue(s.broker)}, ${escapeValue(s.risk)}, ${escapeValue(s.sector)});`);
+        rows.forEach((s) => {
+          lines.push(
+            `INSERT INTO stocks (symbol, weight, company, allocation, shares, share_price, broker, risk, sector) VALUES (${escapeValue(s.symbol)}, ${escapeValue(s.weight)}, ${escapeValue(s.company)}, ${escapeValue(s.allocation)}, ${escapeValue(s.shares)}, ${escapeValue(s.share_price)}, ${escapeValue(s.broker)}, ${escapeValue(s.risk)}, ${escapeValue(s.sector)});`
+          );
         });
       }
       db.all('SELECT * FROM deposits', [], (err2, rows2) => {
         if (!err2 && rows2) {
-          rows2.forEach(d => {
-            lines.push(`INSERT INTO deposits (count, date, amount, account, month) VALUES (${escapeValue(d.count)}, ${escapeValue(d.date)}, ${escapeValue(d.amount)}, ${escapeValue(d.account)}, ${escapeValue(d.month)});`);
+          rows2.forEach((d) => {
+            lines.push(
+              `INSERT INTO deposits (count, date, amount, account, month) VALUES (${escapeValue(d.count)}, ${escapeValue(d.date)}, ${escapeValue(d.amount)}, ${escapeValue(d.account)}, ${escapeValue(d.month)});`
+            );
           });
         }
         db.all('SELECT * FROM dividends', [], (err3, rows3) => {
           if (!err3 && rows3) {
-            rows3.forEach(v => {
-              lines.push(`INSERT INTO dividends (year, annual_dividend) VALUES (${escapeValue(v.year)}, ${escapeValue(v.annual_dividend)});`);
+            rows3.forEach((v) => {
+              lines.push(
+                `INSERT INTO dividends (year, annual_dividend) VALUES (${escapeValue(v.year)}, ${escapeValue(v.annual_dividend)});`
+              );
             });
           }
           db.close(() => resolve(lines.join('\n')));

@@ -12,7 +12,7 @@ export async function fetchRates(db: Firestore) {
   }
   if (!out.USD || out.USD === 1) out.USD = 0.92;
   if (!out.GBP || out.GBP === 1) out.GBP = 1.16;
-  if (!out.RON || out.RON === 1) out.RON = 0.20;
+  if (!out.RON || out.RON === 1) out.RON = 0.2;
   return out;
 }
 
@@ -36,13 +36,13 @@ export function parseSharePriceToEUR(stock: any, rates: Record<string, number>) 
   if (currency === 'USD') eur = numeric * (rates.USD || 1);
   else if (currency === 'GBP') eur = numeric * (rates.GBP || 1);
   else if (currency === 'GBX') eur = (numeric / 100) * (rates.GBP || 1);
-  else if (currency === 'RON') eur = numeric * (rates.RON || 0.20);
+  else if (currency === 'RON') eur = numeric * (rates.RON || 0.2);
   return +eur.toFixed(6);
 }
 
 export async function getNormalizedStocks(db: Firestore, rates: Record<string, number>) {
   const snap = await db.collection('stocks').orderBy('symbol', 'asc').get();
-  return snap.docs.map(d => {
+  return snap.docs.map((d) => {
     const s = { id: d.id, ...d.data() } as any;
     const priceEUR = parseSharePriceToEUR(s, rates);
     const shares = parseFloat(s.shares) || 0;
@@ -51,7 +51,7 @@ export async function getNormalizedStocks(db: Firestore, rates: Record<string, n
   });
 }
 
-export function buildAllocation(stocks: any[], keyFn: (s:any)=>string) {
+export function buildAllocation(stocks: any[], keyFn: (s: any) => string) {
   const totals = new Map<string, number>();
   let grand = 0;
   for (const s of stocks) {
@@ -59,11 +59,13 @@ export function buildAllocation(stocks: any[], keyFn: (s:any)=>string) {
     const key = keyFn(s);
     totals.set(key, (totals.get(key) || 0) + s.allocation_eur);
   }
-  const items = Array.from(totals.entries()).map(([name, valueEUR]) => ({
-    name,
-    value_eur: +valueEUR.toFixed(2),
-    percentage: grand ? +(100 * valueEUR / grand).toFixed(4) : 0
-  })).sort((a,b) => b.value_eur - a.value_eur);
+  const items = Array.from(totals.entries())
+    .map(([name, valueEUR]) => ({
+      name,
+      value_eur: +valueEUR.toFixed(2),
+      percentage: grand ? +((100 * valueEUR) / grand).toFixed(4) : 0,
+    }))
+    .sort((a, b) => b.value_eur - a.value_eur);
   return { total_eur: +grand.toFixed(2), items };
 }
 
@@ -95,7 +97,7 @@ export async function computeTotalDepositsEUR(db: Firestore, rates: Record<strin
     if (currency === 'EUR') total += amt;
     else if (currency === 'USD') total += amt * (rates.USD || 1);
     else if (currency === 'GBP') total += amt * (rates.GBP || 1);
-    else if (currency === 'RON') total += amt * (rates.RON || 0.20);
+    else if (currency === 'RON') total += amt * (rates.RON || 0.2);
     else total += amt;
   }
   return +total.toFixed(2);
@@ -104,7 +106,7 @@ export async function computeTotalDepositsEUR(db: Firestore, rates: Record<strin
 export function convertToEUR(value: number, currency: string, rates: Record<string, number>) {
   if (currency === 'USD') return value * (rates.USD || 1);
   if (currency === 'GBP') return value * (rates.GBP || 1);
-  if (currency === 'RON') return value * (rates.RON || 0.20);
+  if (currency === 'RON') return value * (rates.RON || 0.2);
   if (currency === 'GBX') return (value / 100) * (rates.GBP || 1);
   return value;
 }
@@ -128,10 +130,14 @@ export async function fetchPremFromGoogle(symbol: string, rates: Record<string, 
   }
 }
 
-export async function getLiveOrFallbackPrice(db: Firestore, symbol: string, rates: Record<string, number>) {
+export async function getLiveOrFallbackPrice(
+  db: Firestore,
+  symbol: string,
+  rates: Record<string, number>
+) {
   const now = Date.now();
   const cached = priceCache.get(symbol);
-  if (cached && (now - cached.ts < 120000)) {
+  if (cached && now - cached.ts < 120000) {
     return { symbol, price_eur: cached.priceEUR, cached: true };
   }
 
@@ -143,7 +149,7 @@ export async function getLiveOrFallbackPrice(db: Firestore, symbol: string, rate
   try {
     const res = await undiciFetch(yahooUrl);
     if (res.ok) {
-      const data = await res.json() as any;
+      const data = (await res.json()) as any;
       const meta = data?.chart?.result?.[0]?.meta;
       const lastClose = meta?.regularMarketPrice;
       if (typeof lastClose === 'number') {
@@ -183,6 +189,6 @@ export async function getLiveOrFallbackPrice(db: Firestore, symbol: string, rate
     price_eur: price,
     yahoo: yahooOk,
     googleFallback: googleFallbackUsed,
-    currency_detected: rawCurrency
+    currency_detected: rawCurrency,
   };
 }
