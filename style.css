@@ -814,7 +814,7 @@ p {
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.05));
   backdrop-filter: blur(20px);
   border-radius: 25px;
-  padding: 1.5rem 1mm; /* 1mm horizontal gutter to panel edges */
+  padding: 1.5rem;
   box-shadow:
     0 20px 60px rgba(0, 0, 0, 0.5),
     0 10px 25px rgba(0, 0, 0, 0.3),
@@ -976,6 +976,77 @@ p {
   transition: all 0.3s ease;
   gap: 2px;
   min-height: 36px; /* unify height with Profit/Return rows */
+}
+
+/* Balance panel: increase row height by ~15% */
+.wide-panel-grid .panel-zone:first-child .breakdown-item {
+  min-height: 41px; /* 36px * 1.15 ≈ 41.4px */
+  padding: 0.368rem 2.5mm; /* horizontal padding ~2.5mm */
+}
+
+/* Money invested panel: increase each row height by ~1.4mm */
+.wide-panel-grid .panel-zone:nth-child(2) .breakdown-item {
+  min-height: calc(36px + 1.4mm);
+  padding-top: calc(0.32rem + 0.18mm);
+  padding-bottom: calc(0.32rem + 0.18mm);
+}
+
+/* Balance panel: reduce left/right gutters to ~1mm */
+.wide-panel-grid .panel-zone:first-child {
+  padding-left: 2.5mm;
+  padding-right: 2.5mm;
+}
+.wide-panel-grid .panel-zone:first-child .deposits-breakdown {
+  padding-left: 0;
+  padding-right: 0;
+}
+
+/* Money invested panel (2nd): match ~2.5mm gutters and row padding */
+.wide-panel-grid .panel-zone:nth-child(2) {
+  padding-left: 2.5mm;
+  padding-right: 2.5mm;
+}
+.wide-panel-grid .panel-zone:nth-child(2) .deposits-breakdown {
+  padding-left: 0;
+  padding-right: 0;
+}
+.wide-panel-grid .panel-zone:nth-child(2) .breakdown-item {
+  padding-left: 2.5mm;
+  padding-right: 2.5mm;
+}
+
+/* Profit panel (3rd): match ~2.5mm gutters and row padding */
+.wide-panel-grid .panel-zone:nth-child(3) {
+  padding-left: 2.5mm;
+  padding-right: 2.5mm;
+}
+.wide-panel-grid .panel-zone:nth-child(3) .profit-box {
+  padding-left: 2.5mm;
+  padding-right: 2.5mm;
+}
+
+/* Total return panel (4th): match ~2.5mm gutters and row padding */
+.wide-panel-grid .panel-zone:nth-child(4) {
+  padding-left: 2.5mm;
+  padding-right: 2.5mm;
+}
+.wide-panel-grid .panel-zone:nth-child(4) .profit-box {
+  padding-left: 2.5mm;
+  padding-right: 2.5mm;
+}
+
+/* Profit panel: increase each row height by ~1.4mm */
+.wide-panel-grid .panel-zone:nth-child(3) .profit-box {
+  min-height: calc(36px + 1.4mm);
+  padding-top: calc(0.2rem + 0.18mm);
+  padding-bottom: calc(0.2rem + 0.18mm);
+}
+
+/* Total return panel: increase each row height by ~1.4mm */
+.wide-panel-grid .panel-zone:nth-child(4) .profit-box {
+  min-height: calc(36px + 1.4mm);
+  padding-top: calc(0.2rem + 0.18mm);
+  padding-bottom: calc(0.2rem + 0.18mm);
 }
 
 /* === Profit Split Grid === */
