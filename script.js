@@ -61,6 +61,14 @@ navLinks.forEach((link) => {
     const targetSection = document.getElementById(`${section}-section`);
     if (targetSection) {
       targetSection.classList.add('active');
+      // When returning to Dashboard, render charts immediately
+      if (section === 'dashboard') {
+        setTimeout(() => {
+          try { updateTotalBalance(); } catch {}
+          try { updateBalancePieChart(); } catch {}
+          try { updatePerformanceChart('1d'); } catch {}
+        }, 0);
+      }
     }
   });
 });
@@ -192,6 +200,9 @@ async function refreshStockPrices() {
             throw new Error('Invalid GBP for PREM');
           }
           cells[6].textContent = `£${formatMax3(displayGBP)}`;
+          // Hardcode Broker and Risk for PREM
+          cells[8].textContent = 'Trading 212';
+          cells[10].textContent = 'High Risk';
           // Allocation: GBP→EUR using live FX
           try {
             const rates = await fetch(`${API_BASE}/api/exchange-rates`).then((r) => r.json());
@@ -208,14 +219,16 @@ async function refreshStockPrices() {
             // Persist full row fields like other symbols
             const payload = {
               symbol: 'PREM.L',
-              company: cells[3 - 1].textContent.trim() || 'Premier African Minerals',
+              // Correct column indices:
+              // 0:number 1:symbol 2:weight 3:company 4:allocation 5:shares 6:share_price 7:price_change 8:broker 9:sector 10:risk
+              company: cells[3].textContent.trim() || 'Premier African Minerals',
               weight: cells[2].textContent.trim() || '-',
               allocation: cells[4].textContent.trim() || '-',
               shares: cells[5].textContent.trim() || '0',
               share_price: cells[6].textContent.trim(),
-              broker: cells[7].textContent.trim() || '-',
-              risk: cells[10 - 1].textContent.trim() || '🟥 High Risk',
-              sector: cells[9].textContent.trim() || 'Materials',
+              broker: 'Trading 212',
+              risk: 'High Risk',
+              sector: cells[9].textContent.trim() || 'Basic Materials',
             };
             await fetch(`${API_URL}/${stockId}`, {
               method: 'PUT',
@@ -285,9 +298,21 @@ async function refreshStockPrices() {
                 cells[6].textContent = `€${formatMax3(priceEUR)}`;
               }
             } else {
-              const decimalsEUR = broker === 'Crypto' || priceEUR < 0.1 ? 6 : 2;
-              const currency = isCrypto ? '$' : '€';
-              cells[6].textContent = `${currency}${formatMax3(priceEUR)}`;
+              // Non-US instruments: show EUR normally; crypto displayed in converted USD
+              if (isCrypto) {
+                try {
+                  const rates = await fetch(`${API_BASE}/api/exchange-rates`).then((r) => r.json());
+                  const usdRate = rates.USD || 1.16; // USD per 1 EUR
+                  const usdPrice = priceEUR * usdRate;
+                  cells[6].textContent = `$${formatMax3(usdPrice)}`;
+                } catch {
+                  // Fallback: still show underlying EUR value prefixed with $ (legacy behavior)
+                  cells[6].textContent = `$${formatMax3(priceEUR)}`;
+                }
+              } else {
+                const decimalsEUR = priceEUR < 0.1 ? 6 : 2;
+                cells[6].textContent = `€${formatMax3(priceEUR)}`;
+              }
             }
           } else {
             console.warn(`Skipping UI price update for ${symbol}: invalid/zero price`, priceData);
@@ -810,6 +835,9 @@ async function exitEditMode() {
               const shares = parseFloat(cells[5].textContent) || 0;
               const decimalsGBX = gbx < 1 ? 4 : 2;
               cells[6].textContent = `GBX ${formatMax3(gbx)}`;
+              // Hardcode Broker and Risk in edit-save path for PREM
+              cells[8].textContent = 'Trading 212';
+              cells[10].textContent = 'High Risk';
               const priceEUR = Number(priceData.priceEUR);
               if (shares > 0 && Number.isFinite(priceEUR)) {
                 const allocation = shares * priceEUR;
@@ -821,14 +849,16 @@ async function exitEditMode() {
               if (stockId) {
                 const payload = {
                   symbol: 'PREM.L',
-                  company: cells[2].textContent.trim() || 'Premier African Minerals',
-                  weight: cells[3].textContent.trim() || '',
+                  // Corrected indices matching table layout
+                  // 0:number 1:symbol 2:weight 3:company 4:allocation 5:shares 6:share_price 7:price_change 8:broker 9:sector 10:risk
+                  company: cells[3].textContent.trim() || 'Premier African Minerals',
+                  weight: cells[2].textContent.trim() || '',
                   allocation: cells[4].textContent.trim() || '-',
                   shares: cells[5].textContent.trim() || '0',
                   share_price: cells[6].textContent.trim() || `GBX ${formatMax3(gbx)}`,
-                  broker: cells[7].textContent.trim() || 'XTB-EURO',
-                  risk: cells[8].textContent.trim() || '🟥 High',
-                  sector: cells[9].textContent.trim() || 'Materials',
+                  broker: 'Trading 212',
+                  risk: 'High Risk',
+                  sector: cells[9].textContent.trim() || 'Basic Materials',
                 };
                 await fetch(`${API_URL}/${stockId}`, {
                   method: 'PUT',
@@ -884,8 +914,22 @@ async function exitEditMode() {
                   cells[6].textContent = `€${priceEUR.toFixed(decimals)}`;
                 }
               } else {
-                const decimals = broker === 'Crypto' || priceEUR < 0.1 ? 6 : 2;
-                cells[6].textContent = `€${priceEUR.toFixed(decimals)}`;
+                // Non-US path: crypto displayed in USD (converted), others in EUR
+                if (broker === 'Crypto') {
+                  try {
+                    const rates = await fetch(`${API_BASE}/api/exchange-rates`).then((r) => r.json());
+                    const usdRate = rates.USD || 1.16;
+                    const usdPrice = priceEUR * usdRate;
+                    const decimalsUSD = usdPrice < 0.1 ? 6 : 4;
+                    cells[6].textContent = `$${usdPrice.toFixed(decimalsUSD)}`;
+                  } catch {
+                    const decimals = priceEUR < 0.1 ? 6 : 4;
+                    cells[6].textContent = `$${priceEUR.toFixed(decimals)}`; // fallback legacy
+                  }
+                } else {
+                  const decimals = priceEUR < 0.1 ? 6 : 2;
+                  cells[6].textContent = `€${priceEUR.toFixed(decimals)}`;
+                }
               }
             } else {
               console.warn(`Skipping UI price update for ${symbol}: invalid/zero`, priceObj);
@@ -1564,6 +1608,7 @@ setTimeout(() => {
 
 // ========== PIE CHART ==========
 let balancePieChart = null;
+let balancePieChartRetries = 0;
 
 // ========== DEPOSITS SECTION ==========
 const depositsTbody = document.getElementById('deposits-tbody');
@@ -1819,7 +1864,14 @@ async function exitDepositEditMode() {
       const id = currentEditingDeposit.dataset.id;
       if (id) {
         await updateDepositInDatabase(id, depositData);
+        // Instant page refresh of dependent sections after saving a deposit
         updateTotalDeposits();
+        // Refresh Money Invested breakdowns (dashboard + deposits tab duplicate)
+        try { await updateDepositsBreakdown(); } catch {}
+        // Refresh balance breakdowns and totals so profit reflects new deposit
+        try { await updateBalanceBreakdown(); } catch {}
+        try { await updateTotalBalance(); } catch {}
+        try { updateBalancePieChart(); } catch {}
       }
 
       editBtn.title = 'Edit';
@@ -1897,17 +1949,25 @@ async function updateDepositsBreakdown() {
       }
     });
 
-    // Update UI - Money invested section
-    document.getElementById('xtb-eur-value').textContent =
-      Math.round(xtbEur).toLocaleString('en-US') + ' €';
-    document.getElementById('tradeville-value').textContent =
-      Math.round(tradeville).toLocaleString('en-US') + ' €';
-    document.getElementById('t212-xtb-usd-value').textContent =
-      Math.round(t212XtbUsd).toLocaleString('en-US') + ' €';
-    document.getElementById('crypto-value').textContent =
-      Math.round(crypto).toLocaleString('en-US') + ' €';
-    document.getElementById('bank-deposits-value').textContent =
-      Math.round(bankDeposits).toLocaleString('en-US') + ' €';
+    // Helper to update multiple id variants (dashboard + deposits tab duplicate)
+    function setIfExists(id, value) {
+      const el = document.getElementById(id);
+      if (el) el.textContent = Math.round(value).toLocaleString('en-US') + ' €';
+    }
+    const mapping = [
+      ['xtb-eur-value', xtbEur],
+      ['tradeville-value', tradeville],
+      ['t212-xtb-usd-value', t212XtbUsd],
+      ['crypto-value', crypto],
+      ['bank-deposits-value', bankDeposits],
+      // Deposits tab duplicate IDs
+      ['xtb-eur-value-deposits', xtbEur],
+      ['tradeville-value-deposits', tradeville],
+      ['t212-xtb-usd-value-deposits', t212XtbUsd],
+      ['crypto-value-deposits', crypto],
+      ['bank-deposits-value-deposits', bankDeposits],
+    ];
+    mapping.forEach(([id, val]) => setIfExists(id, val));
   } catch (error) {
     console.error('Error updating deposits breakdown:', error);
   }
@@ -2284,7 +2344,7 @@ async function updateBalancePieChart() {
     const cells = row.querySelectorAll('td');
     if (cells.length > 0) {
       const weightText = cells[2].textContent.trim();
-      const riskText = cells[9].textContent.trim();
+      const riskText = cells[10].textContent.trim();
       const weight = parseFloat(weightText.replace('%', '')) || 0;
       // Map risk to categories
       if (
@@ -2382,6 +2442,17 @@ async function updateBalancePieChart() {
   console.log('Chart labels:', labels);
   console.log('Chart data:', data);
   console.log('Chart colors:', colors);
+
+  // If nothing to render yet, retry shortly (data may still be loading)
+  if (labels.length === 0 && balancePieChartRetries < 3) {
+    balancePieChartRetries += 1;
+    console.log(`Pie chart has no data yet. Retrying (${balancePieChartRetries}/3)...`);
+    setTimeout(updateBalancePieChart, 600);
+    return;
+  } else if (labels.length > 0) {
+    // Reset retry counter once we have data
+    balancePieChartRetries = 0;
+  }
 
   // Create or update chart
   const ctx = document.getElementById('balance-pie-chart');
@@ -2544,11 +2615,33 @@ async function updateBalancePieChart() {
           cornerRadius: 8,
           boxPadding: 6,
           callbacks: {
-            title: function () {
-              return '';
+            title: function (contexts) {
+              const label = contexts[0]?.label || '';
+              const notes = {
+                'Medium-Safe': 'RO companies from BET-TR index',
+                'High Risk': 'Small US companies, Thematic ETFs, Crypto',
+                'Very Safe': 'Cash, Bank Deposits',
+                Safe: 'Dividend ETFs, S&P 500 ETF',
+              };
+              const text = notes[label] || label;
+              const maxLen = 32; // wrap to new line when exceeding ~32 chars
+              const words = String(text).split(' ');
+              const lines = [];
+              let current = '';
+              for (const w of words) {
+                const next = current ? current + ' ' + w : w;
+                if (next.length > maxLen) {
+                  if (current) lines.push(current);
+                  current = w;
+                } else {
+                  current = next;
+                }
+              }
+              if (current) lines.push(current);
+              return lines; // Chart.js will render each array item on a new line
             },
             label: function (context) {
-              return context.parsed + '%';
+              return `${context.parsed}%`;
             },
           },
         },
@@ -2667,15 +2760,21 @@ function stopSnapshotSaving() {
 
 // Initialize application
 document.addEventListener('DOMContentLoaded', () => {
+  // Load table first, then immediately render charts using current DB data
   loadTableData().then(async () => {
-    // CRITICAL: Fetch fresh prices BEFORE calculating balance
-    console.log('🚀 Fetching fresh prices before first display...');
-    await refreshStockPrices();
-    console.log('✅ Fresh prices loaded');
+    // Immediate chart render using existing DB values (no price refresh wait)
+    try { updateBalancePieChart(); } catch {}
+    try { updateTotalBalance(); } catch {}
+    try { updatePerformanceChart('1d'); } catch {}
 
-    updateTotalBalance();
-    updateBalancePieChart();
-    updatePerformanceChart('1d');
+    // Fetch fresh prices in background, then re-render
+    console.log('🚀 Fetching fresh prices in background...');
+    refreshStockPrices().then(() => {
+      console.log('✅ Fresh prices loaded, updating charts');
+      try { updateTotalBalance(); } catch {}
+      try { updateBalancePieChart(); } catch {}
+      try { updatePerformanceChart('1d'); } catch {}
+    });
 
     // Start auto-refresh and snapshot saving after initial load
     startAutoRefresh();

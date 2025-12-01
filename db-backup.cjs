@@ -3,7 +3,7 @@ const fs = require('fs');
 
 const BACKUP_FILE = 'backup-data.json';
 
-function exportData(dbPath = 'portfolio.db') {
+function exportData(dbPath = process.env.DB_PATH || 'portfolio.db') {
   return new Promise((resolve, reject) => {
     const db = new sqlite3.Database(dbPath, (err) => {
       if (err) {

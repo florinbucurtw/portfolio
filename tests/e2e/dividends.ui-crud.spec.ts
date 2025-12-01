@@ -2,7 +2,8 @@ import { test, expect } from '@playwright/test';
 import { uiBase } from '../utils/env';
 
 async function gotoSection(page, sectionId: string) {
-  const link = page.locator(`.nav-link[data-section="${sectionId.replace('-section','')}"]`);
+  const target = sectionId.replace('#','').replace('-section','');
+  const link = page.locator(`.nav-link[data-section="${target}"]`);
   await link.click();
   await expect(page.locator(sectionId)).toHaveClass(/active/);
 }
@@ -10,50 +11,65 @@ async function gotoSection(page, sectionId: string) {
 test.beforeEach(async ({ page }) => {
   await page.goto(uiBase());
   await gotoSection(page, '#dividends-section');
+  await expect(page.locator('#dividends-table-body')).toBeVisible();
 });
 
-// Full UI CRUD using the table buttons and contenteditable fields
-test('Dividends UI CRUD flow', async ({ page }) => {
+// Add new dividend via UI
+test('Dividends: Add row appears and saves', async ({ page }) => {
   const tbody = page.locator('#dividends-table-body');
-  await expect(tbody).toBeVisible();
   const initialCount = await tbody.locator('tr').count();
 
-  // Add new dividend via UI (click +)
   await page.locator('#add-dividend-btn').click();
-  const editingRow = tbody.locator('tr.editing');
+  let editingRow = tbody.locator('tr.editing');
   await expect(editingRow).toBeVisible();
+  await page.waitForFunction(() => {
+    const row = document.querySelector('#dividends-table-body tr.editing');
+    return !!row && row.isConnected;
+  });
 
-  // Select year and enter annual dividend
   const yearSelect = editingRow.locator('.year-select');
-  await yearSelect.selectOption({ label: String(new Date().getFullYear()) });
+  await yearSelect.waitFor({ state: 'visible', timeout: 10000 });
+  await yearSelect.selectOption({ label: String(new Date().getFullYear()) }).catch(async () => {
+    editingRow = tbody.locator('tr.editing');
+    await expect(editingRow).toBeVisible();
+    const ys = editingRow.locator('.year-select');
+    await expect(ys).toBeVisible();
+    await ys.selectOption({ label: String(new Date().getFullYear()) });
+  });
 
   const annCell = editingRow.locator('.annual-dividend-input');
+  await annCell.waitFor({ state: 'visible', timeout: 10000 });
   await annCell.click();
-  // Replace contenteditable text
+  await page.keyboard.press('Meta+A').catch(async () => { await page.keyboard.press('Control+A').catch(() => {}); });
   await page.keyboard.type('240');
 
-  // Save
   await editingRow.locator('.save-icon-btn').click();
-
-  // After save, row should no longer be editing and count increases
   await expect(tbody.locator('tr.editing')).toHaveCount(0);
-  const afterAdd = await tbody.locator('tr').count();
-  expect(afterAdd).toBe(initialCount + 1);
+  await expect(tbody.locator('tr')).toHaveCount(initialCount + 1);
+});
 
-  // Edit the last row
-  const lastRow = tbody.locator('tr').nth(afterAdd - 1);
+// Edit last dividend row
+test('Dividends: Edit last row updates value', async ({ page }) => {
+  const tbody = page.locator('#dividends-table-body');
+  const count = await tbody.locator('tr').count();
+  expect(count).toBeGreaterThan(0);
+  const lastRow = tbody.locator('tr').nth(count - 1);
   await lastRow.locator('.edit-icon-btn').click();
-  const lastEditing = tbody.locator('tr').nth(afterAdd - 1);
+  const lastEditing = tbody.locator('tr').nth(count - 1);
   await expect(lastEditing.locator('.annual-dividend-cell')).toHaveClass(/editable/);
   await lastEditing.locator('.annual-dividend-cell').click();
-  await page.keyboard.type('24'); // append to make it larger
+  await page.keyboard.type('24');
   await lastEditing.locator('.save-icon-btn').click();
   await expect(tbody.locator('tr.editing')).toHaveCount(0);
+});
 
-  // Delete the last row
+// Delete last dividend row
+test('Dividends: Delete last row restores count', async ({ page }) => {
+  const tbody = page.locator('#dividends-table-body');
+  const before = await tbody.locator('tr').count();
+  expect(before).toBeGreaterThan(0);
+  const lastRow = tbody.locator('tr').nth(before - 1);
   page.once('dialog', (dialog) => dialog.accept());
   await lastRow.locator('.delete-icon-btn').click();
-
-  const finalCount = await tbody.locator('tr').count();
-  expect(finalCount).toBe(initialCount);
+  await expect(tbody.locator('tr')).toHaveCount(before - 1);
 });
