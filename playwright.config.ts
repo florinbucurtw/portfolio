@@ -8,4 +8,5 @@ export default defineConfig({
   use: {
     baseURL: process.env.API_BASE || 'https://portfolio-api.florinportfolio.workers.dev',
   },
+  globalSetup: './tests/e2e/global-setup.ts',
 });

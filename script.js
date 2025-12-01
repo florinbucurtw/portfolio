@@ -174,23 +174,29 @@ async function refreshStockPrices() {
     if (cells.length === 0) continue;
 
     const symbol = cells[1].textContent.trim();
-    // PREM / PREM.L: Fetch live GBX (pence) price from Google Finance and convert
+    // PREM / PREM.L: Treat like other symbols using Yahoo-only data
     if (symbol.toUpperCase() === 'PREM' || symbol.toUpperCase() === 'PREM.L') {
       try {
         const priceData = await fetchStockPrice(symbol);
-        if (priceData && priceData.priceGBp != null) {
-          const gbx = Number(priceData.priceGBp);
+        // Persist/display only if validated flag true and GBp present
+        if (priceData && priceData.validated) {
+          // Prefer GBP display; derive from GBp when present
           const shares = parseFloat(cells[5].textContent) || 0;
-          const decimalsGBX = gbx < 1 ? 4 : 2;
-          cells[6].textContent = `GBX ${formatMax3(gbx)}`;
-          // Allocation: convert GBX→GBP→EUR using live FX
+          let displayGBP = null;
+          if (priceData.priceGBP != null && isFinite(priceData.priceGBP) && priceData.priceGBP > 0) {
+            displayGBP = Number(priceData.priceGBP);
+          } else if (priceData.priceGBp != null && isFinite(priceData.priceGBp) && priceData.priceGBp > 0) {
+            displayGBP = Number(priceData.priceGBp) / 100;
+          }
+          if (!Number.isFinite(displayGBP) || displayGBP <= 0) {
+            throw new Error('Invalid GBP for PREM');
+          }
+          cells[6].textContent = `£${formatMax3(displayGBP)}`;
+          // Allocation: GBP→EUR using live FX
           try {
-            const rates = await fetch(`${API_BASE}/api/exchange-rates`)
-              .then((r) => r.json())
-              .catch(() => ({ GBP: 0.86 }));
-            const gbpRate = rates.GBP || 0.86; // EUR→GBP
-            const priceGBP = gbx / 100;
-            const priceEUR = priceGBP / gbpRate;
+            const rates = await fetch(`${API_BASE}/api/exchange-rates`).then((r) => r.json());
+            const gbpRate = rates.GBP || 0.86; // EUR per 1 GBP
+            const priceEUR = displayGBP / gbpRate;
             if (shares > 0 && Number.isFinite(priceEUR)) {
               const allocation = shares * priceEUR;
               cells[4].textContent = `€${allocation.toFixed(2)}`;
@@ -199,13 +205,22 @@ async function refreshStockPrices() {
           updateWeightForRow(row);
           const stockId = row.dataset.id;
           if (stockId) {
+            // Persist full row fields like other symbols
+            const payload = {
+              symbol: 'PREM.L',
+              company: cells[3 - 1].textContent.trim() || 'Premier African Minerals',
+              weight: cells[2].textContent.trim() || '-',
+              allocation: cells[4].textContent.trim() || '-',
+              shares: cells[5].textContent.trim() || '0',
+              share_price: cells[6].textContent.trim(),
+              broker: cells[7].textContent.trim() || '-',
+              risk: cells[10 - 1].textContent.trim() || '🟥 High Risk',
+              sector: cells[9].textContent.trim() || 'Materials',
+            };
             await fetch(`${API_URL}/${stockId}`, {
               method: 'PUT',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                share_price: cells[6].textContent,
-                allocation: cells[4].textContent,
-              }),
+              body: JSON.stringify(payload),
             });
           }
         }
@@ -801,6 +816,26 @@ async function exitEditMode() {
                 cells[4].textContent = `€${allocation.toFixed(2)}`;
               }
               updateWeightForRow(currentEditingRow);
+              // Persist full PREM row to DB to ensure refresh reads saved data
+              const stockId = currentEditingRow.dataset.id;
+              if (stockId) {
+                const payload = {
+                  symbol: 'PREM.L',
+                  company: cells[2].textContent.trim() || 'Premier African Minerals',
+                  weight: cells[3].textContent.trim() || '',
+                  allocation: cells[4].textContent.trim() || '-',
+                  shares: cells[5].textContent.trim() || '0',
+                  share_price: cells[6].textContent.trim() || `GBX ${formatMax3(gbx)}`,
+                  broker: cells[7].textContent.trim() || 'XTB-EURO',
+                  risk: cells[8].textContent.trim() || '🟥 High',
+                  sector: cells[9].textContent.trim() || 'Materials',
+                };
+                await fetch(`${API_URL}/${stockId}`, {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(payload),
+                });
+              }
             }
             return; // Skip generic fetch logic for PREM
           } catch (err) {

@@ -1,9 +1,15 @@
-const express = require('express');
-const cors = require('cors');
-const sqlite3 = require('sqlite3').verbose();
-const path = require('path');
-const fs = require('fs');
-const { exportData, importData } = require('./db-backup');
+import express from 'express';
+import cors from 'cors';
+import sqlite3pkg from 'sqlite3';
+import path from 'path';
+import fs from 'fs';
+import { createRequire } from 'node:module';
+import { fileURLToPath } from 'url';
+const require = createRequire(import.meta.url);
+const sqlite3 = sqlite3pkg.verbose();
+const { exportData, importData } = require('./db-backup.cjs');
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 let PORT = parseInt(process.env.PORT || '3000', 10);
@@ -28,12 +34,13 @@ if (!fetchFn) {
   fetchFn = require('node-fetch');
 }
 
-// Initialize SQLite database
-const db = new sqlite3.Database('portfolio.db', (err) => {
+// Initialize SQLite database (configurable via env DB_PATH)
+const DB_PATH = process.env.DB_PATH || 'portfolio.db';
+const db = new sqlite3.Database(DB_PATH, (err) => {
   if (err) {
     console.error('Error opening database:', err);
   } else {
-    console.log('Connected to SQLite database');
+    console.log(`Connected to SQLite database at ${DB_PATH}`);
   }
 });
 
@@ -815,49 +822,120 @@ app.get('/api/stock-price/:symbol', async (req, res) => {
 
   try {
     // Using global fetch (Node 18+)
-    // Special handling for PREM and PREM.L from LSE (price in pence "p")
+    // Special handling for PREM and PREM.L: Yahoo-only
     if (symbol.toUpperCase() === 'PREM' || symbol.toUpperCase() === 'PREM.L') {
+      // Invalidate old LSE-based cache to ensure Yahoo-only behavior
+      if (premCache.source === 'LSE') {
+        premCache.pence = null;
+        premCache.gbp = null;
+        premCache.eur = null;
+        premCache.updatedAt = 0;
+        premCache.source = null;
+      }
+      const altSymbol = 'PREM.L';
       try {
-        const lseUrl =
-          'https://www.lse.co.uk/SharePrice.html?shareprice=PREM&share=Premier-african-minerals';
-        const htmlResp = await fetch(lseUrl);
-        const html = await htmlResp.text();
-        // Try to find a price like 0.0575p (allow variations with spaces)
-        // Prefer a tighter context: look near "share-price" container
-        let match = html.match(/([0-9]+\.?[0-9]*)\s*p\b/i);
-        if (match && match[1]) {
-          const pence = parseFloat(match[1]);
+        const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(altSymbol)}?interval=1m&range=1d`;
+        const response = await fetchFn(url);
+        const data = await response.json();
+        const result = data?.chart?.result?.[0];
+        const meta = result?.meta || {};
+        let price = meta.regularMarketPrice ?? meta.previousClose ?? null;
+        const currency = meta.currency;
+        let priceGBP = null;
+        let priceGBp = null;
+        if (price == null && result?.indicators?.quote?.[0]?.close) {
+          const closes = (result.indicators.quote[0].close || []).filter((v) => v != null);
+          if (closes.length > 0) price = closes[closes.length - 1];
+        }
+        if (price != null && currency) {
           const rates = await getExchangeRates();
-          // Convert pence -> GBP -> EUR
-          const gbp = pence / 100;
-          const eur = gbp / (rates.GBP || 0.86);
-          console.log(
-            `PREM LSE scrape: pence=${pence}, GBP=${gbp.toFixed(6)}, EUR=${eur.toFixed(6)}, GBP rate=${rates.GBP}`
-          );
-          if (isPremPencePlausible(pence)) {
-            premCache.pence = pence;
-            premCache.gbp = gbp;
-            premCache.eur = eur;
+          if (currency === 'GBp') {
+            // Yahoo sometimes reports GBp as regularMarketPrice
+            priceGBp = price;
+            priceGBP = price / 100;
+            const priceEUR = priceGBP / (rates.GBP || 0.86);
+            // Update cache with Yahoo-derived values
+            premCache.pence = priceGBp;
+            premCache.gbp = priceGBP;
+            premCache.eur = priceEUR;
             premCache.updatedAt = Date.now();
-            premCache.source = 'LSE';
+            premCache.source = 'Yahoo';
             return res.json({
-              price: eur.toFixed(6),
-              priceEUR: eur,
-              priceGBP: gbp,
-              priceGBp: pence,
-              symbol: 'PREM.L',
+              price: priceEUR.toFixed(6),
+              priceEUR,
+              priceGBP,
+              priceGBp,
+              symbol: altSymbol,
               originalSymbol: symbol,
               originalCurrency: 'GBp',
-              validated: true,
-              source: 'LSE',
+              validated: isPremPencePlausible(priceGBp),
+              source: 'Yahoo',
+              cached: false,
+            });
+          } else if (currency === 'GBP') {
+            priceGBP = price;
+            const priceEUR = priceGBP / (rates.GBP || 0.86);
+            premCache.pence = null;
+            premCache.gbp = priceGBP;
+            // Derive pence just for display if needed
+            premCache.eur = priceEUR;
+            premCache.updatedAt = Date.now();
+            premCache.source = 'Yahoo';
+            return res.json({
+              price: priceEUR.toFixed(6),
+              priceEUR,
+              priceGBP,
+              priceGBp,
+              symbol: altSymbol,
+              originalSymbol: symbol,
+              originalCurrency: 'GBP',
+              validated: Number.isFinite(priceGBP) && priceGBP > 0,
+              source: 'Yahoo',
               cached: false,
             });
           } else {
-            console.warn('LSE pence value not plausible, ignoring:', pence);
+            // Fallback: convert to EUR from other currencies (USD, etc.)
+            let priceEUR = price;
+            if (currency === 'USD') priceEUR = price / (rates.USD || 1.16);
+            premCache.pence = null;
+            premCache.gbp = null;
+            premCache.eur = priceEUR;
+            premCache.updatedAt = Date.now();
+            premCache.source = 'Yahoo';
+            return res.json({
+              price: priceEUR.toFixed(6),
+              priceEUR,
+              priceGBP,
+              priceGBp,
+              symbol: altSymbol,
+              originalSymbol: symbol,
+              originalCurrency: currency,
+              validated: Number.isFinite(priceEUR) && priceEUR > 0,
+              source: 'Yahoo',
+              cached: false,
+            });
           }
         }
-      } catch (err) {
-        console.log('PREM LSE scrape failed, falling back to Yahoo:', err.message);
+        throw new Error('Yahoo did not return a usable price');
+      } catch (e) {
+        console.log('Yahoo PREM fetch failed:', e.message);
+        // If we have a Yahoo cache, return it
+        if (premCache.eur != null && premCache.source === 'Yahoo') {
+          return res.json({
+            price: premCache.eur.toFixed(6),
+            priceEUR: premCache.eur,
+            priceGBP: premCache.gbp,
+            priceGBp: premCache.pence,
+            symbol: 'PREM.L',
+            originalSymbol: symbol,
+            originalCurrency: 'GBp',
+            validated: true,
+            source: 'Yahoo-cache',
+            cached: true,
+            ageMs: Date.now() - (premCache.updatedAt || 0),
+          });
+        }
+        return res.status(404).json({ error: 'Price data not available for this symbol', validated: false });
       }
     }
     const alternatives = tryAlternativeSymbols(symbol);
@@ -982,7 +1060,7 @@ app.get('/api/stock-price/:symbol', async (req, res) => {
       } catch (err) {
         console.log(`✗ Failed to fetch ${altSymbol}:`, err.message);
       }
-    }
+      }
 
     // If all alternatives failed, return error
     if (
@@ -1768,7 +1846,12 @@ app.get('/api/quotes', async (req, res) => {
 
     for (const row of filtered) {
       const rawSymbol = row.symbol.trim();
-      const yfSymbol = rawSymbol; // assume direct compatibility (e.g., TLV.RO, SXR8.DE, JASMY-USD)
+      // Normalize certain market suffixes for Yahoo Finance compatibility
+      // Example: London-listed tickers use .L, not .UK (DFNS.UK -> DFNS.L)
+      let yfSymbol = rawSymbol;
+      if (/\.UK$/i.test(yfSymbol)) {
+        yfSymbol = yfSymbol.replace(/\.UK$/i, '.L');
+      }
       try {
         const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yfSymbol)}?interval=1m&range=1d`;
         const response = await fetch(url);
@@ -1782,9 +1865,9 @@ app.get('/api/quotes', async (req, res) => {
         if (current != null && previousClose != null && previousClose !== 0) {
           changePercent = ((current - previousClose) / previousClose) * 100;
         }
-        quoteResults.push({ symbol: rawSymbol, current, previousClose, changePercent });
+        quoteResults.push({ symbol: rawSymbol, yfSymbol, current, previousClose, changePercent });
       } catch (err) {
-        quoteResults.push({ symbol: rawSymbol, error: err.message });
+        quoteResults.push({ symbol: rawSymbol, yfSymbol, error: err.message });
       }
     }
 
@@ -1882,13 +1965,13 @@ startServer(PORT);
 // Export data before process exits
 process.on('SIGINT', async () => {
   console.log('\n📦 Backing up data before exit...');
-  await exportData();
+  await exportData(DB_PATH);
   process.exit(0);
 });
 
 process.on('SIGTERM', async () => {
   console.log('\n📦 Backing up data before exit...');
-  await exportData();
+  await exportData(DB_PATH);
   process.exit(0);
 });
 
@@ -1907,7 +1990,11 @@ async function computePortfolioBalanceEURFromDB() {
         const raw = String(row.share_price || '0');
         const num = parseFloat(raw.replace(/[^0-9.-]/g, '')) || 0;
         let priceEUR = num;
-        if (raw.includes('$') || row.broker === 'Crypto') {
+        if (/^GBX\b/i.test(raw)) {
+          // Convert GBX (pence) -> GBP -> EUR
+          const gbp = num / 100;
+          priceEUR = gbp / (rates.GBP || 0.86);
+        } else if (raw.includes('$') || row.broker === 'Crypto') {
           priceEUR = num / (rates.USD || 1.16);
         } else if (raw.includes('£')) {
           priceEUR = num / (rates.GBP || 0.86);
