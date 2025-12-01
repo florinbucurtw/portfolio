@@ -178,31 +178,25 @@
             <div class="panel-zone">
               <div class="deposits-breakdown">
                 <h3 class="panel-zone-title">Profit:</h3>
-                <div class="profit-split-grid">
-                  <!-- Column 1: Brokers -->
-                  <div class="profit-col brokers">
-                    <div class="profit-box profit-label">XTB EUR</div>
-                    <div class="profit-box profit-label">Tradeville</div>
-                    <div class="profit-box profit-label">T212 + XTB USD</div>
-                    <div class="profit-box profit-label">Crypto</div>
-                    <div class="profit-box profit-label">Bank Deposits</div>
-                  </div>
-                  <!-- Column 2: Profit Values -->
-                  <div class="profit-col profits">
-                    <div class="profit-box" id="xtb-eur-profit-value">0.00 €</div>
-                    <div class="profit-box" id="tradeville-profit-value">0.00 €</div>
-                    <div class="profit-box" id="t212-xtb-usd-profit-value">0.00 €</div>
-                    <div class="profit-box" id="crypto-profit-value">0.00 €</div>
-                    <div class="profit-box" id="bank-deposits-profit-value">0.00 €</div>
-                  </div>
-                  <!-- Column 3: Returns Percentages -->
-                  <div class="profit-col returns">
-                    <div class="profit-box" id="xtb-eur-return-percentage">0.00%</div>
-                    <div class="profit-box" id="tradeville-return-percentage">0.00%</div>
-                    <div class="profit-box" id="t212-xtb-usd-return-percentage">0.00%</div>
-                    <div class="profit-box" id="crypto-return-percentage">0.00%</div>
-                    <div class="profit-box" id="bank-deposits-return-percentage">0.00%</div>
-                  </div>
+                <div class="profit-col combined">
+                  <div class="profit-box"><span class="profit-label">XTB EUR</span><span class="profit-value" id="xtb-eur-profit-value">0.00 €</span></div>
+                  <div class="profit-box"><span class="profit-label">Tradeville</span><span class="profit-value" id="tradeville-profit-value">0.00 €</span></div>
+                  <div class="profit-box"><span class="profit-label">T212 + XTB USD</span><span class="profit-value" id="t212-xtb-usd-profit-value">0.00 €</span></div>
+                  <div class="profit-box"><span class="profit-label">Crypto</span><span class="profit-value" id="crypto-profit-value">0.00 €</span></div>
+                  <div class="profit-box"><span class="profit-label">Bank Deposits</span><span class="profit-value" id="bank-deposits-profit-value">0.00 €</span></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="panel-zone">
+              <div class="deposits-breakdown">
+                <h3 class="panel-zone-title">Total return:</h3>
+                <div class="profit-col returns">
+                  <div class="profit-box" id="xtb-eur-return-percentage">0.00%</div>
+                  <div class="profit-box" id="tradeville-return-percentage">0.00%</div>
+                  <div class="profit-box" id="t212-xtb-usd-return-percentage">0.00%</div>
+                  <div class="profit-box" id="crypto-return-percentage">0.00%</div>
+                  <div class="profit-box" id="bank-deposits-return-percentage">0.00%</div>
                 </div>
               </div>
             </div>
@@ -273,7 +267,7 @@
               </th>
               <th>Shares</th>
               <th>Price</th>
-              <th class="sortable" data-column="price_change" style="width: 13%">
+              <th class="sortable" data-column="price_change">
                 Price Change <span class="sort-icon">⇅</span>
               </th>
               <th class="sortable" data-column="broker">Broker <span class="sort-icon">⇅</span></th>
@@ -316,6 +310,33 @@
       <div id="deposits-section" class="section">
         <div class="table-header">
           <button id="add-deposit-btn" class="add-btn">+</button>
+        </div>
+
+        <!-- Money Invested duplicate section (Deposits tab) -->
+        <div class="panel-zone" style="margin-top: 0.75rem; margin-bottom: 0.75rem;">
+          <div class="deposits-breakdown">
+            <h3 class="panel-zone-title">Money invested:</h3>
+            <div class="breakdown-item">
+              <span class="breakdown-label">XTB EUR</span>
+              <span class="breakdown-value breakdown-value-white" id="xtb-eur-value-deposits">0.00 €</span>
+            </div>
+            <div class="breakdown-item">
+              <span class="breakdown-label">Tradeville</span>
+              <span class="breakdown-value breakdown-value-white" id="tradeville-value-deposits">0.00 €</span>
+            </div>
+            <div class="breakdown-item">
+              <span class="breakdown-label">T212 + XTB USD</span>
+              <span class="breakdown-value breakdown-value-white" id="t212-xtb-usd-value-deposits">0.00 €</span>
+            </div>
+            <div class="breakdown-item">
+              <span class="breakdown-label">Crypto</span>
+              <span class="breakdown-value breakdown-value-white" id="crypto-value-deposits">0.00 €</span>
+            </div>
+            <div class="breakdown-item">
+              <span class="breakdown-label">Bank Deposits</span>
+              <span class="breakdown-value breakdown-value-white" id="bank-deposits-value-deposits">0.00 €</span>
+            </div>
+          </div>
         </div>
 
         <div class="deposits-total">

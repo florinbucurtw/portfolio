@@ -240,6 +240,18 @@
   margin: 0 auto 1.5rem;
 }
 
+/* Stocks: match panel card gradient for column headers */
+#stocks-section .stocks-table thead th {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.05));
+  border-color: rgba(255, 255, 255, 0.25);
+  box-shadow: none;
+}
+
+/* Subtle hover for Stocks headers: lighten slightly */
+#stocks-section .stocks-table th.sortable:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
 /* Center the Deposits header controls to the same width */
 #deposits-section .table-header {
   /* revert to default (no forced centering) */
@@ -249,7 +261,7 @@
 
 .stocks-table thead tr {
   display: grid;
-  grid-template-columns: 33px 70px 94px 1.38fr 112px 81px 70px 140px 101px 115px 115px 90px; /* Adjusted: Allocation -20%, Shares -10%, Broker -10%, Sector -10%, Risk -10% */
+  grid-template-columns: 33px 70px 94px 1.38fr 112px 81px 70px 136px 101px 115px 115px 90px; /* Shrunk Price Change column by 15% (160px -> 136px) */
   gap: 8px;
 }
 
@@ -276,7 +288,7 @@
 
 #stocks-tbody tr {
   display: grid;
-  grid-template-columns: 33px 70px 94px 1.38fr 112px 81px 70px 140px 101px 115px 115px 90px; /* Adjusted widths in body to match header */
+  grid-template-columns: 33px 70px 94px 1.38fr 112px 81px 70px 136px 101px 115px 115px 90px; /* Match 15% shrink for Price Change column in body */
   gap: 3px;
   /* Darker card background for clear breakdown contrast */
   /* Lightened ~15% (reduced alpha values for a brighter appearance) */
@@ -401,6 +413,19 @@
   text-align: left !important;
   padding-left: 6px;
   padding-right: 0;
+}
+
+/* Align Price Change column left (not centered) */
+#stocks-tbody td[data-field='price_change'] {
+  justify-content: flex-start !important;
+  text-align: left !important;
+  padding-left: 6px;
+  padding-right: 0;
+}
+
+/* Align Price Change header label left */
+.stocks-table thead th:nth-child(8) {
+  text-align: left;
 }
 
 /* Align Price header label left */
@@ -732,8 +757,8 @@ p {
 
 .wide-panel-grid {
   display: grid;
-  grid-template-columns: 28% 28% 40%;
-  gap: 1.5rem;
+  grid-template-columns: repeat(4, 1fr); /* fit 4 zones on one row */
+  gap: 1.2rem; /* slightly tighter spacing to help fit */
   width: 100%;
   height: 100%;
 }
@@ -747,6 +772,12 @@ p {
   align-items: flex-start;
   justify-content: center;
   transition: all 0.3s ease;
+}
+
+/* Shrink the Deposits tab panel by ~20% in both width and height */
+#deposits-section .panel-zone {
+  transform: scale(0.9);
+  transform-origin: top center;
 }
 
 .panel-zone:hover {
@@ -778,11 +809,40 @@ p {
   height: 100%;
 }
 
+/* Narrow + centered version inside Deposits tab */
+#deposits-section .deposits-breakdown {
+  width: 50%; /* restore previous width */
+  margin: 0.5rem auto 1rem auto; /* center horizontally */
+}
+
+#deposits-section .deposits-breakdown .breakdown-item {
+  justify-content: space-between; /* restore default alignment */
+  text-align: left; /* restore default text alignment */
+  gap: 2px;
+}
+
+#deposits-section .deposits-breakdown .breakdown-label,
+#deposits-section .deposits-breakdown .breakdown-value,
+#deposits-section .deposits-breakdown .breakdown-value-white {
+  display: inline-block;
+  text-align: left; /* restore left alignment */
+}
+
+/* Increase font sizes for the 5 rows in Deposits tab */
+#deposits-section .deposits-breakdown .breakdown-label {
+  font-size: 0.9rem; /* was 0.7rem */
+}
+
+#deposits-section .deposits-breakdown .breakdown-value,
+#deposits-section .deposits-breakdown .breakdown-value-white {
+  font-size: 1rem; /* was 0.8rem */
+}
+
 .breakdown-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.25rem 1rem; /* further compact */
+  padding: 0.32rem 1rem; /* slightly taller rows */
   /* Further lightened ~10% vs previous (alphas reduced) */
   background: linear-gradient(135deg, rgba(0, 0, 0, 0.535), rgba(0, 0, 0, 0.382));
   backdrop-filter: blur(10px);
@@ -791,40 +851,67 @@ p {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
   transition: all 0.3s ease;
   gap: 2px;
+  min-height: 36px; /* unify height with Profit/Return rows */
 }
 
 /* === Profit Split Grid === */
 .profit-split-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 0.6rem; /* align vertical rhythm with breakdown-item gap */
+  grid-template-columns: 1.5fr 1fr; /* two columns */
+  gap: 0.25rem; /* tighter spacing between columns */
   width: 100%;
 }
 
 .profit-col {
   display: flex;
   flex-direction: column;
-  gap: 0.6rem; /* match breakdown-item vertical spacing */
+  gap: 0; /* no space between rows, matches Balance/Money Invested */
+}
+
+/* Combined column: label + value on one row */
+.profit-col.combined .profit-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-left: 0.7rem;
+  padding-right: 0.7rem;
+}
+
+.profit-col.combined .profit-label {
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  color: #e0e0e0;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.6);
+  font-size: 0.7rem; /* align with previous label size */
+}
+
+.profit-col.combined .profit-value {
+  color: #00d9ff;
+  font-weight: 700;
+  text-shadow:
+    0 0 10px rgba(0, 217, 255, 0.4),
+    1px 1px 2px rgba(0, 0, 0, 0.5);
+  font-size: 0.8rem; /* match previous profit value emphasis */
 }
 
 .profit-box {
   background: linear-gradient(135deg, rgba(0, 0, 0, 0.535), rgba(0, 0, 0, 0.382));
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 12px; /* unify with breakdown-item */
-  padding: 0.25rem 1rem; /* further compact */
+  padding: 0.2rem 0.8rem; /* reduce inner spacing a bit */
   font-size: 0.7rem; /* base size matches label size */
   font-weight: 600;
   color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: unset; /* allow natural content height like breakdown-item */
+  min-height: 36px; /* same row height as breakdown-item */
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
   transition:
     background 160ms ease,
     box-shadow 160ms ease,
     transform 160ms ease;
-  line-height: 1.05; /* slight breathing room similar to breakdown */
+  line-height: 1.03; /* slightly tighter line height */
 }
 
 .profit-box:hover {
@@ -861,6 +948,16 @@ p {
     0 0 10px rgba(0, 255, 136, 0.4),
     1px 1px 2px rgba(0, 0, 0, 0.6);
   font-size: 0.8rem; /* same emphasis as profit values */
+}
+
+/* Title above the returns column */
+.profit-column-title {
+  color: white;
+  font-weight: 700;
+  font-size: 0.9rem;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+  margin: 0.1rem 0 0.2rem 0; /* tight spacing */
+  text-align: center;
 }
 
 .breakdown-item-compact {
@@ -1396,12 +1493,26 @@ p {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
+  margin: 0 auto 1rem auto;
   padding: 1rem 1.5rem;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
   backdrop-filter: blur(10px);
+  width: 100%;
+}
+
+/* Match width with Deposits table container */
+#deposits-section .deposits-total,
+#deposits-section .stocks-table {
+  max-width: 960px;
+}
+
+/* Center both elements to align widths visually */
+#deposits-section .deposits-total,
+#deposits-section .stocks-table {
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .deposits-total span:first-child {

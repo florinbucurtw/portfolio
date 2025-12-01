@@ -8,7 +8,8 @@ const sel = {
 };
 
 async function gotoSection(page, sectionId: string) {
-  const link = page.locator(`.nav-link[data-section="${sectionId.replace('-section','')}"]`);
+  const target = sectionId.replace('#','').replace('-section','');
+  const link = page.locator(`.nav-link[data-section="${target}"]`);
   await link.click();
   await expect(page.locator(sectionId)).toHaveClass(/active/);
 }
@@ -22,9 +23,10 @@ test.beforeEach(async ({ page }) => {
 // If the UI exposes a table or chart, we verify a canvas appears
 // This stays generic due to limited selectors context.
 test('Dividends chart visible after adding data', async ({ page }) => {
-  // Add via API (generic payload)
+  // Add via API (server expects year and annual_dividend)
+  const thisYear = new Date().getFullYear();
   const res = await page.request.post(`${uiBase()}/api/dividends`, {
-    data: { amount: '12.34', symbol: 'TEST.EU', date: '01/02/2024' },
+    data: { year: thisYear, annual_dividend: 240 },
   });
   expect(res.ok()).toBeTruthy();
 

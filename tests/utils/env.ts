@@ -24,7 +24,7 @@ export function apiBase(): string {
 export const API_BASE = apiBase();
 
 export function uiBase(): string {
-  const base = process.env.UI_BASE_URL || 'http://localhost:4173';
+  const base = process.env.UI_BASE_URL || 'http://localhost:3000';
   return base.replace(/\/+$/, '');
 }
 

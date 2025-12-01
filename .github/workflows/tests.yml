@@ -22,22 +22,39 @@ jobs:
         run: npm i -g firebase-tools
       - name: Install dependencies
         run: npm ci
+      - name: Configure Service Account for Firestore export
+        run: |
+          echo "$FIREBASE_SA_JSON" > $HOME/firebase-sa.json
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$HOME/firebase-sa.json" >> $GITHUB_ENV
+        env:
+          FIREBASE_SA_JSON: ${{ secrets.FIREBASE_SA_JSON }}
+      - name: Export Firestore (read-only)
+        run: |
+          export ALLOW_REAL_FIRESTORE_READ=true
+          npm run firestore:export
+        env:
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+      - name: Upload export artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: firestore-export
+          path: backup-firestore.json
       - name: Start Firebase Emulators
         run: |
           npm --prefix functions ci
           nohup npx --prefix functions firebase emulators:start &
           # wait for emulator ports
           for i in {1..30}; do
-            (nc -z 127.0.0.1 5001 && nc -z 127.0.0.1 8081) && break || sleep 2;
+            (nc -z 127.0.0.1 5001 && nc -z 127.0.0.1 8080) && break || sleep 2;
           done
         env:
           GOOGLE_CLOUD_PROJECT: florinportfolio
-          FIRESTORE_EMULATOR_HOST: 127.0.0.1:8081
+          FIRESTORE_EMULATOR_HOST: 127.0.0.1:8080
       - name: Seed Emulator
         run: npm run seed:emulator
         env:
           GOOGLE_CLOUD_PROJECT: florinportfolio
-          FIRESTORE_EMULATOR_HOST: 127.0.0.1:8081
+          FIRESTORE_EMULATOR_HOST: 127.0.0.1:8080
           API_BASE_OVERRIDE: http://127.0.0.1:5001/florinportfolio/europe-west1/api
       - name: Run API smoke test
         run: npx vitest run tests/api/health.spec.ts
@@ -59,6 +76,12 @@ jobs:
         run: |
           npm ci
           npx playwright install --with-deps
+      - name: Configure Service Account for Firestore export (optional)
+        run: |
+          echo "$FIREBASE_SA_JSON" > $HOME/firebase-sa.json
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$HOME/firebase-sa.json" >> $GITHUB_ENV
+        env:
+          FIREBASE_SA_JSON: ${{ secrets.FIREBASE_SA_JSON }}
       - name: Start UI server
         run: |
           nohup npm run serve &
@@ -72,18 +95,27 @@ jobs:
           nohup npx --prefix functions firebase emulators:start &
           # wait for emulator ports
           for i in {1..30}; do
-            (nc -z 127.0.0.1 5001 && nc -z 127.0.0.1 8081) && break || sleep 2;
+            (nc -z 127.0.0.1 5001 && nc -z 127.0.0.1 8080) && break || sleep 2;
           done
         env:
           GOOGLE_CLOUD_PROJECT: florinportfolio
-          FIRESTORE_EMULATOR_HOST: 127.0.0.1:8081
+          FIRESTORE_EMULATOR_HOST: 127.0.0.1:8080
+      - name: Download Firestore export
+        uses: actions/download-artifact@v4
+        with:
+          name: firestore-export
+          path: .
+      - name: Import Firestore export into emulator
+        run: npm run firestore:import:emulator
+        env:
+          FIRESTORE_EMULATOR_HOST: 127.0.0.1:8080
       - name: Export local DB to backup JSON
         run: npm run export:db
       - name: Import backup into emulator
         run: npm run import:emulator
         env:
           GOOGLE_CLOUD_PROJECT: florinportfolio
-          FIRESTORE_EMULATOR_HOST: 127.0.0.1:8081
+          FIRESTORE_EMULATOR_HOST: 127.0.0.1:8080
       - name: Run Playwright smoke test
         env:
           UI_BASE_URL: http://localhost:3000
