@@ -2,7 +2,7 @@ name: Deploy static site to GitHub Pages
 
 on:
   push:
-    branches: [ production ]
+    branches: [production]
   workflow_dispatch:
 
 permissions:
@@ -34,4 +34,3 @@ jobs:
         uses: actions/deploy-pages@v4
         with:
           enablement: true
-

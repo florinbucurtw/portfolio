@@ -46,19 +46,26 @@ Worker-ul rulează un cron la fiecare minut (configurat în `wrangler.toml`) car
 Poți migra datele actuale (SQLite) în D1:
 
 1. Generează fișier SQL:
+
 ```bash
 node scripts/generate-d1-import.js > d1-import.sql
 ```
+
 2. Creează baza (dacă nu e creată) și aplică migrația structurii:
+
 ```bash
 wrangler d1 create portfolio
 wrangler d1 migrations apply portfolio
 ```
+
 3. Execută importul:
+
 ```bash
 wrangler d1 execute portfolio --file=./d1-import.sql
 ```
+
 4. Verifică:
+
 ```bash
 wrangler d1 execute portfolio --command "SELECT COUNT(*) AS c FROM stocks;"
 wrangler d1 execute portfolio --command "SELECT COUNT(*) AS c FROM deposits;"
@@ -76,33 +83,44 @@ Nota: Dacă există deja date în D1, inserările duplicate pe `symbol` vor eșu
 Site-ul static este în rădăcina repo-ului. Workflow-ul `deploy-pages.yml` publică automat la fiecare push pe `main`.
 
 ### Activare manuală (prima dată):
+
 1. Mergi în Settings → Pages.
 2. La Source selectează: `GitHub Actions` (dacă apare) sau verifică că workflow-ul rulează.
 3. După primul run vei primi un URL: `https://florinbucurtw.github.io/portfolio/`.
 
 ### Verificare override API
+
 După ce ai deploy Worker și ai pus URL-ul lui în snippet:
+
 - Deschide pagina publică.
 - Console (DevTools): vezi mesajul `API_BASE_OVERRIDE activ: ...`.
 - Verifică rețea: cererile către `/api/...` sunt redirecționate spre Worker.
 
 ### Ajustare URL Worker
+
 În `index.html` caută:
+
 ```html
 const workerUrl = 'https://portfolio-api.REPLACE.workers.dev';
 ```
+
 Înlocuiește cu URL-ul real (ex: `https://portfolio-api.florin.workers.dev`).
 
 ### Comenzi utile
+
 Rulare workflow manual:
+
 ```bash
 gh workflow run Deploy_GitHub_Pages
 ```
+
 Inspect logs:
+
 ```bash
 gh run list --workflow Deploy_GitHub_Pages
 ```
 
 ### Notă
+
 - Calea `/api/...` cu override funcționează chiar dacă site-ul e servit la `/portfolio/`.
 - Dacă migrezi ulterior la Cloudflare Pages + route Worker, poți elimina complet snippet-ul override.
