@@ -16,9 +16,12 @@ loadEnvTest();
 
 export function apiBase(): string {
   const override = process.env.API_BASE_OVERRIDE;
-  const base = override || 'http://127.0.0.1:5001/florinportfolio/europe-west1/api';
+  const fallback = 'http://127.0.0.1:5001/florinportfolio/europe-west1/api';
+  const base = override && override.startsWith('http') ? override : fallback;
   return base.replace(/\/+$/, '');
 }
+
+export const API_BASE = apiBase();
 
 export function uiBase(): string {
   const base = process.env.UI_BASE_URL || 'http://localhost:4173';
@@ -30,17 +33,4 @@ export const routes = {
   exchangeRates: () => `${apiBase()}/api/exchange-rates`,
   performance: () => `${apiBase()}/api/performance-snapshot`,
   stockPrice: (symbol: string) => `${apiBase()}/api/stock-price/${encodeURIComponent(symbol)}`,
-};
-export function apiBase(): string {
-  const override = process.env.API_BASE_OVERRIDE;
-  return override && override.startsWith('http')
-    ? override.replace(/\/+$/, '')
-    : 'https://portfolio-api.florinportfolio.workers.dev';
-}
-
-export const routes = {
-  stocks: () => `${apiBase()}/api/stocks`,
-  exchangeRates: () => `${apiBase()}/api/exchange-rates`,
-  stockPrice: (symbol: string) => `${apiBase()}/api/stock-price/${encodeURIComponent(symbol)}`,
-  performance: () => `${apiBase()}/api/performance-snapshot`,
 };

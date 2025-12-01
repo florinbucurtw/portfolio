@@ -36,7 +36,8 @@ function json(res: express.Response, data: any, status = 200) {
 
 app.get('/api/exchange-rates', async (_req, res) => {
   const rates = await fetchRates(db);
-  json(res, { rates });
+  const withEur = { EUR: 1.0, ...rates };
+  json(res, { rates: withEur });
 });
 
 app.get('/api/stocks', async (_req, res) => {

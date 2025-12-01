@@ -20,9 +20,10 @@ describe('GET /api/exchange-rates', () => {
     const res = await fetch(routes.exchangeRates(), { headers: { accept: 'application/json' } });
     expect(res.ok).toBe(true);
     const body = await res.json();
+    const rates = body.rates || body;
     for (const k of ['USD', 'GBP', 'RON']) {
-      expect(body).toHaveProperty(k);
-      expect(typeof body[k]).toBe('number');
+      expect(rates).toHaveProperty(k);
+      expect(typeof rates[k]).toBe('number');
     }
   });
 });

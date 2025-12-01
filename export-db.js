@@ -1,4 +1,6 @@
-const { exportData } = require('./db-backup');
+import { createRequire } from 'node:module';
+const require = createRequire(import.meta.url);
+const { exportData } = require('./db-backup.cjs');
 
 console.log('📦 Exporting database...');
 exportData()

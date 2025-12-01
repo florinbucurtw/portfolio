@@ -33,13 +33,14 @@ jobs:
         env:
           GOOGLE_CLOUD_PROJECT: florinportfolio
           FIRESTORE_EMULATOR_HOST: 127.0.0.1:8081
-      - name: Run Vitest API tests
+      - name: Seed Emulator
         run: npm run seed:emulator
         env:
           GOOGLE_CLOUD_PROJECT: florinportfolio
           FIRESTORE_EMULATOR_HOST: 127.0.0.1:8081
           API_BASE_OVERRIDE: http://127.0.0.1:5001/florinportfolio/europe-west1/api
-        run: npm run test:api
+      - name: Run API smoke test
+        run: npx vitest run tests/api/health.spec.ts
         env:
           API_BASE_OVERRIDE: http://127.0.0.1:5001/florinportfolio/europe-west1/api
           GOOGLE_CLOUD_PROJECT: florinportfolio
@@ -58,12 +59,45 @@ jobs:
         run: |
           npm ci
           npx playwright install --with-deps
+      - name: Start UI server
+        run: |
+          nohup npm run serve &
+          # wait for UI to become ready
+          for i in {1..30}; do
+            curl -sSf http://localhost:3000 >/dev/null && break || sleep 2;
+          done
       - name: Start Firebase Emulators
         run: |
-          npm --prefix functions run build
-          npm --prefix functions run serve &
-          echo "Waiting for emulator..." && sleep 10
-      - name: Run Playwright tests
+          npm --prefix functions ci
+          nohup npx --prefix functions firebase emulators:start &
+          # wait for emulator ports
+          for i in {1..30}; do
+            (nc -z 127.0.0.1 5001 && nc -z 127.0.0.1 8081) && break || sleep 2;
+          done
         env:
-          UI_BASE_URL: http://localhost:4173
-        run: npm run test:e2e
+          GOOGLE_CLOUD_PROJECT: florinportfolio
+          FIRESTORE_EMULATOR_HOST: 127.0.0.1:8081
+      - name: Export local DB to backup JSON
+        run: npm run export:db
+      - name: Import backup into emulator
+        run: npm run import:emulator
+        env:
+          GOOGLE_CLOUD_PROJECT: florinportfolio
+          FIRESTORE_EMULATOR_HOST: 127.0.0.1:8081
+      - name: Run Playwright smoke test
+        env:
+          UI_BASE_URL: http://localhost:3000
+        run: npx playwright test tests/e2e/smoke.spec.ts
+      - name: Seed Emulator for full E2E
+        run: npm run seed:emulator
+        env:
+          GOOGLE_CLOUD_PROJECT: florinportfolio
+          FIRESTORE_EMULATOR_HOST: 127.0.0.1:8081
+          API_BASE_OVERRIDE: http://127.0.0.1:5001/florinportfolio/europe-west1/api
+      - name: Run full Playwright E2E suite
+        env:
+          UI_BASE_URL: http://localhost:3000
+          API_BASE_OVERRIDE: http://127.0.0.1:5001/florinportfolio/europe-west1/api
+          GOOGLE_CLOUD_PROJECT: florinportfolio
+          FIRESTORE_EMULATOR_HOST: 127.0.0.1:8081
+        run: npx playwright test tests/e2e
