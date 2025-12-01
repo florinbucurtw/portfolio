@@ -8,7 +8,7 @@ module.exports = [
     shares: '100',
     share_price: '€155.00',
     broker: 'XTB-USD',
-    risk: '🟨 Medium'
+    risk: '🟨 Medium',
   },
   {
     symbol: 'GOOGL',
@@ -18,7 +18,7 @@ module.exports = [
     shares: '80',
     share_price: '€153.75',
     broker: 'Trading212',
-    risk: '🟨 Medium'
+    risk: '🟨 Medium',
   },
   {
     symbol: 'MSFT',
@@ -28,7 +28,7 @@ module.exports = [
     shares: '50',
     share_price: '€364.00',
     broker: 'XTB-USD',
-    risk: '🟨 Medium'
+    risk: '🟨 Medium',
   },
   {
     symbol: 'TLV.RO',
@@ -38,7 +38,7 @@ module.exports = [
     shares: '3000',
     share_price: '€2.83',
     broker: 'Tradeville',
-    risk: '🟦 Safe'
+    risk: '🟦 Safe',
   },
   {
     symbol: 'VWCE.DE',
@@ -48,7 +48,7 @@ module.exports = [
     shares: '250',
     share_price: '€100.00',
     broker: 'XTB-EURO',
-    risk: '🟦 Safe'
+    risk: '🟦 Safe',
   },
   {
     symbol: 'TSLA',
@@ -58,7 +58,7 @@ module.exports = [
     shares: '40',
     share_price: '€262.50',
     broker: 'Trading212',
-    risk: '🟥 High Risk'
+    risk: '🟥 High Risk',
   },
   {
     symbol: 'SNP.RO',
@@ -68,7 +68,7 @@ module.exports = [
     shares: '10000',
     share_price: '€0.50',
     broker: 'Tradeville',
-    risk: '🟨 Medium'
+    risk: '🟨 Medium',
   },
   {
     symbol: 'NVDA',
@@ -78,6 +78,6 @@ module.exports = [
     shares: '15',
     share_price: '€333.33',
     broker: 'XTB-USD',
-    risk: '🟥 High Risk'
-  }
+    risk: '🟥 High Risk',
+  },
 ];
