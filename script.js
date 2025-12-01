@@ -69,10 +69,6 @@ navLinks.forEach((link) => {
           try { updatePerformanceChart('1d'); } catch {}
         }, 0);
       }
-      // Update floating add visibility for withdrawals
-      setTimeout(() => {
-        refreshFloatingWithdrawalBtn();
-      }, 50);
     }
   });
 });
@@ -139,134 +135,6 @@ function handleFloatingButtonVisibility() {
     floatingAddBtn.classList.remove('visible');
   }
 }
-
-// ===== Withdrawals (UI-only) =====
-const withdrawalsTbody = document.getElementById('withdrawals-table-body');
-const floatingAddWithdrawalBtn = document.getElementById('floating-add-withdrawal-btn');
-let withdrawalCounter = 0;
-
-function getTodayISODate() {
-  const d = new Date();
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
-  return `${yyyy}-${mm}-${dd}`;
-}
-
-function monthNameFromDateStr(dateStr) {
-  if (!dateStr) return '-';
-  try {
-    const d = new Date(dateStr);
-    return d.toLocaleString('en-US', { month: 'long' });
-  } catch { return '-'; }
-}
-
-function createWithdrawalRow(data = {}) {
-  withdrawalCounter += 1;
-  const tr = document.createElement('tr');
-  const dateISO = data.dateISO || getTodayISODate();
-  const monthName = monthNameFromDateStr(dateISO);
-  const amountVal = data.amount || '0.00 €';
-  tr.innerHTML = `
-    <td data-field="number">${withdrawalCounter}</td>
-    <td data-field="date">${dateISO}</td>
-    <td data-field="amount" class="editable">${amountVal}</td>
-    <td data-field="month">${monthName}</td>
-    <td class="action-buttons">
-      <button class="edit-btn" title="Edit">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-        </svg>
-      </button>
-      <button class="delete-btn" title="Delete">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <polyline points="3 6 5 6 21 6"></polyline>
-          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-          <line x1="10" y1="11" x2="10" y2="17"></line>
-          <line x1="14" y1="11" x2="14" y2="17"></line>
-        </svg>
-      </button>
-    </td>
-  `;
-  withdrawalsTbody.appendChild(tr);
-  attachWithdrawalRowListeners(tr);
-  return tr;
-}
-
-function attachWithdrawalRowListeners(row) {
-  const editBtn = row.querySelector('.edit-btn');
-  const deleteBtn = row.querySelector('.delete-btn');
-  editBtn.addEventListener('click', () => {
-    if (editBtn.title === 'Edit') {
-      // enter edit
-      editBtn.title = 'Save';
-      editBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
-      const dateCell = row.querySelector('td[data-field="date"]');
-      const amountCell = row.querySelector('td[data-field="amount"]');
-      const currentISO = dateCell.textContent.trim();
-      // Date input (datetime-local optional) -> use date only per spec
-      const dateInput = document.createElement('input');
-      dateInput.type = 'date';
-      dateInput.value = currentISO;
-      dateInput.style.width = '100%';
-      dateCell.textContent = '';
-      dateCell.appendChild(dateInput);
-      const amountInput = document.createElement('input');
-      amountInput.type = 'text';
-      amountInput.value = amountCell.textContent.replace(/€/,'').trim();
-      amountInput.placeholder = 'Amount EUR';
-      amountInput.style.width = '100%';
-      amountCell.textContent = '';
-      amountCell.appendChild(amountInput);
-    } else {
-      // save
-      const dateCell = row.querySelector('td[data-field="date"]');
-      const amountCell = row.querySelector('td[data-field="amount"]');
-      const monthCell = row.querySelector('td[data-field="month"]');
-      const dateInput = dateCell.querySelector('input');
-      const amountInput = amountCell.querySelector('input');
-      const newDate = dateInput?.value || getTodayISODate();
-      const cleanAmount = amountInput?.value ? amountInput.value.replace(/[^0-9.\-]/g,'') : '0.00';
-      dateCell.textContent = newDate;
-      amountCell.textContent = (cleanAmount || '0.00') + ' €';
-      monthCell.textContent = monthNameFromDateStr(newDate);
-      editBtn.title = 'Edit';
-      editBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>`;
-    }
-  });
-  deleteBtn.addEventListener('click', () => {
-    row.remove();
-    // Recalculate numbers
-    const rows = withdrawalsTbody.querySelectorAll('tr');
-    rows.forEach((r,i) => { const numCell = r.querySelector('td[data-field="number"]'); if (numCell) numCell.textContent = i+1; });
-    withdrawalCounter = rows.length; // reset counter if rows removed
-  });
-}
-
-function addNewWithdrawalRow() {
-  const row = createWithdrawalRow();
-  // Auto-enter edit mode to allow quick changes
-  const editBtn = row.querySelector('.edit-btn');
-  if (editBtn) editBtn.click();
-}
-
-function refreshFloatingWithdrawalBtn() {
-  if (!floatingAddWithdrawalBtn) return;
-  const active = document.getElementById('withdrawals-section')?.classList.contains('active');
-  if (active) {
-    floatingAddWithdrawalBtn.classList.add('visible');
-  } else {
-    floatingAddWithdrawalBtn.classList.remove('visible');
-  }
-}
-
-if (floatingAddWithdrawalBtn) {
-  floatingAddWithdrawalBtn.addEventListener('click', addNewWithdrawalRow);
-}
-
-// Initial refresh after load
-setTimeout(refreshFloatingWithdrawalBtn, 300);
 
 // Add scroll listener
 window.addEventListener('scroll', handleFloatingButtonVisibility);
@@ -3293,10 +3161,6 @@ window.editDividend = function (id) {
   selection.removeAllRanges();
   selection.addRange(range);
 };
-      // Initialize currency switch when opening Settings
-      if (section === 'settings') {
-        setTimeout(() => { try { initializeCurrencySwitch(); } catch {} }, 0);
-      }
 
 // Update monthly dividend in real-time
 function updateMonthlyDividend(e) {
@@ -3652,109 +3516,10 @@ async function updatePerformanceChart(range = '1m') {
     const latestReturn = data.portfolioData[data.portfolioData.length - 1];
     const firstSnapshot = window.currentSnapshots[0];
     const lastSnapshot = window.currentSnapshots[window.currentSnapshots.length - 1];
-    // Prepare currency switch
-    try { initializeCurrencySwitch(); } catch {}
 
     const firstBalance = parseFloat(firstSnapshot.portfolio_balance || 0);
     const lastBalance = parseFloat(lastSnapshot.portfolio_balance || 0);
     const euroChange = lastBalance - firstBalance;
-
-// ===== Currency switch logic (Settings) =====
-let DISPLAY_CURRENCY = 'EUR';
-let latestRates = { USD: 1.16, GBP: 0.86, RON: 4.95 };
-
-async function fetchLatestRatesOnce() {
-  try {
-    latestRates = await fetch(`${API_BASE}/api/exchange-rates`).then((r) => r.json());
-  } catch {}
-}
-
-function convertAmount(valueEUR, target) {
-  if (!Number.isFinite(valueEUR)) return null;
-  if (target === 'EUR') return valueEUR;
-  if (target === 'USD') return valueEUR * (latestRates.USD || 1.16);
-  if (target === 'RON') return valueEUR * (latestRates.RON || 4.95);
-  return valueEUR;
-}
-
-function fmt(amount, currency) {
-  if (!Number.isFinite(amount)) return '-';
-  const symbols = { EUR: '€', USD: '$', RON: 'RON ' };
-  const symbol = symbols[currency] || '';
-  const decimals = currency === 'USD' ? 2 : 0;
-  const n = currency === 'RON' ? Math.round(amount) : amount.toFixed(decimals);
-  return currency === 'RON' ? `${symbol}${n}` : `${n} ${symbol}`;
-}
-
-async function setDisplayCurrency(curr) {
-  DISPLAY_CURRENCY = curr;
-  await fetchLatestRatesOnce();
-  // Update Balance totals from Allocation cells (EUR base)
-  const rows = document.querySelectorAll('#stocks-tbody tr');
-  let totalEUR = 0;
-  rows.forEach((r) => {
-    const allocCell = r.querySelector('td[data-field="allocation"]');
-    if (!allocCell) return;
-    const raw = allocCell.textContent.trim();
-    if (!raw || raw === '-') return;
-    const val = parseFloat(raw.replace(/[^0-9.\-]/g, '')) || 0;
-    totalEUR += val;
-  });
-  // Update dashboard header total
-  const totalBalanceEl = document.getElementById('total-balance');
-  if (totalBalanceEl) {
-    const converted = convertAmount(totalEUR, curr);
-    if (Number.isFinite(converted)) {
-      if (curr === 'RON') totalBalanceEl.textContent = Math.round(converted).toLocaleString('en-US');
-      else totalBalanceEl.textContent = converted.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-    }
-  }
-  // Update Breakdown panels: Money invested and Balance values
-  const idsEURPanels = [
-    'xtb-eur-balance-value','tradeville-balance-value','t212-xtb-usd-balance-value','crypto-balance-value','bank-deposit-balance-value',
-    'xtb-eur-value','tradeville-value','t212-xtb-usd-value','crypto-value','bank-deposits-value',
-    'xtb-eur-value-deposits','tradeville-value-deposits','t212-xtb-usd-value-deposits','crypto-value-deposits','bank-deposits-value-deposits'
-  ];
-  idsEURPanels.forEach((id) => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    const num = parseFloat(el.textContent.replace(/[^0-9.\-]/g, '')) || 0;
-    const converted = convertAmount(num, curr);
-    el.textContent = fmt(converted, curr);
-  });
-  // Update Profit panel amounts
-  const profitIds = [
-    'xtb-eur-profit-value','tradeville-profit-value','t212-xtb-usd-profit-value','crypto-profit-value','bank-deposits-profit-value'
-  ];
-  profitIds.forEach((id) => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    const num = parseFloat(el.textContent.replace(/[^0-9.\-]/g, '')) || 0;
-    const converted = convertAmount(num, curr);
-    el.textContent = fmt(converted, curr);
-  });
-  // Total return are percentages; keep as-is
-}
-
-function initializeCurrencySwitch() {
-  const container = document.querySelector('.currency-switch');
-  if (!container) return;
-  const eurBtn = document.getElementById('currency-eur');
-  const usdBtn = document.getElementById('currency-usd');
-  const ronBtn = document.getElementById('currency-ron');
-  const setActive = (curr) => {
-    container.classList.remove('eur-active','usd-active','ron-active');
-    eurBtn.classList.remove('active'); usdBtn.classList.remove('active'); ronBtn.classList.remove('active');
-    if (curr==='EUR') { container.classList.add('eur-active'); eurBtn.classList.add('active'); }
-    if (curr==='USD') { container.classList.add('usd-active'); usdBtn.classList.add('active'); }
-    if (curr==='RON') { container.classList.add('ron-active'); ronBtn.classList.add('active'); }
-  };
-  eurBtn.onclick = async () => { setActive('EUR'); await setDisplayCurrency('EUR'); };
-  usdBtn.onclick = async () => { setActive('USD'); await setDisplayCurrency('USD'); };
-  ronBtn.onclick = async () => { setActive('RON'); await setDisplayCurrency('RON'); };
-  // Default
-  setActive(DISPLAY_CURRENCY);
-}
 
     const sign = latestReturn >= 0 ? '+' : '';
     const euroSign = euroChange >= 0 ? '+' : '';
