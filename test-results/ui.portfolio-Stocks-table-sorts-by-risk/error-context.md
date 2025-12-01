@@ -5,8 +5,8 @@
   - navigation [ref=e2]:
     - generic [ref=e3]:
       - generic [ref=e4]:
-        - generic [ref=e5]: "Balance: 70,273 €"
-        - generic [ref=e6]: "Profit: 20,391 €"
+        - generic [ref=e5]: "Balance: 70,482 €"
+        - generic [ref=e6]: "Profit: 20,500 €"
       - list [ref=e7]:
         - listitem [ref=e8]:
           - link "Dashboard" [ref=e9] [cursor=pointer]:
@@ -59,12 +59,12 @@
             - text: ⇅
           - columnheader [ref=e51]
       - rowgroup [ref=e52]:
-        - row "1 TLV.RO 8.82% Banca Transilvania €6195.61 1076 €5.758 - Tradeville Financial Services 🟨 Medium-Safe" [ref=e53]:
+        - row "1 TLV.RO 8.84% Banca Transilvania €6230.04 1076 €5.758 - Tradeville Financial Services 🟨 Medium-Safe" [ref=e53]:
           - cell "1" [ref=e54]
           - cell "TLV.RO" [ref=e55]
-          - cell "8.82%" [ref=e56]
+          - cell "8.84%" [ref=e56]
           - cell "Banca Transilvania" [ref=e57]
-          - cell "€6195.61" [ref=e58]
+          - cell "€6230.04" [ref=e58]
           - cell "1076" [ref=e59]
           - cell "€5.758" [ref=e60]
           - cell "-" [ref=e61]
@@ -76,10 +76,10 @@
               - img [ref=e67]
             - button "Delete" [ref=e70] [cursor=pointer]:
               - img [ref=e71]
-        - row "2 SNP.RO 7.84% OMV Petrom €5506.02 30589 €0.18 - Tradeville Energy 🟨 Medium-Safe" [ref=e73]:
+        - row "2 SNP.RO 7.81% OMV Petrom €5506.02 30589 €0.18 - Tradeville Energy 🟨 Medium-Safe" [ref=e73]:
           - cell "2" [ref=e74]
           - cell "SNP.RO" [ref=e75]
-          - cell "7.84%" [ref=e76]
+          - cell "7.81%" [ref=e76]
           - cell "OMV Petrom" [ref=e77]
           - cell "€5506.02" [ref=e78]
           - cell "30589" [ref=e79]
@@ -93,12 +93,12 @@
               - img [ref=e87]
             - button "Delete" [ref=e90] [cursor=pointer]:
               - img [ref=e91]
-        - row "3 BRD.RO 2.83% BRD €1987.11 451 €4.406 - Tradeville Financial Services 🟨 Medium-Safe" [ref=e93]:
+        - row "3 BRD.RO 2.78% BRD €1957.34 451 €4.406 - Tradeville Financial Services 🟨 Medium-Safe" [ref=e93]:
           - cell "3" [ref=e94]
           - cell "BRD.RO" [ref=e95]
-          - cell "2.83%" [ref=e96]
+          - cell "2.78%" [ref=e96]
           - cell "BRD" [ref=e97]
-          - cell "€1987.11" [ref=e98]
+          - cell "€1957.34" [ref=e98]
           - cell "451" [ref=e99]
           - cell "€4.406" [ref=e100]
           - cell "-" [ref=e101]
@@ -110,10 +110,10 @@
               - img [ref=e107]
             - button "Delete" [ref=e110] [cursor=pointer]:
               - img [ref=e111]
-        - row "4 SNG.RO 4.84% Romgaz €3404.16 1773 €1.876 - Tradeville Energy 🟨 Medium-Safe" [ref=e113]:
+        - row "4 SNG.RO 4.83% Romgaz €3404.16 1773 €1.876 - Tradeville Energy 🟨 Medium-Safe" [ref=e113]:
           - cell "4" [ref=e114]
           - cell "SNG.RO" [ref=e115]
-          - cell "4.84%" [ref=e116]
+          - cell "4.83%" [ref=e116]
           - cell "Romgaz" [ref=e117]
           - cell "€3404.16" [ref=e118]
           - cell "1773" [ref=e119]
@@ -127,10 +127,10 @@
               - img [ref=e127]
             - button "Delete" [ref=e130] [cursor=pointer]:
               - img [ref=e131]
-        - row "5 SNN.RO 1.87% Nuclear Electrica €1312.71 133 €10.009 - Tradeville Energy 🟨 Medium-Safe" [ref=e133]:
+        - row "5 SNN.RO 1.86% Nuclear Electrica €1312.71 133 €10.009 - Tradeville Energy 🟨 Medium-Safe" [ref=e133]:
           - cell "5" [ref=e134]
           - cell "SNN.RO" [ref=e135]
-          - cell "1.87%" [ref=e136]
+          - cell "1.86%" [ref=e136]
           - cell "Nuclear Electrica" [ref=e137]
           - cell "€1312.71" [ref=e138]
           - cell "133" [ref=e139]
@@ -144,10 +144,10 @@
               - img [ref=e147]
             - button "Delete" [ref=e150] [cursor=pointer]:
               - img [ref=e151]
-        - row "6 H2O.RO 3.41% Hidroelectrica €2395.00 100 €24.042 - Tradeville Energy 🟨 Medium-Safe" [ref=e153]:
+        - row "6 H2O.RO 3.40% Hidroelectrica €2395.00 100 €24.042 - Tradeville Energy 🟨 Medium-Safe" [ref=e153]:
           - cell "6" [ref=e154]
           - cell "H2O.RO" [ref=e155]
-          - cell "3.41%" [ref=e156]
+          - cell "3.40%" [ref=e156]
           - cell "Hidroelectrica" [ref=e157]
           - cell "€2395.00" [ref=e158]
           - cell "100" [ref=e159]
@@ -161,10 +161,10 @@
               - img [ref=e167]
             - button "Delete" [ref=e170] [cursor=pointer]:
               - img [ref=e171]
-        - row "7 ATB.RO 0.29% Antibiotice €200.69 427 €0.466 - Tradeville Healthcare 🟨 Medium-Safe" [ref=e173]:
+        - row "7 ATB.RO 0.28% Antibiotice €200.69 427 €0.466 - Tradeville Healthcare 🟨 Medium-Safe" [ref=e173]:
           - cell "7" [ref=e174]
           - cell "ATB.RO" [ref=e175]
-          - cell "0.29%" [ref=e176]
+          - cell "0.28%" [ref=e176]
           - cell "Antibiotice" [ref=e177]
           - cell "€200.69" [ref=e178]
           - cell "427" [ref=e179]
@@ -195,10 +195,10 @@
               - img [ref=e207]
             - button "Delete" [ref=e210] [cursor=pointer]:
               - img [ref=e211]
-        - row "9 M.RO 1.20% Medlife €840.01 503 €1.727 - Tradeville Healthcare 🟨 Medium-Safe" [ref=e213]:
+        - row "9 M.RO 1.19% Medlife €840.01 503 €1.727 - Tradeville Healthcare 🟨 Medium-Safe" [ref=e213]:
           - cell "9" [ref=e214]
           - cell "M.RO" [ref=e215]
-          - cell "1.20%" [ref=e216]
+          - cell "1.19%" [ref=e216]
           - cell "Medlife" [ref=e217]
           - cell "€840.01" [ref=e218]
           - cell "503" [ref=e219]
@@ -212,10 +212,10 @@
               - img [ref=e227]
             - button "Delete" [ref=e230] [cursor=pointer]:
               - img [ref=e231]
-        - row "10 EL.RO 1.45% Electrica €1016.76 222 €4.691 - Tradeville Utilities 🟨 Medium-Safe" [ref=e233]:
+        - row "10 EL.RO 1.44% Electrica €1016.76 222 €4.691 - Tradeville Utilities 🟨 Medium-Safe" [ref=e233]:
           - cell "10" [ref=e234]
           - cell "EL.RO" [ref=e235]
-          - cell "1.45%" [ref=e236]
+          - cell "1.44%" [ref=e236]
           - cell "Electrica" [ref=e237]
           - cell "€1016.76" [ref=e238]
           - cell "222" [ref=e239]
@@ -552,10 +552,10 @@
               - img [ref=e627]
             - button "Delete" [ref=e630] [cursor=pointer]:
               - img [ref=e631]
-        - row "30 SPX.RO 0.14% Sipex €95.00 1900 €0.049 - Tradeville Industrials 🟥 High Risk" [ref=e633]:
+        - row "30 SPX.RO 0.13% Sipex €95.00 1900 €0.049 - Tradeville Industrials 🟥 High Risk" [ref=e633]:
           - cell "30" [ref=e634]
           - cell "SPX.RO" [ref=e635]
-          - cell "0.14%" [ref=e636]
+          - cell "0.13%" [ref=e636]
           - cell "Sipex" [ref=e637]
           - cell "€95.00" [ref=e638]
           - cell "1900" [ref=e639]
@@ -603,10 +603,10 @@
               - img [ref=e687]
             - button "Delete" [ref=e690] [cursor=pointer]:
               - img [ref=e691]
-        - row "33 DIGI.RO 1.59% Digi €1116.50 58 €19.077 - Tradeville Communication Services 🟨 Medium-Safe" [ref=e693]:
+        - row "33 DIGI.RO 1.58% Digi €1116.50 58 €19.077 - Tradeville Communication Services 🟨 Medium-Safe" [ref=e693]:
           - cell "33" [ref=e694]
           - cell "DIGI.RO" [ref=e695]
-          - cell "1.59%" [ref=e696]
+          - cell "1.58%" [ref=e696]
           - cell "Digi" [ref=e697]
           - cell "€1116.50" [ref=e698]
           - cell "58" [ref=e699]
@@ -620,14 +620,14 @@
               - img [ref=e707]
             - button "Delete" [ref=e710] [cursor=pointer]:
               - img [ref=e711]
-        - row "34 SXR8.DE 13.92% iShares S&P 500 €9783.11 15.615 €628.5 - XTB-EURO ETF - S&P 500 🟦 Safe" [ref=e713]:
+        - row "34 SXR8.DE 13.88% iShares S&P 500 €9783.11 15.615 €628.82 - XTB-EURO ETF - S&P 500 🟦 Safe" [ref=e713]:
           - cell "34" [ref=e714]
           - cell "SXR8.DE" [ref=e715]
-          - cell "13.92%" [ref=e716]
+          - cell "13.88%" [ref=e716]
           - cell "iShares S&P 500" [ref=e717]
           - cell "€9783.11" [ref=e718]
           - cell "15.615" [ref=e719]
-          - cell "€628.5" [ref=e720]
+          - cell "€628.82" [ref=e720]
           - cell "-" [ref=e721]
           - cell "XTB-EURO" [ref=e722]
           - cell "ETF - S&P 500" [ref=e723]
@@ -637,14 +637,14 @@
               - img [ref=e727]
             - button "Delete" [ref=e730] [cursor=pointer]:
               - img [ref=e731]
-        - row "35 VGWD.DE 0.52% Vanguard World High Dividends €364.08 5.3228 €68.84 - XTB-EURO ETF - All World 🟦 Safe" [ref=e733]:
+        - row "35 VGWD.DE 0.52% Vanguard World High Dividends €364.08 5.3228 €68.86 - XTB-EURO ETF - All World 🟦 Safe" [ref=e733]:
           - cell "35" [ref=e734]
           - cell "VGWD.DE" [ref=e735]
           - cell "0.52%" [ref=e736]
           - cell "Vanguard World High Dividends" [ref=e737]
           - cell "€364.08" [ref=e738]
           - cell "5.3228" [ref=e739]
-          - cell "€68.84" [ref=e740]
+          - cell "€68.86" [ref=e740]
           - cell "-" [ref=e741]
           - cell "XTB-EURO" [ref=e742]
           - cell "ETF - All World" [ref=e743]
@@ -688,14 +688,14 @@
               - img [ref=e787]
             - button "Delete" [ref=e790] [cursor=pointer]:
               - img [ref=e791]
-        - row "38 SPCE 0.68% Virgin Galactic €478.50 150 $3.749 - Trading212 Space Industry 🟥 High Risk" [ref=e793]:
+        - row "38 SPCE 0.68% Virgin Galactic €478.50 150 $3.82 - Trading212 Space Industry 🟥 High Risk" [ref=e793]:
           - cell "38" [ref=e794]
           - cell "SPCE" [ref=e795]
           - cell "0.68%" [ref=e796]
           - cell "Virgin Galactic" [ref=e797]
           - cell "€478.50" [ref=e798]
           - cell "150" [ref=e799]
-          - cell "$3.749" [ref=e800]
+          - cell "$3.82" [ref=e800]
           - cell "-" [ref=e801]
           - cell "Trading212" [ref=e802]
           - cell "Space Industry" [ref=e803]
@@ -705,14 +705,14 @@
               - img [ref=e807]
             - button "Delete" [ref=e810] [cursor=pointer]:
               - img [ref=e811]
-        - row "39 ADUR 3.43% Aduro Clean Technologies €2407.50 225 $12.465 - Trading212 Industrials 🟥 High Risk" [ref=e813]:
+        - row "39 ADUR 3.42% Aduro Clean Technologies €2407.50 225 $12.721 - Trading212 Industrials 🟥 High Risk" [ref=e813]:
           - cell "39" [ref=e814]
           - cell "ADUR" [ref=e815]
-          - cell "3.43%" [ref=e816]
+          - cell "3.42%" [ref=e816]
           - cell "Aduro Clean Technologies" [ref=e817]
           - cell "€2407.50" [ref=e818]
           - cell "225" [ref=e819]
-          - cell "$12.465" [ref=e820]
+          - cell "$12.721" [ref=e820]
           - cell "-" [ref=e821]
           - cell "Trading212" [ref=e822]
           - cell "Industrials" [ref=e823]
@@ -722,14 +722,14 @@
               - img [ref=e827]
             - button "Delete" [ref=e830] [cursor=pointer]:
               - img [ref=e831]
-        - row "40 GERN 0.53% Geron Corporation €375.95 365 $1.196 - Trading212 Healthcare 🟥 High Risk" [ref=e833]:
+        - row "40 GERN 0.53% Geron Corporation €375.95 365 $1.185 - Trading212 Healthcare 🟥 High Risk" [ref=e833]:
           - cell "40" [ref=e834]
           - cell "GERN" [ref=e835]
           - cell "0.53%" [ref=e836]
           - cell "Geron Corporation" [ref=e837]
           - cell "€375.95" [ref=e838]
           - cell "365" [ref=e839]
-          - cell "$1.196" [ref=e840]
+          - cell "$1.185" [ref=e840]
           - cell "-" [ref=e841]
           - cell "Trading212" [ref=e842]
           - cell "Healthcare" [ref=e843]
@@ -739,14 +739,14 @@
               - img [ref=e847]
             - button "Delete" [ref=e850] [cursor=pointer]:
               - img [ref=e851]
-        - row "41 ORGN 0.32% Origin Materials €224.40 561 $0.474 - Trading212 Basic Materials 🟥 High Risk" [ref=e853]:
+        - row "41 ORGN 0.32% Origin Materials €224.40 561 $0.469 - Trading212 Basic Materials 🟥 High Risk" [ref=e853]:
           - cell "41" [ref=e854]
           - cell "ORGN" [ref=e855]
           - cell "0.32%" [ref=e856]
           - cell "Origin Materials" [ref=e857]
           - cell "€224.40" [ref=e858]
           - cell "561" [ref=e859]
-          - cell "$0.474" [ref=e860]
+          - cell "$0.469" [ref=e860]
           - cell "-" [ref=e861]
           - cell "Trading212" [ref=e862]
           - cell "Basic Materials" [ref=e863]
@@ -756,14 +756,14 @@
               - img [ref=e867]
             - button "Delete" [ref=e870] [cursor=pointer]:
               - img [ref=e871]
-        - row "42 QBTS 3.55% D-wave Quantum €2492.28 129 $21.81 - XTB-USD Technology 🟥 High Risk" [ref=e873]:
+        - row "42 QBTS 3.54% D-wave Quantum €2492.28 129 $21.705 - XTB-USD Technology 🟥 High Risk" [ref=e873]:
           - cell "42" [ref=e874]
           - cell "QBTS" [ref=e875]
-          - cell "3.55%" [ref=e876]
+          - cell "3.54%" [ref=e876]
           - cell "D-wave Quantum" [ref=e877]
           - cell "€2492.28" [ref=e878]
           - cell "129" [ref=e879]
-          - cell "$21.81" [ref=e880]
+          - cell "$21.705" [ref=e880]
           - cell "-" [ref=e881]
           - cell "XTB-USD" [ref=e882]
           - cell "Technology" [ref=e883]
@@ -773,14 +773,14 @@
               - img [ref=e887]
             - button "Delete" [ref=e890] [cursor=pointer]:
               - img [ref=e891]
-        - row "43 RGTI 5.02% Rigetti Computing €3526.40 160 $23.93 - Trading212 Technology 🟥 High Risk" [ref=e893]:
+        - row "43 RGTI 5.00% Rigetti Computing €3526.40 160 $23.805 - Trading212 Technology 🟥 High Risk" [ref=e893]:
           - cell "43" [ref=e894]
           - cell "RGTI" [ref=e895]
-          - cell "5.02%" [ref=e896]
+          - cell "5.00%" [ref=e896]
           - cell "Rigetti Computing" [ref=e897]
           - cell "€3526.40" [ref=e898]
           - cell "160" [ref=e899]
-          - cell "$23.93" [ref=e900]
+          - cell "$23.805" [ref=e900]
           - cell "-" [ref=e901]
           - cell "Trading212" [ref=e902]
           - cell "Technology" [ref=e903]
@@ -790,14 +790,14 @@
               - img [ref=e907]
             - button "Delete" [ref=e910] [cursor=pointer]:
               - img [ref=e911]
-        - row "44 RDW 0.72% RedWire Space €504.85 109.039 $5.18 - Trading212 Space Industry 🟥 High Risk" [ref=e913]:
+        - row "44 RDW 0.72% RedWire Space €504.85 109.039 $5.25 - Trading212 Space Industry 🟥 High Risk" [ref=e913]:
           - cell "44" [ref=e914]
           - cell "RDW" [ref=e915]
           - cell "0.72%" [ref=e916]
           - cell "RedWire Space" [ref=e917]
           - cell "€504.85" [ref=e918]
           - cell "109.039" [ref=e919]
-          - cell "$5.18" [ref=e920]
+          - cell "$5.25" [ref=e920]
           - cell "-" [ref=e921]
           - cell "Trading212" [ref=e922]
           - cell "Space Industry" [ref=e923]
@@ -807,14 +807,14 @@
               - img [ref=e927]
             - button "Delete" [ref=e930] [cursor=pointer]:
               - img [ref=e931]
-        - row "45 GMM 0.17% Global Mofy AI €119.68 88 $1.42 - Trading212 Technology 🟥 High Risk" [ref=e933]:
+        - row "45 GMM 0.17% Global Mofy AI €119.68 88 $1.502 - Trading212 Technology 🟥 High Risk" [ref=e933]:
           - cell "45" [ref=e934]
           - cell "GMM" [ref=e935]
           - cell "0.17%" [ref=e936]
           - cell "Global Mofy AI" [ref=e937]
           - cell "€119.68" [ref=e938]
           - cell "88" [ref=e939]
-          - cell "$1.42" [ref=e940]
+          - cell "$1.502" [ref=e940]
           - cell "-" [ref=e941]
           - cell "Trading212" [ref=e942]
           - cell "Technology" [ref=e943]
@@ -824,14 +824,14 @@
               - img [ref=e947]
             - button "Delete" [ref=e950] [cursor=pointer]:
               - img [ref=e951]
-        - row "46 RKLB 6.38% Rocket Lab €4482.60 124 $40.295 - Trading212 Space Industry 🟥 High Risk" [ref=e953]:
+        - row "46 RKLB 6.36% Rocket Lab €4482.60 124 $40.785 - Trading212 Space Industry 🟥 High Risk" [ref=e953]:
           - cell "46" [ref=e954]
           - cell "RKLB" [ref=e955]
-          - cell "6.38%" [ref=e956]
+          - cell "6.36%" [ref=e956]
           - cell "Rocket Lab" [ref=e957]
           - cell "€4482.60" [ref=e958]
           - cell "124" [ref=e959]
-          - cell "$40.295" [ref=e960]
+          - cell "$40.785" [ref=e960]
           - cell "-" [ref=e961]
           - cell "Trading212" [ref=e962]
           - cell "Space Industry" [ref=e963]
@@ -841,14 +841,14 @@
               - img [ref=e967]
             - button "Delete" [ref=e970] [cursor=pointer]:
               - img [ref=e971]
-        - row "47 IONQ 1.32% IONQ €929.89 23 $47.08 - XTB-USD Technology 🟥 High Risk" [ref=e973]:
+        - row "47 IONQ 1.32% IONQ €929.89 23 $47.126 - XTB-USD Technology 🟥 High Risk" [ref=e973]:
           - cell "47" [ref=e974]
           - cell "IONQ" [ref=e975]
           - cell "1.32%" [ref=e976]
           - cell "IONQ" [ref=e977]
           - cell "€929.89" [ref=e978]
           - cell "23" [ref=e979]
-          - cell "$47.08" [ref=e980]
+          - cell "$47.126" [ref=e980]
           - cell "-" [ref=e981]
           - cell "XTB-USD" [ref=e982]
           - cell "Technology" [ref=e983]
@@ -858,14 +858,14 @@
               - img [ref=e987]
             - button "Delete" [ref=e990] [cursor=pointer]:
               - img [ref=e991]
-        - row "48 KULR 0.12% KULR €84.70 35 $3.007 - XTB-USD Technology 🟥 High Risk" [ref=e993]:
+        - row "48 KULR 0.12% KULR €84.70 35 $3.009 - XTB-USD Technology 🟥 High Risk" [ref=e993]:
           - cell "48" [ref=e994]
           - cell "KULR" [ref=e995]
           - cell "0.12%" [ref=e996]
           - cell "KULR" [ref=e997]
           - cell "€84.70" [ref=e998]
           - cell "35" [ref=e999]
-          - cell "$3.007" [ref=e1000]
+          - cell "$3.009" [ref=e1000]
           - cell "-" [ref=e1001]
           - cell "XTB-USD" [ref=e1002]
           - cell "Technology" [ref=e1003]
@@ -875,14 +875,14 @@
               - img [ref=e1007]
             - button "Delete" [ref=e1010] [cursor=pointer]:
               - img [ref=e1011]
-        - row "49 BBAI 0.27% Big Bear €186.84 36 $6.1 - XTB-USD Technology 🟥 High Risk" [ref=e1013]:
+        - row "49 BBAI 0.27% Big Bear €186.84 36 $6.145 - XTB-USD Technology 🟥 High Risk" [ref=e1013]:
           - cell "49" [ref=e1014]
           - cell "BBAI" [ref=e1015]
           - cell "0.27%" [ref=e1016]
           - cell "Big Bear" [ref=e1017]
           - cell "€186.84" [ref=e1018]
           - cell "36" [ref=e1019]
-          - cell "$6.1" [ref=e1020]
+          - cell "$6.145" [ref=e1020]
           - cell "-" [ref=e1021]
           - cell "XTB-USD" [ref=e1022]
           - cell "Technology" [ref=e1023]
@@ -892,14 +892,14 @@
               - img [ref=e1027]
             - button "Delete" [ref=e1030] [cursor=pointer]:
               - img [ref=e1031]
-        - row "50 FUBO 0.28% FUBO TV €199.43 77 $2.935 - XTB-USD Communication Services 🟥 High Risk" [ref=e1033]:
+        - row "50 FUBO 0.28% FUBO TV €199.43 77 $2.955 - XTB-USD Communication Services 🟥 High Risk" [ref=e1033]:
           - cell "50" [ref=e1034]
           - cell "FUBO" [ref=e1035]
           - cell "0.28%" [ref=e1036]
           - cell "FUBO TV" [ref=e1037]
           - cell "€199.43" [ref=e1038]
           - cell "77" [ref=e1039]
-          - cell "$2.935" [ref=e1040]
+          - cell "$2.955" [ref=e1040]
           - cell "-" [ref=e1041]
           - cell "XTB-USD" [ref=e1042]
           - cell "Communication Services" [ref=e1043]
@@ -909,14 +909,14 @@
               - img [ref=e1047]
             - button "Delete" [ref=e1050] [cursor=pointer]:
               - img [ref=e1051]
-        - row "51 PATH 0.35% UI PATH €246.12 21 $13.91 - XTB-USD Technology 🟥 High Risk" [ref=e1053]:
+        - row "51 PATH 0.35% UI PATH €246.12 21 $14.03 - XTB-USD Technology 🟥 High Risk" [ref=e1053]:
           - cell "51" [ref=e1054]
           - cell "PATH" [ref=e1055]
           - cell "0.35%" [ref=e1056]
           - cell "UI PATH" [ref=e1057]
           - cell "€246.12" [ref=e1058]
           - cell "21" [ref=e1059]
-          - cell "$13.91" [ref=e1060]
+          - cell "$14.03" [ref=e1060]
           - cell "-" [ref=e1061]
           - cell "XTB-USD" [ref=e1062]
           - cell "Technology" [ref=e1063]
@@ -926,14 +926,14 @@
               - img [ref=e1067]
             - button "Delete" [ref=e1070] [cursor=pointer]:
               - img [ref=e1071]
-        - row "52 SOFI 1.85% SOFI €1301.68 53 $29.45 - XTB-USD Financial Services 🟥 High Risk" [ref=e1073]:
+        - row "52 SOFI 1.85% SOFI €1301.68 53 $29.54 - XTB-USD Financial Services 🟥 High Risk" [ref=e1073]:
           - cell "52" [ref=e1074]
           - cell "SOFI" [ref=e1075]
           - cell "1.85%" [ref=e1076]
           - cell "SOFI" [ref=e1077]
           - cell "€1301.68" [ref=e1078]
           - cell "53" [ref=e1079]
-          - cell "$29.45" [ref=e1080]
+          - cell "$29.54" [ref=e1080]
           - cell "-" [ref=e1081]
           - cell "XTB-USD" [ref=e1082]
           - cell "Financial Services" [ref=e1083]
@@ -943,14 +943,14 @@
               - img [ref=e1087]
             - button "Delete" [ref=e1090] [cursor=pointer]:
               - img [ref=e1091]
-        - row "53 ESP0.DE 0.54% VanEck Video Gaming and eSports €379.12 6.1566 €62.13 - XTB-USD ETF - S&P 500 🟥 High Risk" [ref=e1093]:
+        - row "53 ESP0.DE 0.54% VanEck Video Gaming and eSports €379.12 6.1566 €62.16 - XTB-USD ETF - S&P 500 🟥 High Risk" [ref=e1093]:
           - cell "53" [ref=e1094]
           - cell "ESP0.DE" [ref=e1095]
           - cell "0.54%" [ref=e1096]
           - cell "VanEck Video Gaming and eSports" [ref=e1097]
           - cell "€379.12" [ref=e1098]
           - cell "6.1566" [ref=e1099]
-          - cell "€62.13" [ref=e1100]
+          - cell "€62.16" [ref=e1100]
           - cell "-" [ref=e1101]
           - cell "XTB-USD" [ref=e1102]
           - cell "ETF - S&P 500" [ref=e1103]
@@ -960,14 +960,14 @@
               - img [ref=e1107]
             - button "Delete" [ref=e1110] [cursor=pointer]:
               - img [ref=e1111]
-        - row "54 JEDI.DE 1.12% VanEck Space Innovators €787.01 16.52 €47.15 - XTB-USD ETF - Technology 🟥 High Risk" [ref=e1113]:
+        - row "54 JEDI.DE 1.12% VanEck Space Innovators €787.01 16.52 €47.295 - XTB-USD ETF - Technology 🟥 High Risk" [ref=e1113]:
           - cell "54" [ref=e1114]
           - cell "JEDI.DE" [ref=e1115]
           - cell "1.12%" [ref=e1116]
           - cell "VanEck Space Innovators" [ref=e1117]
           - cell "€787.01" [ref=e1118]
           - cell "16.52" [ref=e1119]
-          - cell "€47.15" [ref=e1120]
+          - cell "€47.295" [ref=e1120]
           - cell "-" [ref=e1121]
           - cell "XTB-USD" [ref=e1122]
           - cell "ETF - Technology" [ref=e1123]
@@ -977,14 +977,14 @@
               - img [ref=e1127]
             - button "Delete" [ref=e1130] [cursor=pointer]:
               - img [ref=e1131]
-        - row "55 IAUX 0.01% i-80 Gold €10.42 11.09 $1.2 - Trading212 Basic Materials 🟥 High Risk" [ref=e1133]:
+        - row "55 IAUX 0.01% i-80 Gold €10.42 11.09 $1.205 - Trading212 Basic Materials 🟥 High Risk" [ref=e1133]:
           - cell "55" [ref=e1134]
           - cell "IAUX" [ref=e1135]
           - cell "0.01%" [ref=e1136]
           - cell "i-80 Gold" [ref=e1137]
           - cell "€10.42" [ref=e1138]
           - cell "11.09" [ref=e1139]
-          - cell "$1.2" [ref=e1140]
+          - cell "$1.205" [ref=e1140]
           - cell "-" [ref=e1141]
           - cell "Trading212" [ref=e1142]
           - cell "Basic Materials" [ref=e1143]
@@ -994,14 +994,14 @@
               - img [ref=e1147]
             - button "Delete" [ref=e1150] [cursor=pointer]:
               - img [ref=e1151]
-        - row "56 TNYA 0.01% Tenaya Therapeutics €5.81 4.962 $1.295 - Trading212 Healthcare 🟥 High Risk" [ref=e1153]:
+        - row "56 TNYA 0.01% Tenaya Therapeutics €5.81 4.962 $1.3 - Trading212 Healthcare 🟥 High Risk" [ref=e1153]:
           - cell "56" [ref=e1154]
           - cell "TNYA" [ref=e1155]
           - cell "0.01%" [ref=e1156]
           - cell "Tenaya Therapeutics" [ref=e1157]
           - cell "€5.81" [ref=e1158]
           - cell "4.962" [ref=e1159]
-          - cell "$1.295" [ref=e1160]
+          - cell "$1.3" [ref=e1160]
           - cell "-" [ref=e1161]
           - cell "Trading212" [ref=e1162]
           - cell "Healthcare" [ref=e1163]
@@ -1011,14 +1011,14 @@
               - img [ref=e1167]
             - button "Delete" [ref=e1170] [cursor=pointer]:
               - img [ref=e1171]
-        - row "57 ICU 0.01% SeaStar Medical €4.47 17.21 $0.307 - Trading212 Healthcare 🟥 High Risk" [ref=e1173]:
+        - row "57 ICU 0.01% SeaStar Medical €4.47 17.21 $0.31 - Trading212 Healthcare 🟥 High Risk" [ref=e1173]:
           - cell "57" [ref=e1174]
           - cell "ICU" [ref=e1175]
           - cell "0.01%" [ref=e1176]
           - cell "SeaStar Medical" [ref=e1177]
           - cell "€4.47" [ref=e1178]
           - cell "17.21" [ref=e1179]
-          - cell "$0.307" [ref=e1180]
+          - cell "$0.31" [ref=e1180]
           - cell "-" [ref=e1181]
           - cell "Trading212" [ref=e1182]
           - cell "Healthcare" [ref=e1183]
@@ -1028,14 +1028,14 @@
               - img [ref=e1187]
             - button "Delete" [ref=e1190] [cursor=pointer]:
               - img [ref=e1191]
-        - row "58 ASWC.DE 0.22% HANetf Future of Defence €153.80 10 €15.15 - XTB-USD ETF - Defense 🟥 High Risk" [ref=e1193]:
+        - row "58 ASWC.DE 0.22% HANetf Future of Defence €153.80 10 €15.172 - XTB-USD ETF - Defense 🟥 High Risk" [ref=e1193]:
           - cell "58" [ref=e1194]
           - cell "ASWC.DE" [ref=e1195]
           - cell "0.22%" [ref=e1196]
           - cell "HANetf Future of Defence" [ref=e1197]
           - cell "€153.80" [ref=e1198]
           - cell "10" [ref=e1199]
-          - cell "€15.15" [ref=e1200]
+          - cell "€15.172" [ref=e1200]
           - cell "-" [ref=e1201]
           - cell "XTB-USD" [ref=e1202]
           - cell "ETF - Defense" [ref=e1203]
@@ -1045,14 +1045,14 @@
               - img [ref=e1207]
             - button "Delete" [ref=e1210] [cursor=pointer]:
               - img [ref=e1211]
-        - row "59 NUKL.DE 0.75% VanEck Nuclear ETF €529.02 11.208 €46.145 - XTB-USD ETF - Nuclear Energy 🟥 High Risk" [ref=e1213]:
+        - row "59 NUKL.DE 0.75% VanEck Nuclear ETF €529.02 11.208 €46.28 - XTB-USD ETF - Nuclear Energy 🟥 High Risk" [ref=e1213]:
           - cell "59" [ref=e1214]
           - cell "NUKL.DE" [ref=e1215]
           - cell "0.75%" [ref=e1216]
           - cell "VanEck Nuclear ETF" [ref=e1217]
           - cell "€529.02" [ref=e1218]
           - cell "11.208" [ref=e1219]
-          - cell "€46.145" [ref=e1220]
+          - cell "€46.28" [ref=e1220]
           - cell "-" [ref=e1221]
           - cell "XTB-USD" [ref=e1222]
           - cell "ETF - Nuclear Energy" [ref=e1223]
@@ -1079,14 +1079,14 @@
               - img [ref=e1247]
             - button "Delete" [ref=e1250] [cursor=pointer]:
               - img [ref=e1251]
-        - row "61 XAIX.DE 0.13% AI and Big Data €88.94 0.583 €151.74 - Trading212 ETF - Technology 🟥 High Risk" [ref=e1253]:
+        - row "61 XAIX.DE 0.13% AI and Big Data €88.94 0.583 €151.94 - Trading212 ETF - Technology 🟥 High Risk" [ref=e1253]:
           - cell "61" [ref=e1254]
           - cell "XAIX.DE" [ref=e1255]
           - cell "0.13%" [ref=e1256]
           - cell "AI and Big Data" [ref=e1257]
           - cell "€88.94" [ref=e1258]
           - cell "0.583" [ref=e1259]
-          - cell "€151.74" [ref=e1260]
+          - cell "€151.94" [ref=e1260]
           - cell "-" [ref=e1261]
           - cell "Trading212" [ref=e1262]
           - cell "ETF - Technology" [ref=e1263]
@@ -1096,10 +1096,10 @@
               - img [ref=e1267]
             - button "Delete" [ref=e1270] [cursor=pointer]:
               - img [ref=e1271]
-        - row "62 Bank Deposit 11.35% Banca Transilvania €7978.13 1 RON 40650.00 - Bank Deposit Cash 🟩 Very Safe" [ref=e1273]:
+        - row "62 Bank Deposit 11.32% Banca Transilvania €7978.13 1 RON 40650.00 - Bank Deposit Cash 🟩 Very Safe" [ref=e1273]:
           - cell "62" [ref=e1274]
           - cell "Bank Deposit" [ref=e1275]
-          - cell "11.35%" [ref=e1276]
+          - cell "11.32%" [ref=e1276]
           - cell "Banca Transilvania" [ref=e1277]
           - cell "€7978.13" [ref=e1278]
           - cell "1" [ref=e1279]
@@ -1113,14 +1113,14 @@
               - img [ref=e1287]
             - button "Delete" [ref=e1290] [cursor=pointer]:
               - img [ref=e1291]
-        - row "63 JASMY-USD 0.32% Binance €NaN 30867 $0.006 - Crypto Cryptocurrency 🟥 High Risk" [ref=e1293]:
+        - row "63 JASMY-USD 0.32% Binance €NaN 30867 $0.007 - Crypto Cryptocurrency 🟥 High Risk" [ref=e1293]:
           - cell "63" [ref=e1294]
           - cell "JASMY-USD" [ref=e1295]
           - cell "0.32%" [ref=e1296]
           - cell "Binance" [ref=e1297]
           - cell "€NaN" [ref=e1298]
           - cell "30867" [ref=e1299]
-          - cell "$0.006" [ref=e1300]
+          - cell "$0.007" [ref=e1300]
           - cell "-" [ref=e1301]
           - cell "Crypto" [ref=e1302]
           - cell "Cryptocurrency" [ref=e1303]
@@ -1130,14 +1130,14 @@
               - img [ref=e1307]
             - button "Delete" [ref=e1310] [cursor=pointer]:
               - img [ref=e1311]
-        - row "64 KAS-USD 0.99% ByBit €NaN 12283 $0.044 - Crypto Cryptocurrency 🟥 High Risk" [ref=e1313]:
+        - row "64 KAS-USD 0.99% ByBit €NaN 12283 $0.051 - Crypto Cryptocurrency 🟥 High Risk" [ref=e1313]:
           - cell "64" [ref=e1314]
           - cell "KAS-USD" [ref=e1315]
           - cell "0.99%" [ref=e1316]
           - cell "ByBit" [ref=e1317]
           - cell "€NaN" [ref=e1318]
           - cell "12283" [ref=e1319]
-          - cell "$0.044" [ref=e1320]
+          - cell "$0.051" [ref=e1320]
           - cell "-" [ref=e1321]
           - cell "Crypto" [ref=e1322]
           - cell "Cryptocurrency" [ref=e1323]
@@ -1147,10 +1147,10 @@
               - img [ref=e1327]
             - button "Delete" [ref=e1330] [cursor=pointer]:
               - img [ref=e1331]
-        - row "65 ONE.RO 0.69% one €482.30 91 €5.299 - Tradeville Real Estate 🟨 Medium-Safe" [ref=e1333]:
+        - row "65 ONE.RO 0.68% one €482.30 91 €5.299 - Tradeville Real Estate 🟨 Medium-Safe" [ref=e1333]:
           - cell "65" [ref=e1334]
           - cell "ONE.RO" [ref=e1335]
-          - cell "0.69%" [ref=e1336]
+          - cell "0.68%" [ref=e1336]
           - cell "one" [ref=e1337]
           - cell "€482.30" [ref=e1338]
           - cell "91" [ref=e1339]
@@ -1181,16 +1181,16 @@
               - img [ref=e1367]
             - button "Delete" [ref=e1370] [cursor=pointer]:
               - img [ref=e1371]
-        - row "67 PREM.L 0.04% 0.04% €26.49 36030 £0.001 - - Basic Materials Basic Materials" [ref=e1373]:
+        - row "67 PREM.L 0.04% 0.04% €25.71 36030 £0.001 - +8.70% Basic Materials Basic Materials" [ref=e1373]:
           - cell "67" [ref=e1374]
           - cell "PREM.L" [ref=e1375]
           - cell "0.04%" [ref=e1376]
           - cell "0.04%" [ref=e1377]
-          - cell "€26.49" [ref=e1378]
+          - cell "€25.71" [ref=e1378]
           - cell "36030" [ref=e1379]
           - cell "£0.001" [ref=e1380]
           - cell "-" [ref=e1381]
-          - cell "-" [ref=e1382]
+          - cell "+8.70%" [ref=e1382]
           - cell "Basic Materials" [ref=e1383]
           - cell "Basic Materials" [ref=e1384]
           - cell [ref=e1385]:

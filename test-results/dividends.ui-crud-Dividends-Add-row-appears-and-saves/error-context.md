@@ -5,8 +5,8 @@
   - navigation [ref=e2]:
     - generic [ref=e3]:
       - generic [ref=e4]:
-        - generic [ref=e5]: "Balance: 70,284 €"
-        - generic [ref=e6]: "Profit: 20,402 €"
+        - generic [ref=e5]: "Balance: 70,399 €"
+        - generic [ref=e6]: "Profit: 20,417 €"
       - list [ref=e7]:
         - listitem [ref=e8]:
           - link "Dashboard" [ref=e9] [cursor=pointer]:
@@ -109,12 +109,28 @@
           - cell "✎ 🗑" [ref=e104]:
             - button "✎" [ref=e105] [cursor=pointer]
             - button "🗑" [ref=e106] [cursor=pointer]
-        - row "10 2024 640.86 € 53.41 € ✎ 🗑" [ref=e107]:
+        - row "10 2025 0 € 0.00 € ✎ 🗑" [ref=e107]:
           - cell "10" [ref=e108]
-          - cell "2024" [ref=e109]
-          - cell "640.86 €" [ref=e110]
-          - cell "53.41 €" [ref=e111]
+          - cell "2025" [ref=e109]
+          - cell "0 €" [ref=e110]
+          - cell "0.00 €" [ref=e111]
           - cell "✎ 🗑" [ref=e112]:
             - button "✎" [ref=e113] [cursor=pointer]
             - button "🗑" [ref=e114] [cursor=pointer]
+        - row "11 2025 240 € 20.00 € ✎ 🗑" [ref=e115]:
+          - cell "11" [ref=e116]
+          - cell "2025" [ref=e117]
+          - cell "240 €" [ref=e118]
+          - cell "20.00 €" [ref=e119]
+          - cell "✎ 🗑" [ref=e120]:
+            - button "✎" [ref=e121] [cursor=pointer]
+            - button "🗑" [ref=e122] [cursor=pointer]
+        - row "12 2025 0 € 0.00 € ✎ 🗑" [ref=e123]:
+          - cell "12" [ref=e124]
+          - cell "2025" [ref=e125]
+          - cell "0 €" [ref=e126]
+          - cell "0.00 €" [ref=e127]
+          - cell "✎ 🗑" [ref=e128]:
+            - button "✎" [ref=e129] [cursor=pointer]
+            - button "🗑" [ref=e130] [cursor=pointer]
 ```
