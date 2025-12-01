@@ -858,7 +858,7 @@ p {
 .wide-panel-grid {
   display: grid;
   grid-template-columns: repeat(5, 1fr); /* fit 5 zones on one row */
-  gap: 1.05rem; /* slightly reduced gap to accommodate 5 panels */
+  gap: 1mm; /* ultra-tight spacing between the 5 zones */
   width: 100%;
   height: 100%;
 }
