@@ -36,6 +36,7 @@
           <li><a href="#stocks" class="nav-link" data-section="stocks">Stocks</a></li>
           <li><a href="#sectors" class="nav-link" data-section="sectors">Allocation</a></li>
           <li><a href="#deposits" class="nav-link" data-section="deposits">Deposits</a></li>
+          <li><a href="#withdrawals" class="nav-link" data-section="withdrawals">Withdrawal</a></li>
           <li><a href="#dividends" class="nav-link" data-section="dividends">Dividends</a></li>
           <li><a href="#admin" class="nav-link" data-section="admin">Admin</a></li>
         </ul>
@@ -200,6 +201,31 @@
                 </div>
               </div>
             </div>
+            <div class="panel-zone metrics-panel-zone">
+              <div class="metrics-panel">
+                <h3 class="panel-zone-title">Metrics:</h3>
+                <div class="metric-row">
+                  <span class="metric-label">Balance total return:</span>
+                  <span class="metric-value positive" id="metric-balance-total-return">+18.4%</span>
+                </div>
+                <div class="metric-row">
+                  <span class="metric-label">Average annual return:</span>
+                  <span class="metric-value positive" id="metric-average-annual-return">+12.7%</span>
+                </div>
+                <div class="metric-row">
+                  <span class="metric-label">Average monthly contribution:</span>
+                  <span class="metric-value" id="metric-average-monthly-contribution">1,250 €</span>
+                </div>
+                <div class="metric-row">
+                  <span class="metric-label">Withdrawal amount:</span>
+                  <span class="metric-value warning" id="metric-withdrawal-amount">0 €</span>
+                </div>
+                <div class="metric-row">
+                  <span class="metric-label">Return of Capital Ratio:</span>
+                  <span class="metric-value accent" id="metric-return-capital-ratio">37%</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -357,6 +383,28 @@
           </thead>
           <tbody id="deposits-tbody">
             <!-- Data will be added here -->
+          </tbody>
+        </table>
+      </div>
+
+      <div id="withdrawals-section" class="section">
+        <div class="table-header" style="justify-content:flex-start;">
+          <!-- Intenționat fără buton + aici; folosim doar flotant -->
+          <h3 style="color:white; font-size:1.2rem; font-weight:700;">Withdrawals</h3>
+        </div>
+        <button id="floating-add-withdrawal-btn" class="floating-add-btn" title="Add Withdrawal">+</button>
+        <table id="withdrawals-table">
+          <thead>
+            <tr>
+              <th>Nr.</th>
+              <th>Date</th>
+              <th>Amount (€)</th>
+              <th>Month</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="withdrawals-table-body">
+            <!-- Withdrawal rows populate here -->
           </tbody>
         </table>
       </div>
