@@ -1476,133 +1476,103 @@ if (riskIcon && riskTooltip) {
   });
 }
 
-// ========== TABLE SORTING ==========
-let currentSortColumn = null;
-let currentSortDirection = 'asc';
-
-function sortTable(column) {
-  const rows = Array.from(stocksTbody.querySelectorAll('tr'));
-
-  // Toggle direction if clicking same column
-  if (currentSortColumn === column) {
-    currentSortDirection = currentSortDirection === 'asc' ? 'desc' : 'asc';
-  } else {
-    currentSortColumn = column;
-    currentSortDirection = 'asc';
-  }
-
-  // Remove all sorted classes
-  document.querySelectorAll('.stocks-table th').forEach((th) => {
-    th.classList.remove('sorted-asc', 'sorted-desc');
-  });
-
-  // Add sorted class to current column
-  const header = document.querySelector(`.stocks-table th[data-column="${column}"]`);
-  if (header) {
-    header.classList.add(currentSortDirection === 'asc' ? 'sorted-asc' : 'sorted-desc');
-  }
-
-  // Sort rows
-  rows.sort((a, b) => {
-    let aValue, bValue;
-
-    const getText = (row, field) =>
-      row.querySelector(`td[data-field="${field}"]`)?.textContent.trim() || '';
-    if (column === 'weight') {
-      aValue = parseFloat(getText(a, 'weight').replace('%', '')) || 0;
-      bValue = parseFloat(getText(b, 'weight').replace('%', '')) || 0;
-    } else if (column === 'allocation') {
-      aValue = parseFloat(getText(a, 'allocation').replace(/[^0-9.-]/g, '')) || 0;
-      bValue = parseFloat(getText(b, 'allocation').replace(/[^0-9.-]/g, '')) || 0;
-    } else if (column === 'price_change') {
-      const aText = getText(a, 'price_change');
-      const bText = getText(b, 'price_change');
-      const aNum = parseFloat(aText.replace('%', ''));
-      const bNum = parseFloat(bText.replace('%', ''));
-      aValue = isNaN(aNum) ? -Infinity : aNum;
-      bValue = isNaN(bNum) ? -Infinity : bNum;
-    } else if (column === 'broker') {
-      aValue = getText(a, 'broker');
-      bValue = getText(b, 'broker');
-
-      // Alphabetical comparison
-      if (currentSortDirection === 'asc') {
-        return aValue.localeCompare(bValue);
-      } else {
-        return bValue.localeCompare(aValue);
-      }
-    } else if (column === 'sector') {
-      aValue = getText(a, 'sector');
-      bValue = getText(b, 'sector');
-
-      // Alphabetical comparison
-      if (currentSortDirection === 'asc') {
-        return aValue.localeCompare(bValue);
-      } else {
-        return bValue.localeCompare(aValue);
-      }
-    } else if (column === 'risk') {
-      const aRisk = getText(a, 'risk');
-      const bRisk = getText(b, 'risk');
-
-      // Map risk text to numeric values - default to 5 for unknown
-      aValue = 5;
-      bValue = 5;
-
-      if (aRisk.includes('🟩') || aRisk.includes('Very Safe')) aValue = 1;
-      else if (aRisk.includes('🟦') || aRisk.includes('Safe')) aValue = 2;
-      else if (aRisk.includes('🟨') || aRisk.includes('Medium')) aValue = 3;
-      else if (aRisk.includes('🟥') || aRisk.includes('High Risk')) aValue = 4;
-
-      if (bRisk.includes('🟩') || bRisk.includes('Very Safe')) bValue = 1;
-      else if (bRisk.includes('🟦') || bRisk.includes('Safe')) bValue = 2;
-      else if (bRisk.includes('🟨') || bRisk.includes('Medium')) bValue = 3;
-      else if (bRisk.includes('🟥') || bRisk.includes('High Risk')) bValue = 4;
+// ========== GLOBAL TABLE SORTING (All Tables) ==========
+function parseSortValue(text, column) {
+  if (!text) return '';
+  const raw = text.trim();
+  // Numeric (currency, percent, plain number)
+  if (/[%€$£RON]/i.test(raw) || /[-+]?\d/.test(raw) || ['weight','allocation','amount','annual_dividend','monthly_dividend','portfolio_percent','deposits_percent','sp500_percent','bet_percent','balance','price_change','shares'].includes(column)) {
+    // Date DD/MM/YYYY
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(raw)) {
+      const [d,m,y] = raw.split('/').map(Number);
+      return new Date(y, m-1, d).getTime();
     }
-
-    if (currentSortDirection === 'asc') {
-      return aValue - bValue;
-    } else {
-      return bValue - aValue;
+    // Date & Time (admin snapshots)
+    if (/\d{2}:\d{2}/.test(raw) && /[A-Za-z]{3}/.test(raw)) {
+      const t = Date.parse(raw);
+      if (!isNaN(t)) return t;
     }
-  });
-
-  // Reappend sorted rows and update numbers
-  rows.forEach((row) => stocksTbody.appendChild(row));
-  updateStockNumbers();
+    // Percent
+    if (/%$/.test(raw)) {
+      const num = parseFloat(raw.replace(/[^0-9.\-]/g,''));
+      return isNaN(num) ? -Infinity : num;
+    }
+    // Currency or plain number
+    const num = parseFloat(raw.replace(/[^0-9.\-]/g,''));
+    if (!isNaN(num)) return num;
+  }
+  // Month name ordering
+  if (column === 'month') {
+    const months = ['january','february','march','april','may','june','july','august','september','october','november','december'];
+    const idx = months.indexOf(raw.toLowerCase());
+    return idx === -1 ? 99 : idx;
+  }
+  if (column === 'risk') {
+    if (raw.includes('🟩') || /very safe/i.test(raw)) return 1;
+    if (raw.includes('🟦') || /safe/i.test(raw)) return 2;
+    if (raw.includes('🟨') || /medium/i.test(raw)) return 3;
+    if (raw.includes('🟥') || /high risk/i.test(raw)) return 4;
+    return 5;
+  }
+  return raw.toLowerCase();
 }
 
-// Add click listeners to sortable headers
-function initializeSortListeners() {
-  document.querySelectorAll('.stocks-table th.sortable').forEach((header) => {
-    header.addEventListener('click', (e) => {
-      // Don't sort if clicking info icon or its svg children
-      const target = e.target;
-      const isInfoIcon =
-        target.classList.contains('info-icon') ||
-        target.closest('.info-icon') ||
-        target.id === 'risk-info' ||
-        target.closest('#risk-info');
-
-      if (isInfoIcon) {
-        console.log('Clicked info icon, not sorting');
-        return;
+function attachSortingToTable(table) {
+  if (!table) return;
+  const tbody = table.querySelector('tbody');
+  if (!tbody) return;
+  table.querySelectorAll('th.sortable').forEach((th) => {
+    th.addEventListener('click', (e) => {
+      // Ignore clicks on embedded icons/info
+      if (e.target.closest('#risk-info')) return;
+      const column = th.dataset.column;
+      if (!column) return;
+      const currentDir = th.dataset.sortDir === 'asc' ? 'desc' : 'asc';
+      // Reset other headers
+      table.querySelectorAll('th.sortable').forEach((h) => {
+        if (h !== th) {
+          h.dataset.sortDir = '';
+          h.classList.remove('sorted-asc','sorted-desc');
+        }
+      });
+      th.dataset.sortDir = currentDir;
+      th.classList.toggle('sorted-asc', currentDir === 'asc');
+      th.classList.toggle('sorted-desc', currentDir === 'desc');
+      const rows = Array.from(tbody.querySelectorAll('tr'));
+      rows.sort((a,b) => {
+        const aCell = a.querySelector(`td[data-field="${column}"]`);
+        const bCell = b.querySelector(`td[data-field="${column}"]`);
+        const aVal = parseSortValue(aCell?.textContent || '', column);
+        const bVal = parseSortValue(bCell?.textContent || '', column);
+        if (aVal === bVal) return 0; // stable tie
+        if (currentDir === 'asc') return aVal > bVal ? 1 : -1;
+        return aVal < bVal ? 1 : -1;
+      });
+      rows.forEach(r => tbody.appendChild(r));
+      // Renumber sequence columns (nr/count) except snapshots ID
+      const firstHeader = table.querySelector('th.sortable[data-column="nr"], th.sortable[data-column="count"]');
+      if (firstHeader && column !== 'id') {
+        const seqField = firstHeader.dataset.column === 'count' ? 'count' : 'nr';
+        Array.from(tbody.querySelectorAll(`td[data-field="${seqField}"]`)).forEach((cell, idx) => {
+          cell.textContent = idx + 1;
+        });
       }
-
-      const column = header.dataset.column;
-      console.log('Sorting by column:', column);
-      if (column) {
-        sortTable(column);
+      // Stocks specific: update stock numbers if sorted by other columns
+      if (table.id === '' && table.classList.contains('stocks-table')) {
+        try { updateStockNumbers(); } catch {}
       }
     });
   });
 }
 
-// Initialize sort listeners after DOM is ready
-setTimeout(() => {
-  initializeSortListeners();
-  console.log('Sort listeners initialized');
-}, 100);
+function initGlobalSorting() {
+  // Add missing data-field attributes for stocks table numeric sequence if absent
+  document.querySelectorAll('table').forEach((t) => attachSortingToTable(t));
+  console.log('✅ Global sorting initialized for all tables');
+}
+
+// Delay initialization slightly to ensure dynamic tables rendered
+setTimeout(initGlobalSorting, 150);
 
 // (removed) Market status badge logic reverted
 
@@ -1694,9 +1664,9 @@ function createDepositRow(data) {
   newRow.innerHTML = `
         <td data-field="count">${count}</td>
         <td data-field="date">${data?.date || getCurrentDate()}</td>
-        <td class="editable-cell" data-field="amount">${data?.amount || '-'}</td>
         <td class="editable-cell" data-field="account">${data?.account || '-'}</td>
         <td class="editable-cell" data-field="month">${data?.month || '-'}</td>
+        <td class="editable-cell" data-field="amount">${data?.amount || '-'}</td>
         <td class="action-buttons">
             <button class="edit-btn" title="Edit">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -1912,6 +1882,11 @@ function updateTotalDeposits() {
   const totalElement = document.getElementById('total-deposits-amount');
   if (totalElement) {
     totalElement.textContent = total.toFixed(2) + ' €';
+  }
+  // Mirror into embedded Total Deposits in Money Invested panel (Deposits page)
+  const embeddedTotal = document.getElementById('total-deposits-embedded');
+  if (embeddedTotal) {
+    embeddedTotal.textContent = total.toFixed(2) + ' €';
   }
 
   // Calculate and update profit (Balance - Total Deposits)
@@ -2274,9 +2249,185 @@ async function updateBalanceBreakdown() {
   }
 }
 
+// ========== WITHDRAWALS SECTION ==========
+const withdrawalsTbody = document.getElementById('withdrawals-table-body');
+const addWithdrawalBtn = document.getElementById('add-withdrawal-btn');
+const floatingAddWithdrawalBtn = document.getElementById('floating-add-withdrawal-btn');
+let currentEditingWithdrawal = null;
+
+function getMonthNameFromDate(dateStr) {
+  // Expect DD/MM/YYYY
+  if (!dateStr || !/\d{2}\/\d{2}\/\d{4}/.test(dateStr)) return '-';
+  const [day, month] = dateStr.split('/');
+  const monthIndex = parseInt(month, 10) - 1;
+  const months = [
+    'January','February','March','April','May','June',
+    'July','August','September','October','November','December'
+  ];
+  return months[monthIndex] || '-';
+}
+
+function createWithdrawalRow(data = null) {
+  const row = document.createElement('tr');
+  const nr = data?.nr || withdrawalsTbody.querySelectorAll('tr').length + 1;
+  const dateVal = data?.date || getCurrentDate();
+  const amountVal = data?.amount || '-';
+  const monthVal = data?.month || getMonthNameFromDate(dateVal);
+  row.innerHTML = `
+    <td data-field="nr">${nr}</td>
+    <td data-field="date">${dateVal}</td>
+    <td class="editable-cell" data-field="amount">${amountVal}</td>
+    <td class="editable-cell" data-field="month">${monthVal}</td>
+    <td class="action-buttons">
+      <button class="edit-btn" title="Edit">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+        </svg>
+      </button>
+      <button class="delete-btn" title="Delete">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="3 6 5 6 21 6"></polyline>
+          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+          <line x1="10" y1="11" x2="10" y2="17"></line>
+          <line x1="14" y1="11" x2="14" y2="17"></line>
+        </svg>
+      </button>
+    </td>
+  `;
+  withdrawalsTbody.appendChild(row);
+  attachWithdrawalRowListeners(row);
+  return row;
+}
+
+function attachWithdrawalRowListeners(row) {
+  const editBtn = row.querySelector('.edit-btn');
+  const deleteBtn = row.querySelector('.delete-btn');
+
+  editBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (editBtn.title === 'Edit') {
+      exitWithdrawalEditMode();
+      currentEditingWithdrawal = row;
+      editBtn.title = 'Save';
+      editBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+      const amountCell = row.querySelector('[data-field="amount"]');
+      const amountVal = amountCell.textContent.trim();
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.value = amountVal === '-' ? '' : amountVal.replace(/[^0-9.\-]/g,'');
+      input.placeholder = 'Amount';
+      amountCell.textContent = '';
+      amountCell.appendChild(input);
+      input.focus();
+      input.addEventListener('keypress', (ev) => { if (ev.key === 'Enter') exitWithdrawalEditMode(); });
+
+      // Month dropdown editable
+      const monthCell = row.querySelector('[data-field="month"]');
+      if (monthCell) {
+        const currentMonth = monthCell.textContent.trim();
+        const months = [
+          'January','February','March','April','May','June',
+          'July','August','September','October','November','December'
+        ];
+        const select = document.createElement('select');
+        select.innerHTML = '<option value="">Select Month</option>' + months.map(m => `<option value="${m}" ${currentMonth===m?'selected':''}>${m}</option>`).join('');
+        monthCell.textContent = '';
+        monthCell.appendChild(select);
+      }
+    } else {
+      exitWithdrawalEditMode();
+    }
+  });
+
+  deleteBtn.addEventListener('click', () => {
+    const nr = row.querySelector('[data-field="nr"]').textContent;
+    showDeleteModal(`Withdrawal #${nr}`, () => {
+      row.remove();
+      updateWithdrawalNumbers();
+      updateMetricWithdrawalAmount();
+    });
+  });
+}
+
+function exitWithdrawalEditMode() {
+  if (!currentEditingWithdrawal) return;
+  const editBtn = currentEditingWithdrawal.querySelector('.edit-btn');
+  if (editBtn && editBtn.title === 'Save') {
+    const amountCell = currentEditingWithdrawal.querySelector('[data-field="amount"]');
+    const input = amountCell.querySelector('input');
+    let val = input ? input.value.trim() : '';
+    if (val) {
+      // Normalize numeric and append €
+      const num = parseFloat(val.replace(/[^0-9.\-]/g,'')); 
+      if (!isNaN(num)) amountCell.textContent = num.toFixed(2) + ' €'; else amountCell.textContent = '-';
+    } else {
+      amountCell.textContent = '-';
+    }
+    // Persist chosen month from dropdown (if present)
+    const monthCell = currentEditingWithdrawal.querySelector('[data-field="month"]');
+    if (monthCell) {
+      const select = monthCell.querySelector('select');
+      if (select) {
+        const chosen = select.value || '-';
+        monthCell.textContent = chosen;
+      }
+    }
+    editBtn.title = 'Edit';
+    editBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>`;
+    updateMetricWithdrawalAmount();
+  }
+  currentEditingWithdrawal = null;
+}
+
+function updateWithdrawalNumbers() {
+  const rows = withdrawalsTbody.querySelectorAll('tr');
+  rows.forEach((r, idx) => {
+    const nrCell = r.querySelector('[data-field="nr"]');
+    if (nrCell) nrCell.textContent = idx + 1;
+  });
+}
+
+function updateMetricWithdrawalAmount() {
+  // Sum all withdrawal amounts and reflect in Metrics panel (warning style)
+  let total = 0;
+  withdrawalsTbody.querySelectorAll('tr').forEach((r) => {
+    const amountCell = r.querySelector('[data-field="amount"]');
+    if (!amountCell) return;
+    const raw = amountCell.textContent.trim();
+    if (!raw || raw === '-') return;
+    const num = parseFloat(raw.replace(/[^0-9.\-]/g,'')) || 0;
+    total += num;
+  });
+  const metricEl = document.getElementById('metric-withdrawal-amount');
+  if (metricEl) metricEl.textContent = Math.round(total).toLocaleString('en-US') + ' €';
+}
+
+function addNewWithdrawalRow() {
+  exitWithdrawalEditMode();
+  const row = createWithdrawalRow();
+  // auto enter edit mode
+  setTimeout(() => {
+    const editBtn = row.querySelector('.edit-btn');
+    if (editBtn) editBtn.click();
+  }, 50);
+  updateMetricWithdrawalAmount();
+}
+
+if (addWithdrawalBtn) {
+  addWithdrawalBtn.addEventListener('click', addNewWithdrawalRow);
+}
+if (floatingAddWithdrawalBtn) {
+  floatingAddWithdrawalBtn.addEventListener('click', addNewWithdrawalRow);
+}
+
+
 function updateProfit() {
   const balanceElement = document.getElementById('total-balance');
-  const depositsElement = document.getElementById('total-deposits-amount');
+  // Prefer embedded total deposits inside Money Invested panel (Deposits page)
+  const depositsElement =
+    document.getElementById('total-deposits-embedded') ||
+    document.getElementById('total-deposits-amount');
   const profitElement = document.getElementById('total-profit');
 
   if (balanceElement && depositsElement && profitElement) {
@@ -2325,6 +2476,7 @@ if (addDepositBtn) {
 } else {
   console.error('addDepositBtn not found!');
 }
+
 
 // ========== PIE CHART FUNCTION ==========
 async function updateBalancePieChart() {
@@ -3074,10 +3226,10 @@ function addDividendRow(dividend, rowNumber) {
   const monthlyDividend = (dividend.annual_dividend / 12).toFixed(2);
 
   row.innerHTML = `
-        <td>${rowNumber}</td>
-        <td class="year-cell">${dividend.year}</td>
-        <td class="annual-dividend-cell">${dividend.annual_dividend} €</td>
-        <td class="monthly-dividend">${monthlyDividend} €</td>
+        <td data-field="nr">${rowNumber}</td>
+        <td class="year-cell" data-field="year">${dividend.year}</td>
+        <td class="annual-dividend-cell" data-field="annual_dividend">${dividend.annual_dividend} €</td>
+        <td class="monthly-dividend" data-field="monthly_dividend">${monthlyDividend} €</td>
         <td>
             <button class="edit-icon-btn" title="Edit">✎</button>
             <button class="delete-icon-btn" title="Delete">🗑</button>
@@ -3219,14 +3371,14 @@ function addNewDividendRow() {
   }
 
   row.innerHTML = `
-        <td>${rowNumber}</td>
-        <td>
+      <td data-field="nr">${rowNumber}</td>
+      <td data-field="year">
             <select class="year-select">
                 ${yearOptions}
             </select>
         </td>
-        <td contenteditable="true" class="annual-dividend-input editable">0 €</td>
-        <td class="monthly-dividend">0.00 €</td>
+      <td contenteditable="true" class="annual-dividend-input editable" data-field="annual_dividend">0 €</td>
+      <td class="monthly-dividend" data-field="monthly_dividend">0.00 €</td>
         <td>
             <button class="save-icon-btn" onclick="saveDividend()" title="Save">✓</button>
             <button class="delete-icon-btn" onclick="cancelDividendEdit()" title="Cancel">✕</button>
@@ -3771,13 +3923,13 @@ async function loadSnapshotsData() {
 
         return `
                 <tr>
-                    <td>${snapshot.id}</td>
-                    <td>${dateStr}</td>
-                    <td>${balanceFormatted}</td>
-                    <td>${snapshot.portfolio_percent.toFixed(4)}%</td>
-                    <td>${snapshot.deposits_percent.toFixed(4)}%</td>
-                    <td>${snapshot.sp500_percent.toFixed(4)}%</td>
-                    <td>${snapshot.bet_percent.toFixed(4)}%</td>
+                    <td data-field="id">${snapshot.id}</td>
+                    <td data-field="datetime">${dateStr}</td>
+                    <td data-field="balance">${balanceFormatted}</td>
+                    <td data-field="portfolio_percent">${snapshot.portfolio_percent.toFixed(4)}%</td>
+                    <td data-field="deposits_percent">${snapshot.deposits_percent.toFixed(4)}%</td>
+                    <td data-field="sp500_percent">${snapshot.sp500_percent.toFixed(4)}%</td>
+                    <td data-field="bet_percent">${snapshot.bet_percent.toFixed(4)}%</td>
                     <td>
                         <button class="delete-snapshot-btn" onclick="deleteSnapshot(${snapshot.id})">🗑️ Delete</button>
                     </td>
