@@ -768,7 +768,8 @@ export default {
         const body = await request.json();
         const portfolio_balance = Number(body.portfolio_balance || 0);
         const total_deposits = Number(body.total_deposits || 0);
-        const timestamp = Date.now();
+        const tsOverride = Number(body.timestamp);
+        const timestamp = Number.isFinite(tsOverride) ? tsOverride : Date.now();
 
         const baseline = await env.DB.prepare(
           'SELECT * FROM performance_baseline WHERE id = 1'
@@ -926,6 +927,94 @@ export default {
       if (!exists) return json({ error: 'Snapshot not found' }, 404);
       await env.DB.prepare('DELETE FROM performance_snapshots WHERE id = ?').bind(id).run();
       return json({ message: 'Snapshot deleted', id });
+    }
+
+    // Performance snapshot: update by id (PUT)
+    if (path.startsWith('/api/performance-snapshot/') && method === 'PUT') {
+      try {
+        const idStr = path.split('/').pop();
+        const id = Number(idStr);
+        if (!Number.isFinite(id)) return json({ error: 'Invalid snapshot id' }, 400);
+        const exists = await env.DB.prepare('SELECT id FROM performance_snapshots WHERE id = ?')
+          .bind(id)
+          .first();
+        if (!exists) return json({ error: 'Snapshot not found' }, 404);
+        const body = await request.json();
+        const allowed = [
+          'timestamp',
+          'portfolio_balance',
+          'portfolio_percent',
+          'deposits_percent',
+          'sp500_percent',
+          'bet_percent',
+        ];
+        const sets = [];
+        const values = [];
+        for (const key of allowed) {
+          if (Object.prototype.hasOwnProperty.call(body, key) && body[key] !== undefined && body[key] !== null) {
+            const num = Number(body[key]);
+            if (!Number.isFinite(num)) return json({ error: `Invalid numeric value for ${key}` }, 400);
+            sets.push(`${key}=?`);
+            values.push(num);
+          }
+        }
+        if (!sets.length) return json({ error: 'No valid fields provided' }, 400);
+        const sql = `UPDATE performance_snapshots SET ${sets.join(', ')} WHERE id = ?`;
+        await env.DB.prepare(sql)
+          .bind(...values, id)
+          .run();
+        const row = await env.DB.prepare('SELECT * FROM performance_snapshots WHERE id = ?')
+          .bind(id)
+          .first();
+        return json({ updated: true, snapshot: row });
+      } catch (e) {
+        return json({ error: e.message }, 500);
+      }
+    }
+
+    // ===== Withdrawals (D1) =====
+    if (path === '/api/withdrawals' && method === 'GET') {
+      const { results } = await env.DB.prepare('SELECT * FROM withdrawals ORDER BY created_at ASC, id ASC').all();
+      return json(results || []);
+    }
+    if (path === '/api/withdrawals' && method === 'POST') {
+      try {
+        const body = await request.json();
+        const date = String(body.date || '');
+        const amount = Number(body.amount);
+        const month = String(body.month || '');
+        if (!date || !Number.isFinite(amount)) return json({ error: 'Invalid data' }, 400);
+        const created_at = Date.now();
+        const res = await env.DB.prepare('INSERT INTO withdrawals (date, amount, month, created_at) VALUES (?, ?, ?, ?)')
+          .bind(date, amount, month, created_at)
+          .run();
+        const row = await env.DB.prepare('SELECT * FROM withdrawals WHERE id = ?').bind(res.lastInsertRowId).first();
+        return json(row, 201);
+      } catch (e) {
+        return json({ error: e.message }, 500);
+      }
+    }
+    if (path.startsWith('/api/withdrawals/') && method === 'PUT') {
+      const id = Number(path.split('/').pop());
+      const body = await request.json();
+      const sets = [];
+      const vals = [];
+      if (body.date != null) { sets.push('date = ?'); vals.push(String(body.date)); }
+      if (body.amount != null) {
+        const amt = Number(body.amount);
+        if (!Number.isFinite(amt)) return json({ error: 'Invalid amount' }, 400);
+        sets.push('amount = ?'); vals.push(amt);
+      }
+      if (body.month != null) { sets.push('month = ?'); vals.push(String(body.month)); }
+      if (!sets.length) return json({ error: 'No fields' }, 400);
+      await env.DB.prepare(`UPDATE withdrawals SET ${sets.join(', ')} WHERE id = ?`).bind(...vals, id).run();
+      const row = await env.DB.prepare('SELECT * FROM withdrawals WHERE id = ?').bind(id).first();
+      return json(row);
+    }
+    if (path.startsWith('/api/withdrawals/') && method === 'DELETE') {
+      const id = Number(path.split('/').pop());
+      await env.DB.prepare('DELETE FROM withdrawals WHERE id = ?').bind(id).run();
+      return json({ deleted: 1 });
     }
 
     return json({ error: 'Not Found' }, 404);

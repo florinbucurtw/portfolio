@@ -1153,10 +1153,11 @@ app.get('/api/historical/:symbol', async (req, res) => {
 
 // Save a performance snapshot with percentage calculations
 app.post('/api/performance-snapshot', async (req, res) => {
-  const { portfolio_balance, total_deposits } = req.body;
+  const { portfolio_balance, total_deposits, timestamp: tsOverride } = req.body;
 
   try {
-    const timestamp = Date.now();
+    const now = Date.now();
+    const timestamp = Number.isFinite(Number(tsOverride)) ? Number(tsOverride) : now;
 
     // Fetch current prices for indices with robust fallbacks
     let sp500Price = null;
@@ -1310,6 +1311,69 @@ app.post('/api/performance-snapshot', async (req, res) => {
     console.error('Error saving performance snapshot:', error);
     res.status(500).json({ error: error.message });
   }
+});
+
+// Update a performance snapshot (any field)
+app.put('/api/performance-snapshot/:id', (req, res) => {
+  const { id } = req.params;
+  const body = req.body || {};
+  const allowed = [
+    'timestamp',
+    'portfolio_balance',
+    'portfolio_percent',
+    'deposits_percent',
+    'sp500_percent',
+    'bet_percent',
+  ];
+  const sets = [];
+  const values = [];
+  for (const key of allowed) {
+    if (Object.prototype.hasOwnProperty.call(body, key) && body[key] !== undefined && body[key] !== null) {
+      // Coerce numeric where appropriate
+      if (
+        [
+          'timestamp',
+          'portfolio_balance',
+          'portfolio_percent',
+          'deposits_percent',
+          'sp500_percent',
+          'bet_percent',
+        ].includes(key)
+      ) {
+        const num = Number(body[key]);
+        if (!Number.isFinite(num)) {
+          return res.status(400).json({ error: `Invalid numeric value for ${key}` });
+        }
+        values.push(num);
+      } else {
+        values.push(body[key]);
+      }
+      sets.push(`${key} = ?`);
+    }
+  }
+  if (!sets.length) {
+    return res.status(400).json({ error: 'No valid fields provided for update' });
+  }
+  db.run(
+    `UPDATE performance_snapshots SET ${sets.join(', ')} WHERE id = ?`,
+    [...values, id],
+    function (err) {
+      if (err) {
+        console.error('Error updating snapshot:', err);
+        return res.status(500).json({ error: err.message });
+      }
+      if (this.changes === 0) {
+        return res.status(404).json({ error: 'Snapshot not found' });
+      }
+      db.get('SELECT * FROM performance_snapshots WHERE id = ?', [id], (err2, row) => {
+        if (err2) {
+          console.error('Error fetching updated snapshot:', err2);
+          return res.status(500).json({ error: err2.message });
+        }
+        res.json({ updated: true, snapshot: row });
+      });
+    }
+  );
 });
 
 // Get performance snapshots for a time range
@@ -1540,6 +1604,72 @@ app.get('/api/deposits', (req, res) => {
       return;
     }
     res.json(rows);
+  });
+});
+
+// ========== WITHDRAWALS ENDPOINTS ==========
+// Ensure withdrawals table exists
+db.run(
+  'CREATE TABLE IF NOT EXISTS withdrawals (id INTEGER PRIMARY KEY AUTOINCREMENT, date TEXT, amount REAL, month TEXT, created_at INTEGER)'
+);
+
+// List withdrawals
+app.get('/api/withdrawals', (_req, res) => {
+  db.all('SELECT * FROM withdrawals ORDER BY created_at ASC, id ASC', [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows);
+  });
+});
+
+// Create withdrawal
+app.post('/api/withdrawals', (req, res) => {
+  const { date, amount, month } = req.body || {};
+  const created_at = Date.now();
+  const amt = Number(amount);
+  if (!date || !Number.isFinite(amt)) return res.status(400).json({ error: 'Invalid data' });
+  db.run(
+    'INSERT INTO withdrawals (date, amount, month, created_at) VALUES (?, ?, ?, ?)',
+    [String(date), amt, String(month || ''), created_at],
+    function (err) {
+      if (err) return res.status(500).json({ error: err.message });
+      db.get('SELECT * FROM withdrawals WHERE id = ?', [this.lastID], (e2, row) => {
+        if (e2) return res.status(500).json({ error: e2.message });
+        res.status(201).json(row);
+      });
+    }
+  );
+});
+
+// Update withdrawal
+app.put('/api/withdrawals/:id', (req, res) => {
+  const { id } = req.params;
+  const { date, amount, month } = req.body || {};
+  const sets = [];
+  const values = [];
+  if (date != null) { sets.push('date = ?'); values.push(String(date)); }
+  if (amount != null) {
+    const amt = Number(amount);
+    if (!Number.isFinite(amt)) return res.status(400).json({ error: 'Invalid amount' });
+    sets.push('amount = ?'); values.push(amt);
+  }
+  if (month != null) { sets.push('month = ?'); values.push(String(month)); }
+  if (!sets.length) return res.status(400).json({ error: 'No fields to update' });
+  db.run(`UPDATE withdrawals SET ${sets.join(', ')} WHERE id = ?`, [...values, id], function (err) {
+    if (err) return res.status(500).json({ error: err.message });
+    if (this.changes === 0) return res.status(404).json({ error: 'Not found' });
+    db.get('SELECT * FROM withdrawals WHERE id = ?', [id], (e2, row) => {
+      if (e2) return res.status(500).json({ error: e2.message });
+      res.json(row);
+    });
+  });
+});
+
+// Delete withdrawal
+app.delete('/api/withdrawals/:id', (req, res) => {
+  const { id } = req.params;
+  db.run('DELETE FROM withdrawals WHERE id = ?', [id], function (err) {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ deleted: this.changes });
   });
 });
 
