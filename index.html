@@ -362,22 +362,22 @@
               <span class="breakdown-label">Bank Deposits</span>
               <span class="breakdown-value breakdown-value-white" id="bank-deposits-value-deposits">0.00 €</span>
             </div>
+            <div class="breakdown-item total-deposits-row" style="margin-top: 0.35rem;">
+              <span class="breakdown-label">Total Deposits:</span>
+              <span class="breakdown-value breakdown-value-white" id="total-deposits-embedded">0.00 €</span>
+            </div>
           </div>
         </div>
 
-        <div class="deposits-total">
-          <span>Total Deposits:</span>
-          <span id="total-deposits-amount">0.00 €</span>
-        </div>
 
         <table class="stocks-table">
           <thead>
             <tr>
-              <th>Count</th>
-              <th>Date</th>
-              <th>Amount (€)</th>
-              <th>Account</th>
-              <th>Month</th>
+              <th class="sortable" data-column="count">Count <span class="sort-icon">⇅</span></th>
+              <th class="sortable" data-column="date">Date <span class="sort-icon">⇅</span></th>
+              <th class="sortable" data-column="account">Account <span class="sort-icon">⇅</span></th>
+              <th class="sortable" data-column="month">Month <span class="sort-icon">⇅</span></th>
+              <th class="sortable" data-column="amount">Amount (€) <span class="sort-icon">⇅</span></th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -388,18 +388,17 @@
       </div>
 
       <div id="withdrawals-section" class="section">
-        <div class="table-header" style="justify-content:flex-start;">
-          <!-- Intenționat fără buton + aici; folosim doar flotant -->
-          <h3 style="color:white; font-size:1.2rem; font-weight:700;">Withdrawals</h3>
+        <div class="table-header" style="justify-content:flex-start; gap:12px;">
+          <button id="add-withdrawal-btn" class="add-btn" title="Add Withdrawal" style="margin-left:auto;">+</button>
         </div>
         <button id="floating-add-withdrawal-btn" class="floating-add-btn" title="Add Withdrawal">+</button>
         <table id="withdrawals-table">
           <thead>
             <tr>
-              <th>Nr.</th>
-              <th>Date</th>
-              <th>Amount (€)</th>
-              <th>Month</th>
+              <th class="sortable" data-column="nr">Nr. <span class="sort-icon">⇅</span></th>
+              <th class="sortable" data-column="date">Date <span class="sort-icon">⇅</span></th>
+              <th class="sortable" data-column="amount">Amount (€) <span class="sort-icon">⇅</span></th>
+              <th class="sortable" data-column="month">Month <span class="sort-icon">⇅</span></th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -424,10 +423,10 @@
         <table id="dividends-table">
           <thead>
             <tr>
-              <th>Nr.</th>
-              <th>Year</th>
-              <th>Annual Dividend</th>
-              <th>Dividend / Month</th>
+              <th class="sortable" data-column="nr">Nr. <span class="sort-icon">⇅</span></th>
+              <th class="sortable" data-column="year">Year <span class="sort-icon">⇅</span></th>
+              <th class="sortable" data-column="annual_dividend">Annual Dividend <span class="sort-icon">⇅</span></th>
+              <th class="sortable" data-column="monthly_dividend">Dividend / Month <span class="sort-icon">⇅</span></th>
               <th></th>
             </tr>
           </thead>
@@ -569,13 +568,13 @@
           <table class="data-table">
             <thead>
               <tr>
-                <th>ID</th>
-                <th>Date & Time</th>
-                <th>Balance</th>
-                <th>Portfolio %</th>
-                <th>Deposits %</th>
-                <th>S&P 500 %</th>
-                <th>BET-TR %</th>
+                <th class="sortable" data-column="id">ID <span class="sort-icon">⇅</span></th>
+                <th class="sortable" data-column="datetime">Date & Time <span class="sort-icon">⇅</span></th>
+                <th class="sortable" data-column="balance">Balance <span class="sort-icon">⇅</span></th>
+                <th class="sortable" data-column="portfolio_percent">Portfolio % <span class="sort-icon">⇅</span></th>
+                <th class="sortable" data-column="deposits_percent">Deposits % <span class="sort-icon">⇅</span></th>
+                <th class="sortable" data-column="sp500_percent">S&P 500 % <span class="sort-icon">⇅</span></th>
+                <th class="sortable" data-column="bet_percent">BET-TR % <span class="sort-icon">⇅</span></th>
                 <th>Actions</th>
               </tr>
             </thead>

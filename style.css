@@ -935,8 +935,8 @@ p {
 
 /* Narrow + centered version inside Deposits tab */
 #deposits-section .deposits-breakdown {
-  width: 50%; /* restore previous width */
-  margin: 0.5rem auto 1rem auto; /* center horizontally */
+  width: 50%; /* previous width (will be overridden below) */
+  margin: 0.5rem auto 1rem auto;
 }
 
 #deposits-section .deposits-breakdown .breakdown-item {
@@ -950,6 +950,68 @@ p {
 #deposits-section .deposits-breakdown .breakdown-value-white {
   display: inline-block;
   text-align: left; /* restore left alignment */
+}
+
+/* === Deposits Section: Full-width Money Invested panel === */
+/* Override earlier shrink & width constraints to match table / total panel width */
+#deposits-section .panel-zone {
+  transform: none !important; /* remove scale(0.9) shrink */
+  width: 100%;
+  max-width: 768px; /* align with deposits table max width (reduced by 20%) */
+  margin-left: auto;
+  margin-right: auto;
+}
+#deposits-section .deposits-breakdown {
+  width: 100% !important; /* fill full available width inside panel */
+  margin: 0.5rem 0 1rem 0 !important; /* remove auto centering gaps */
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+}
+#deposits-section .deposits-breakdown .breakdown-item {
+  padding-left: 0.8rem;
+  padding-right: 0.8rem;
+}
+
+/* Embedded Total Deposits row: match panel background and increase font size */
+#deposits-section .deposits-breakdown .breakdown-item.total-deposits-row {
+  /* Use same background treatment as panel */
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.03));
+  border-color: rgba(255, 255, 255, 0.1);
+}
+#deposits-section .deposits-breakdown .breakdown-item.total-deposits-row .breakdown-label {
+  font-size: 1.1rem; /* +2 steps over 0.9rem */
+  font-weight: 400; /* regular, not bold */
+}
+#deposits-section .deposits-breakdown .breakdown-item.total-deposits-row .breakdown-value,
+#deposits-section .deposits-breakdown .breakdown-item.total-deposits-row .breakdown-value-white {
+  font-size: 1.2rem; /* +2 steps over 1.0rem */
+  font-weight: 700;
+}
+
+/* Deposits table: amount values should be white */
+#deposits-section td[data-field="amount"] {
+  color: #ffffff;
+}
+
+/* Deposits table: header 'Account' in white (override any theme color) */
+#deposits-section table.stocks-table thead tr th[data-column="account"] {
+  color: #ffffff !important;
+}
+
+/* Deposits table: align Account, Month, Amount text to the left (not centered) */
+#deposits-section td[data-field="account"],
+#deposits-section td[data-field="month"],
+#deposits-section td[data-field="amount"] {
+  text-align: left;
+}
+
+/* Align Total Deposits panel and Deposits table to reduced width */
+#deposits-section .deposits-total,
+#deposits-section .stocks-table {
+  max-width: 768px;
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 /* Increase font sizes for the 5 rows in Deposits tab */
@@ -1047,6 +1109,22 @@ p {
   min-height: calc(36px + 1.4mm);
   padding-top: calc(0.2rem + 0.18mm);
   padding-bottom: calc(0.2rem + 0.18mm);
+}
+
+/* === Deposits Page: Reduce Money Invested panel height (only duplicate panel) === */
+/* Apply ~15% vertical reduction while preserving font sizes/content scale */
+#deposits-section .panel-zone .deposits-breakdown .breakdown-item {
+  min-height: 31px; /* 36px * 0.85 ≈ 30.6px */
+  padding-top: 0.27rem; /* 0.32rem * 0.85 ≈ 0.272rem */
+  padding-bottom: 0.27rem;
+}
+/* Reduce panel vertical padding itself by 15% (keep horizontal) */
+#deposits-section .panel-zone {
+  padding-top: 0.85rem; /* was 1rem */
+  padding-bottom: 0.85rem;
+  /* Width reduction by ~20% while keeping content scale */
+  max-width: 768px; /* 960px * 0.8 */
+  width: 100%;
 }
 
 /* === Profit Split Grid === */
