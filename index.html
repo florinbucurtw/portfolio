@@ -38,6 +38,7 @@
           <li><a href="#deposits" class="nav-link" data-section="deposits">Deposits</a></li>
           <li><a href="#withdrawals" class="nav-link" data-section="withdrawals">Withdrawal</a></li>
           <li><a href="#dividends" class="nav-link" data-section="dividends">Dividends</a></li>
+          <li><a href="#settings" class="nav-link" data-section="settings">Settings</a></li>
           <li><a href="#admin" class="nav-link" data-section="admin">Admin</a></li>
         </ul>
       </div>
@@ -204,26 +205,26 @@
             <div class="panel-zone metrics-panel-zone">
               <div class="metrics-panel">
                 <h3 class="panel-zone-title">Metrics:</h3>
-                <div class="metric-row">
-                  <span class="metric-label">Balance total return:</span>
-                  <span class="metric-value positive" id="metric-balance-total-return">+18.4%</span>
-                </div>
-                <div class="metric-row">
-                  <span class="metric-label">Average annual return:</span>
-                  <span class="metric-value positive" id="metric-average-annual-return">+12.7%</span>
-                </div>
-                <div class="metric-row">
-                  <span class="metric-label">Average monthly contribution:</span>
-                  <span class="metric-value" id="metric-average-monthly-contribution">1,250 €</span>
-                </div>
-                <div class="metric-row">
-                  <span class="metric-label">Withdrawal amount:</span>
-                  <span class="metric-value warning" id="metric-withdrawal-amount">0 €</span>
-                </div>
-                <div class="metric-row">
-                  <span class="metric-label">Return of Capital Ratio:</span>
-                  <span class="metric-value accent" id="metric-return-capital-ratio">37%</span>
-                </div>
+                   <div class="metric-row">
+                     <span class="metric-label">Balance total return:</span>
+                     <span class="metric-value positive" id="metric-balance-total-return">–</span>
+                   </div>
+                   <div class="metric-row">
+                     <span class="metric-label">Average annual return:</span>
+                     <span class="metric-value positive" id="metric-average-annual-return">+12.7%</span>
+                   </div>
+                   <div class="metric-row">
+                     <span class="metric-label">Average monthly contribution:</span>
+                     <span class="metric-value" id="metric-average-monthly-contribution">1,250 €</span>
+                   </div>
+                   <div class="metric-row">
+                     <span class="metric-label">Withdrawal amount:</span>
+                     <span class="metric-value warning" id="metric-withdrawal-amount">0 €</span>
+                   </div>
+                   <div class="metric-row">
+                     <span class="metric-label">Return of Capital Ratio:</span>
+                     <span class="metric-value accent" id="metric-return-capital-ratio">37%</span>
+                   </div>
               </div>
             </div>
           </div>
@@ -392,6 +393,23 @@
           <button id="add-withdrawal-btn" class="add-btn" title="Add Withdrawal" style="margin-left:auto;">+</button>
         </div>
         <button id="floating-add-withdrawal-btn" class="floating-add-btn" title="Add Withdrawal">+</button>
+        <!-- Withdrawals Summary -->
+        <div class="withdrawals-summary-panel">
+          <div class="withdrawals-summary">
+            <div class="withdrawals-summary-item">
+              <span class="label">Total Withdrawals</span>
+              <span id="withdrawals-total-amount" class="value">0 €</span>
+            </div>
+            <div class="withdrawals-summary-item">
+              <span class="label">Entries</span>
+              <span id="withdrawals-total-count" class="value">0</span>
+            </div>
+            <div class="withdrawals-summary-item">
+              <span class="label">Average / Entry</span>
+              <span id="withdrawals-average" class="value">0 €</span>
+            </div>
+          </div>
+        </div>
         <table id="withdrawals-table">
           <thead>
             <tr>
@@ -434,6 +452,23 @@
             <!-- Dividends will be populated here -->
           </tbody>
         </table>
+      </div>
+
+      <div id="settings-section" class="section">
+        <div class="panel-zone" style="margin-top: 0.75rem;">
+          <h3 class="panel-zone-title">Settings</h3>
+          <div class="deposits-breakdown">
+            <div class="breakdown-item" style="gap:0.75rem; align-items:center;">
+              <span class="breakdown-label">Since when are you investing?</span>
+              <input id="settings-investing-start-date" type="date" style="padding:6px 10px; border:1px solid #444; border-radius:6px; background:#1f1f1f; color:#fff;" />
+              <button id="settings-investing-save-btn" class="btn-sm btn-primary" style="margin-left:6px;">Save</button>
+            </div>
+            <div class="breakdown-item">
+              <span class="breakdown-label">Result</span>
+              <span id="settings-investing-result" class="breakdown-value breakdown-value-white">Investing for 0 months</span>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div
@@ -521,69 +556,86 @@
       </div>
 
       <div id="admin-section" class="section">
-        <h1>Admin - Performance Snapshots</h1>
-        <div class="admin-controls">
-          <button id="refresh-snapshots-btn" class="btn-primary">🔄 Refresh</button>
-          <button id="export-snapshots-btn" class="btn-primary">📥 Export CSV</button>
-          <button id="reset-baseline-btn" class="btn-warning" style="background-color: #ff9800">
-            🔄 Reset T0 (New Start)
-          </button>
-          <button id="delete-old-snapshots-btn" class="btn-danger">🗑️ Delete Old (>30 days)</button>
-          <button id="delete-all-snapshots-btn" class="btn-danger">⚠️ Delete All</button>
+        <div class="admin-hero">
+          <h1 class="admin-title">Admin</h1>
+          <p class="admin-subtitle">Performance snapshots & maintenance</p>
         </div>
-        <div class="admin-controls" style="margin-top: 1rem">
-          <label style="color: white; margin-right: 0.5rem">Delete ID Range:</label>
-          <input
-            type="number"
-            id="delete-range-from"
-            placeholder="From ID"
-            style="width: 100px; margin-right: 0.5rem"
-            min="1"
-          />
-          <label style="color: white; margin: 0 0.5rem">to</label>
-          <input
-            type="number"
-            id="delete-range-to"
-            placeholder="To ID"
-            style="width: 100px; margin-right: 0.5rem"
-            min="1"
-          />
-          <button id="delete-range-btn" class="btn-danger">🗑️ Delete Range</button>
-        </div>
-        <div class="snapshots-stats">
-          <div class="stat-card">
-            <span class="stat-label">Total Snapshots:</span>
-            <span id="total-snapshots-count">0</span>
-          </div>
-          <div class="stat-card">
-            <span class="stat-label">Date Range:</span>
-            <span id="snapshots-date-range">-</span>
-          </div>
-          <div class="stat-card">
-            <span class="stat-label">Database Size:</span>
-            <span id="snapshots-size">0 KB</span>
-          </div>
-        </div>
-        <div class="table-container">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th class="sortable" data-column="id">ID <span class="sort-icon">⇅</span></th>
-                <th class="sortable" data-column="datetime">Date & Time <span class="sort-icon">⇅</span></th>
-                <th class="sortable" data-column="balance">Balance <span class="sort-icon">⇅</span></th>
-                <th class="sortable" data-column="portfolio_percent">Portfolio % <span class="sort-icon">⇅</span></th>
-                <th class="sortable" data-column="deposits_percent">Deposits % <span class="sort-icon">⇅</span></th>
-                <th class="sortable" data-column="sp500_percent">S&P 500 % <span class="sort-icon">⇅</span></th>
-                <th class="sortable" data-column="bet_percent">BET-TR % <span class="sort-icon">⇅</span></th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody id="snapshots-tbody">
-              <tr>
-                <td colspan="8" style="text-align: center; padding: 2rem">Loading...</td>
-              </tr>
-            </tbody>
-          </table>
+
+        <div class="admin-grid">
+          <!-- Actions Panel -->
+          <section class="admin-panel">
+            <h3 class="panel-zone-title">Actions</h3>
+            <div class="admin-actions">
+              <button id="refresh-snapshots-btn" class="btn-sm btn-primary" title="Refresh">🔄</button>
+              <button id="export-snapshots-btn" class="btn-sm btn-primary" title="Export CSV">📥</button>
+              <button id="reset-baseline-btn" class="btn-sm btn-warning" title="Reset T0">🔄</button>
+              <button id="add-snapshot-btn" class="btn-sm btn-primary" title="New Snapshot">➕</button>
+            </div>
+            <div class="admin-danger-actions">
+              <!-- Removed destructive actions per request -->
+            </div>
+          </section>
+
+          <!-- Delete Range Panel -->
+          <section class="admin-panel">
+            <h3 class="panel-zone-title">Delete Range</h3>
+            <div class="admin-range">
+              <label for="delete-range-from" class="admin-label">From</label>
+              <input type="number" id="delete-range-from" class="admin-input" placeholder="ID" min="1" />
+              <label for="delete-range-to" class="admin-label">To</label>
+              <input type="number" id="delete-range-to" class="admin-input" placeholder="ID" min="1" />
+              <button id="delete-range-btn" class="btn-sm btn-danger">🗑️ Delete</button>
+            </div>
+            <div class="admin-range-shortcuts" style="margin-top:0.6rem; display:flex; gap:0.4rem;">
+              <button id="scroll-first-row-btn" class="btn-sm btn-primary" title="Scroll to first">⤒</button>
+              <button id="scroll-last-row-btn" class="btn-sm btn-primary" title="Scroll to last">⤓</button>
+            </div>
+          </section>
+
+          <!-- Stats Panel -->
+          <section class="admin-panel">
+            <h3 class="panel-zone-title">Snapshot Stats</h3>
+            <div class="snapshots-stats compact">
+              <div class="stat-card mini">
+                <span class="stat-label">Total</span>
+                <span id="total-snapshots-count">0</span>
+              </div>
+              <div class="stat-card mini">
+                <span class="stat-label">Range</span>
+                <span id="snapshots-date-range">-</span>
+              </div>
+              <div class="stat-card mini">
+                <span class="stat-label">Size</span>
+                <span id="snapshots-size">0 KB</span>
+              </div>
+            </div>
+          </section>
+
+          <!-- Table Panel -->
+          <section class="admin-panel admin-table-panel">
+            <h3 class="panel-zone-title">Snapshots</h3>
+            <div class="table-container">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th class="sortable" data-column="id">ID <span class="sort-icon">⇅</span></th>
+                    <th class="sortable" data-column="datetime">Date & Time <span class="sort-icon">⇅</span></th>
+                    <th class="sortable" data-column="balance">Balance <span class="sort-icon">⇅</span></th>
+                    <th class="sortable" data-column="portfolio_percent">Portfolio % <span class="sort-icon">⇅</span></th>
+                    <th class="sortable" data-column="deposits_percent">Deposits % <span class="sort-icon">⇅</span></th>
+                    <th class="sortable" data-column="sp500_percent">S&P 500 % <span class="sort-icon">⇅</span></th>
+                    <th class="sortable" data-column="bet_percent">BET-TR % <span class="sort-icon">⇅</span></th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="snapshots-tbody">
+                  <tr>
+                    <td colspan="8" style="text-align: center; padding: 2rem">Loading...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
         </div>
       </div>
     </div>

@@ -1359,6 +1359,8 @@ async function updateTotalBalance() {
     });
     updateProfit();
     updateAllWeights(finalTotal);
+    try { updateAverageAnnualReturn(); } catch {}
+    try { updateBalanceTotalReturn(); } catch {}
   }
 }
 
@@ -1891,6 +1893,11 @@ function updateTotalDeposits() {
 
   // Calculate and update profit (Balance - Total Deposits)
   updateProfit();
+  // Update Return of Capital Ratio since deposits changed
+  updateReturnOfCapitalRatio();
+  // Refresh CAGR after deposits change
+  try { updateAverageAnnualReturn(); } catch {}
+  try { updateBalanceTotalReturn(); } catch {}
 }
 
 // Update deposits breakdown in dashboard
@@ -1943,6 +1950,8 @@ async function updateDepositsBreakdown() {
       ['bank-deposits-value-deposits', bankDeposits],
     ];
     mapping.forEach(([id, val]) => setIfExists(id, val));
+    // After updating Money invested values, refresh Average Monthly Contribution
+    try { updateAverageMonthlyContribution(); } catch {}
   } catch (error) {
     console.error('Error updating deposits breakdown:', error);
   }
@@ -2244,6 +2253,7 @@ async function updateBalanceBreakdown() {
     }
     updateProfit();
     updateAllWeights(unifiedTop);
+    try { updateBalanceTotalReturn(); } catch {}
   } catch (error) {
     console.error('Error updating balance breakdown:', error);
   }
@@ -2254,6 +2264,66 @@ const withdrawalsTbody = document.getElementById('withdrawals-table-body');
 const addWithdrawalBtn = document.getElementById('add-withdrawal-btn');
 const floatingAddWithdrawalBtn = document.getElementById('floating-add-withdrawal-btn');
 let currentEditingWithdrawal = null;
+
+// ---- API fallback helpers (handle mismatch between page origin and API server port) ----
+let API_BASE_CACHED = null;
+function buildBaseCandidates() {
+  const candidates = [];
+  if (typeof window !== 'undefined' && window.API_BASE_OVERRIDE) {
+    candidates.push(window.API_BASE_OVERRIDE);
+  }
+  if (API_BASE) candidates.push(API_BASE);
+  // Common localhost ports
+  for (let p = 3000; p <= 3005; p++) {
+    candidates.push(`http://localhost:${p}`);
+  }
+  return Array.from(new Set(candidates));
+}
+async function apiFetchWithFallback(method, path, payload) {
+  const headers = { 'Content-Type': 'application/json' };
+  const bases = buildBaseCandidates();
+  // Prefer cached base, if any
+  if (API_BASE_CACHED) {
+    bases.unshift(API_BASE_CACHED);
+  }
+  for (const base of bases) {
+    try {
+      const resp = await fetch(`${base}${path}`, {
+        method,
+        headers,
+        body: payload != null ? JSON.stringify(payload) : undefined,
+      });
+      if (resp.ok) {
+        API_BASE_CACHED = base;
+        return resp;
+      }
+    } catch (e) {
+      // try next candidate
+    }
+  }
+  return null;
+}
+async function apiGet(path) { return apiFetchWithFallback('GET', path, null); }
+async function apiPost(path, payload) { return apiFetchWithFallback('POST', path, payload); }
+async function apiPut(path, payload) { return apiFetchWithFallback('PUT', path, payload); }
+async function apiDelete(path) { return apiFetchWithFallback('DELETE', path, null); }
+
+async function loadWithdrawals() {
+  try {
+    const resp = await apiGet(`/api/withdrawals`);
+    if (!resp) throw new Error('API not reachable for withdrawals');
+    const items = await resp.json();
+    withdrawalsTbody.innerHTML = '';
+    items.forEach((it, idx) => {
+      const row = createWithdrawalRow({ nr: idx + 1, date: it.date, amount: (Number(it.amount).toFixed(2) + ' €'), month: it.month });
+      row.dataset.withdrawalId = it.id;
+    });
+    updateWithdrawalNumbers();
+    updateMetricWithdrawalAmount();
+  } catch (e) {
+    console.error('Failed to load withdrawals', e);
+  }
+}
 
 function getMonthNameFromDate(dateStr) {
   // Expect DD/MM/YYYY
@@ -2304,10 +2374,10 @@ function attachWithdrawalRowListeners(row) {
   const editBtn = row.querySelector('.edit-btn');
   const deleteBtn = row.querySelector('.delete-btn');
 
-  editBtn.addEventListener('click', (e) => {
+  editBtn.addEventListener('click', async (e) => {
     e.stopPropagation();
     if (editBtn.title === 'Edit') {
-      exitWithdrawalEditMode();
+      await exitWithdrawalEditMode();
       currentEditingWithdrawal = row;
       editBtn.title = 'Save';
       editBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
@@ -2336,13 +2406,17 @@ function attachWithdrawalRowListeners(row) {
         monthCell.appendChild(select);
       }
     } else {
-      exitWithdrawalEditMode();
+      await exitWithdrawalEditMode();
     }
   });
 
   deleteBtn.addEventListener('click', () => {
     const nr = row.querySelector('[data-field="nr"]').textContent;
-    showDeleteModal(`Withdrawal #${nr}`, () => {
+    showDeleteModal(`Withdrawal #${nr}`, async () => {
+      const id = row.dataset.withdrawalId;
+      if (id) {
+        try { await apiDelete(`/api/withdrawals/${id}`); } catch (e) { console.error('Failed to delete withdrawal', e); }
+      }
       row.remove();
       updateWithdrawalNumbers();
       updateMetricWithdrawalAmount();
@@ -2350,7 +2424,7 @@ function attachWithdrawalRowListeners(row) {
   });
 }
 
-function exitWithdrawalEditMode() {
+async function exitWithdrawalEditMode() {
   if (!currentEditingWithdrawal) return;
   const editBtn = currentEditingWithdrawal.querySelector('.edit-btn');
   if (editBtn && editBtn.title === 'Save') {
@@ -2372,6 +2446,38 @@ function exitWithdrawalEditMode() {
         const chosen = select.value || '-';
         monthCell.textContent = chosen;
       }
+    }
+    // Persist to backend
+    const id = currentEditingWithdrawal.dataset.withdrawalId;
+    const dateCell = currentEditingWithdrawal.querySelector('[data-field="date"]');
+    const amountText = amountCell.textContent.trim();
+    const payload = {
+      date: dateCell ? dateCell.textContent.trim() : '',
+      amount: parseFloat(amountText.replace(/[^0-9.\-]/g,'')) || 0,
+      month: monthCell ? monthCell.textContent.trim() : ''
+    };
+    try {
+      if (id) {
+        const resp = await apiPut(`/api/withdrawals/${id}`, payload);
+        if (!resp.ok) {
+          const err = await resp.text();
+          console.error('PUT /withdrawals error', err);
+          alert('Failed to save withdrawal. Please try again.');
+        }
+      } else {
+        const resp = await apiPost(`/api/withdrawals`, payload);
+        if (resp && resp.ok) {
+          const saved = await resp.json();
+          currentEditingWithdrawal.dataset.withdrawalId = saved.id;
+        } else {
+          const err = resp ? await resp.text() : 'API not reachable';
+          console.error('POST /withdrawals error', err);
+          alert('Failed to create withdrawal. Please try again.');
+        }
+      }
+    } catch (e) {
+      console.error('Failed to persist withdrawal', e);
+      alert('Network error while saving withdrawal.');
     }
     editBtn.title = 'Edit';
     editBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>`;
@@ -2401,16 +2507,76 @@ function updateMetricWithdrawalAmount() {
   });
   const metricEl = document.getElementById('metric-withdrawal-amount');
   if (metricEl) metricEl.textContent = Math.round(total).toLocaleString('en-US') + ' €';
+  // Update summary panel
+  const totalEl = document.getElementById('withdrawals-total-amount');
+  const countEl = document.getElementById('withdrawals-total-count');
+  const avgEl = document.getElementById('withdrawals-average');
+  const rows = withdrawalsTbody.querySelectorAll('tr');
+  const count = rows.length;
+  if (totalEl) totalEl.textContent = Math.round(total).toLocaleString('en-US') + ' €';
+  if (countEl) countEl.textContent = count;
+  if (avgEl) avgEl.textContent = count > 0 ? Math.round(total / count).toLocaleString('en-US') + ' €' : '0 €';
+  // Update Return of Capital Ratio (Total Withdrawals / Total Deposits)
+  updateReturnOfCapitalRatio(total);
 }
 
-function addNewWithdrawalRow() {
+function updateReturnOfCapitalRatio(totalWithdrawalsOverride = null) {
+  // Read total withdrawals from override or compute from DOM
+  let totalWithdrawals = Number(totalWithdrawalsOverride);
+  if (!Number.isFinite(totalWithdrawals)) {
+    totalWithdrawals = 0;
+    withdrawalsTbody.querySelectorAll('tr').forEach((r) => {
+      const amountCell = r.querySelector('[data-field="amount"]');
+      if (!amountCell) return;
+      const raw = amountCell.textContent.trim();
+      if (!raw || raw === '-') return;
+      const num = parseFloat(raw.replace(/[^0-9.\-]/g, '')) || 0;
+      totalWithdrawals += num;
+    });
+  }
+  // Read total deposits from embedded element
+  const depositsEl = document.getElementById('total-deposits-embedded') || document.getElementById('total-deposits-amount');
+  const totalDeposits = depositsEl ? parseFloat((depositsEl.textContent || '').replace(/[^0-9.\-]/g, '')) || 0 : 0;
+  const ratioPct = totalDeposits > 0 ? (totalWithdrawals * 100) / totalDeposits : 0;
+  const rocEl = document.getElementById('metric-return-capital-ratio');
+  if (rocEl) {
+    rocEl.textContent = ratioPct.toFixed(1) + '%';
+    rocEl.classList.toggle('accent', true);
+  }
+}
+
+async function addNewWithdrawalRow() {
   exitWithdrawalEditMode();
-  const row = createWithdrawalRow();
-  // auto enter edit mode
+  // Create immediately in backend to ensure persistence
+  const date = getCurrentDate();
+  const month = getMonthNameFromDate(date);
+  const payload = { date, amount: 0, month };
+  try {
+    const resp = await apiPost(`/api/withdrawals`, payload);
+    if (resp && resp.ok) {
+      const saved = await resp.json();
+      // Display with friendly formatting; keep amount editable
+      const row = createWithdrawalRow({ nr: undefined, date: saved.date, amount: (Number(saved.amount).toFixed(2) + ' €'), month: saved.month });
+      row.dataset.withdrawalId = saved.id;
+      // auto enter edit mode
+      setTimeout(() => {
+        const editBtn = row.querySelector('.edit-btn');
+        if (editBtn) editBtn.click();
+      }, 50);
+      updateWithdrawalNumbers();
+      updateMetricWithdrawalAmount();
+      return;
+    }
+  } catch (e) {
+    console.error('Failed to create withdrawal', e);
+  }
+  // Fallback: create local row if backend failed
+  const row = createWithdrawalRow({ date, amount: '-', month });
   setTimeout(() => {
     const editBtn = row.querySelector('.edit-btn');
     if (editBtn) editBtn.click();
   }, 50);
+  updateWithdrawalNumbers();
   updateMetricWithdrawalAmount();
 }
 
@@ -2419,6 +2585,11 @@ if (addWithdrawalBtn) {
 }
 if (floatingAddWithdrawalBtn) {
   floatingAddWithdrawalBtn.addEventListener('click', addNewWithdrawalRow);
+}
+
+// Initial load
+if (withdrawalsTbody) {
+  loadWithdrawals();
 }
 
 
@@ -2475,6 +2646,182 @@ if (addDepositBtn) {
   });
 } else {
   console.error('addDepositBtn not found!');
+}
+
+// ========== SETTINGS: Investing duration ==========
+function computeInvestingMonths(startStr) {
+  if (!startStr) return 0;
+  // Support both HTML date input (YYYY-MM-DD) and DD/MM/YYYY
+  let y = 0, m = 0, d = 1;
+  const iso = /^\d{4}-\d{2}-\d{2}$/;
+  const dmy = /^\d{2}\/\d{2}\/\d{4}$/;
+  if (iso.test(startStr)) {
+    const [yy, mm, dd] = startStr.split('-').map(Number);
+    y = yy; m = mm; d = dd;
+  } else if (dmy.test(startStr)) {
+    const [dd, mm, yy] = startStr.split('/').map(Number);
+    y = yy; m = mm; d = dd;
+  } else {
+    // Fallback: try Date parse
+    const t = new Date(startStr);
+    if (isNaN(t.getTime())) return 0;
+    y = t.getFullYear(); m = t.getMonth() + 1; d = t.getDate();
+  }
+  // Current date components
+  const now = new Date();
+  const cy = now.getFullYear();
+  const cm = now.getMonth() + 1; // 1-12
+  const cd = now.getDate();
+  // Months difference
+  let total = (cy - y) * 12 + (cm - m);
+  // Adjust for day-of-month if current day is before start day
+  if (cd < d) total -= 1;
+  // Clamp
+  if (!Number.isFinite(total) || total < 0) total = 0;
+  return total;
+}
+
+function initSettingsInvesting() {
+  const input = document.getElementById('settings-investing-start-date');
+  const saveBtn = document.getElementById('settings-investing-save-btn');
+  const resultEl = document.getElementById('settings-investing-result');
+  if (!input || !saveBtn || !resultEl) return;
+
+  // Prefill from localStorage
+  try {
+    const saved = localStorage.getItem('settings_investing_start_date');
+    if (saved) {
+      input.value = saved;
+      const m = computeInvestingMonths(saved);
+      resultEl.textContent = `Investing for ${m} months`;
+      // After having a saved value, show Edit state
+      saveBtn.textContent = 'Edit';
+      input.disabled = true;
+    } else {
+      saveBtn.textContent = 'Save';
+      input.disabled = false;
+    }
+  } catch {}
+
+  saveBtn.addEventListener('click', () => {
+    // Toggle behavior: Save -> persist and switch to Edit; Edit -> enable editing and switch to Save
+    const currentLabel = (saveBtn.textContent || '').trim().toLowerCase();
+    if (currentLabel === 'save') {
+      const val = input.value;
+      const months = computeInvestingMonths(val);
+      resultEl.textContent = `Investing for ${months} months`;
+      try { localStorage.setItem('settings_investing_start_date', val); } catch {}
+      // Switch to Edit state and lock input
+      saveBtn.textContent = 'Edit';
+      input.disabled = true;
+      try { updateAverageMonthlyContribution(); } catch {}
+      try { updateAverageAnnualReturn(); } catch {}
+      try { updateBalanceTotalReturn(); } catch {}
+    } else {
+      // Switch to Save state and enable input
+      saveBtn.textContent = 'Save';
+      input.disabled = false;
+      input.focus();
+    }
+  });
+}
+
+// Initialize settings after DOM
+setTimeout(initSettingsInvesting, 0);
+
+// Compute Average Monthly Contribution: sum Money invested (excluding Bank Deposits) / months
+function parseEuroText(text) {
+  if (!text) return 0;
+  return parseFloat(String(text).replace(/[^0-9.\-]/g, '')) || 0;
+}
+
+function getTextById(id) {
+  const el = document.getElementById(id);
+  return el ? el.textContent || '' : '';
+}
+
+function updateAverageMonthlyContribution() {
+  // Sum Money invested components except Bank Deposits
+  const xtb = parseEuroText(getTextById('xtb-eur-value'));
+  const tv = parseEuroText(getTextById('tradeville-value'));
+  const usd = parseEuroText(getTextById('t212-xtb-usd-value'));
+  const crypto = parseEuroText(getTextById('crypto-value'));
+  // Exclude bank deposits
+  const totalInvestedExclBank = xtb + tv + usd + crypto;
+  // Months from settings
+  let months = 0;
+  try {
+    const saved = localStorage.getItem('settings_investing_start_date');
+    months = computeInvestingMonths(saved || '');
+  } catch {}
+  const avg = months > 0 ? totalInvestedExclBank / months : 0;
+  const el = document.getElementById('metric-average-monthly-contribution');
+  if (el) el.textContent = Math.round(avg).toLocaleString('en-US') + ' €';
+}
+
+// CAGR (Compound Annual Growth Rate) using Vfinal = total balance, Vinitial = money invested excluding Bank Deposits, n = months/12
+function updateAverageAnnualReturn() {
+  // Read total balance (EUR number from Dashboard)
+  const balanceText = getTextById('total-balance');
+  let Vfinal = parseEuroText(balanceText);
+  // Exclude Bank Deposits balance from Vfinal (not considered an investment)
+  const bankBalanceText = getTextById('bank-deposit-balance-value');
+  const bankBalance = parseEuroText(bankBalanceText);
+  if (Number.isFinite(bankBalance) && bankBalance > 0) {
+    Vfinal = Math.max(0, Vfinal - bankBalance);
+  }
+  // Read money invested components and exclude bank deposits
+  const xtb = parseEuroText(getTextById('xtb-eur-value'));
+  const tv = parseEuroText(getTextById('tradeville-value'));
+  const usd = parseEuroText(getTextById('t212-xtb-usd-value'));
+  const crypto = parseEuroText(getTextById('crypto-value'));
+  const Vinitial = xtb + tv + usd + crypto;
+  // Months to years from settings
+  let months = 0;
+  try {
+    const saved = localStorage.getItem('settings_investing_start_date');
+    months = computeInvestingMonths(saved || '');
+  } catch {}
+  const nYears = months / 12;
+  let cagrPct = 0;
+  if (Vinitial > 0 && Vfinal > 0 && nYears > 0) {
+    cagrPct = (Math.pow(Vfinal / Vinitial, 1 / nYears) - 1) * 100;
+  }
+  const el = document.getElementById('metric-average-annual-return');
+  if (el) {
+    el.textContent = (cagrPct || 0).toFixed(2) + '%';
+    el.classList.toggle('positive', cagrPct >= 0);
+  }
+}
+
+// Balance total return: Total Deposits (excl. Bank Deposits) / Total Balance (excl. Bank Deposit balance)
+function updateBalanceTotalReturn() {
+  // Final balance minus Bank Deposit balance
+  const balanceText = getTextById('total-balance');
+  let finalBalance = parseEuroText(balanceText);
+  const bankBalanceText = getTextById('bank-deposit-balance-value');
+  const bankBalance = parseEuroText(bankBalanceText);
+  if (Number.isFinite(bankBalance) && bankBalance > 0) {
+    finalBalance = Math.max(0, finalBalance - bankBalance);
+  }
+  // Total deposits excluding Bank Deposits
+  const xtb = parseEuroText(getTextById('xtb-eur-value'));
+  const tv = parseEuroText(getTextById('tradeville-value'));
+  const usd = parseEuroText(getTextById('t212-xtb-usd-value'));
+  const crypto = parseEuroText(getTextById('crypto-value'));
+  const totalDepositsExclBank = xtb + tv + usd + crypto;
+  // Guard and compute ratio as percentage
+  const el = document.getElementById('metric-balance-total-return');
+  if (!el) return;
+  if (finalBalance <= 0 || totalDepositsExclBank <= 0) {
+    el.textContent = '–';
+    return;
+  }
+  // Requested formula: (Final (excl. bank) - Initial (excl. bank)) / Initial (excl. bank)
+  const ratioPct = ((finalBalance - totalDepositsExclBank) / totalDepositsExclBank) * 100;
+  const sign = ratioPct >= 0 ? '+' : '';
+  el.textContent = `${sign}${ratioPct.toFixed(2)}%`;
+  el.classList.toggle('positive', ratioPct >= 0);
 }
 
 
@@ -2938,6 +3285,8 @@ document.addEventListener('DOMContentLoaded', () => {
     updateTotalDeposits();
     updateDepositsBreakdown();
     await updateBalanceBreakdown();
+    try { updateAverageAnnualReturn(); } catch {}
+    try { updateBalanceTotalReturn(); } catch {}
   });
 
   loadDividends();
@@ -3001,6 +3350,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const resetBaselineBtn = document.getElementById('reset-baseline-btn');
   const deleteOldSnapshotsBtn = document.getElementById('delete-old-snapshots-btn');
   const deleteAllSnapshotsBtn = document.getElementById('delete-all-snapshots-btn');
+  const addSnapshotBtn = document.getElementById('add-snapshot-btn');
 
   if (refreshSnapshotsBtn) {
     refreshSnapshotsBtn.addEventListener('click', loadSnapshotsData);
@@ -3033,6 +3383,11 @@ document.addEventListener('DOMContentLoaded', () => {
           deleteAllSnapshots();
         }
       }
+    });
+  }
+  if (addSnapshotBtn) {
+    addSnapshotBtn.addEventListener('click', () => {
+      createEditableSnapshotRow();
     });
   }
 
@@ -3562,7 +3917,11 @@ async function generatePerformanceData(range) {
       } else if (range === '1w' || range === '1m') {
         label = timestamp.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
       } else {
-        label = timestamp.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+        // For longer ranges show month + abbreviated year with apostrophe to avoid
+        // misreading year as a day-of-month (e.g. 'Dec 25' interpreted as Dec 25th).
+        const monthStr = timestamp.toLocaleString('en-US', { month: 'short' });
+        const yearShort = String(timestamp.getFullYear()).slice(-2);
+        label = `${monthStr} '${yearShort}`; // e.g. Dec '25
       }
       labels.push(label);
 
@@ -3843,6 +4202,29 @@ async function updatePerformanceChart(range = '1m') {
           ticks: {
             color: 'rgba(255, 255, 255, 0.8)',
             maxTicksLimit: 10,
+            // Prevent showing a future month tick beyond now when using category labels
+            callback: function(value, index, ticks) {
+              const label = this.getLabelForValue(value);
+              // If label contains a year and represents a month beyond current date, drop it
+              // Parse pattern like "Dec '25".
+              const match = /^(\w{3}) '\d{2}$/.exec(label);
+              if (match) {
+                const monthStr = match[1];
+                const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+                const monthIndex = months.indexOf(monthStr);
+                const now = new Date();
+                // If this is the last tick and month is greater than current month and year equals current year
+                if (index === ticks.length - 1) {
+                  // Extract year
+                  const yearShort = label.slice(-2);
+                  const yearFull = Number('20' + yearShort);
+                  if (yearFull === now.getFullYear() && monthIndex > now.getMonth()) {
+                    return ''; // hide future month tick
+                  }
+                }
+              }
+              return label;
+            }
           },
         },
         y: {
@@ -3922,19 +4304,20 @@ async function loadSnapshotsData() {
           : '-';
 
         return `
-                <tr>
-                    <td data-field="id">${snapshot.id}</td>
-                    <td data-field="datetime">${dateStr}</td>
-                    <td data-field="balance">${balanceFormatted}</td>
-                    <td data-field="portfolio_percent">${snapshot.portfolio_percent.toFixed(4)}%</td>
-                    <td data-field="deposits_percent">${snapshot.deposits_percent.toFixed(4)}%</td>
-                    <td data-field="sp500_percent">${snapshot.sp500_percent.toFixed(4)}%</td>
-                    <td data-field="bet_percent">${snapshot.bet_percent.toFixed(4)}%</td>
-                    <td>
-                        <button class="delete-snapshot-btn" onclick="deleteSnapshot(${snapshot.id})">🗑️ Delete</button>
-                    </td>
-                </tr>
-            `;
+            <tr class="snapshot-row" data-snapshot-id="${snapshot.id}" data-timestamp="${snapshot.timestamp}" data-balance="${snapshot.portfolio_balance || 0}" data-portfolio-percent="${snapshot.portfolio_percent}" data-deposits-percent="${snapshot.deposits_percent}" data-sp500-percent="${snapshot.sp500_percent}" data-bet-percent="${snapshot.bet_percent}">
+              <td data-field="id">${snapshot.id}</td>
+              <td data-field="datetime">${dateStr}</td>
+              <td data-field="balance">${balanceFormatted}</td>
+              <td data-field="portfolio_percent">${snapshot.portfolio_percent.toFixed(4)}%</td>
+              <td data-field="deposits_percent">${snapshot.deposits_percent.toFixed(4)}%</td>
+              <td data-field="sp500_percent">${snapshot.sp500_percent.toFixed(4)}%</td>
+              <td data-field="bet_percent">${snapshot.bet_percent.toFixed(4)}%</td>
+              <td style="display:flex;gap:4px;justify-content:flex-end;">
+                <button class="edit-snapshot-btn btn-sm" title="Edit" onclick="editSnapshot(${snapshot.id})">✏️</button>
+                <button class="delete-snapshot-btn btn-sm" title="Delete" onclick="deleteSnapshot(${snapshot.id})">🗑️</button>
+              </td>
+            </tr>
+          `;
       })
       .join('');
   } catch (error) {
@@ -3962,6 +4345,228 @@ async function deleteSnapshot(id) {
   } catch (error) {
     console.error('Error deleting snapshot:', error);
     alert('Error deleting snapshot');
+  }
+}
+
+// Edit an existing snapshot inline
+async function editSnapshot(id) {
+  const tbody = document.getElementById('snapshots-tbody');
+  if (!tbody) return;
+  // If manual new row is open, remove it
+  if (currentEditingSnapshotRow && currentEditingSnapshotRow.classList.contains('editing-new')) {
+    currentEditingSnapshotRow.remove();
+    currentEditingSnapshotRow = null;
+  }
+  // If another snapshot is being edited, reload to reset
+  if (currentEditingSnapshotRow && currentEditingSnapshotRow.dataset && currentEditingSnapshotRow.dataset.snapshotId !== String(id)) {
+    await loadSnapshotsData();
+  }
+  const row = tbody.querySelector(`tr[data-snapshot-id="${id}"]`);
+  if (!row) return;
+  currentEditingSnapshotRow = row;
+  const ts = Number(row.getAttribute('data-timestamp')) || Date.now();
+  const bal = Number(row.getAttribute('data-balance')) || 0;
+  const pPct = Number(row.getAttribute('data-portfolio-percent')) || 0;
+  const dPct = Number(row.getAttribute('data-deposits-percent')) || 0;
+  const spPct = Number(row.getAttribute('data-sp500-percent')) || 0;
+  const betPct = Number(row.getAttribute('data-bet-percent')) || 0;
+  const d = new Date(ts);
+  const pad = (n) => String(n).padStart(2, '0');
+  const dateStr = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  row.innerHTML = `
+    <td data-field="id">${id}</td>
+    <td data-field="datetime"><input type="datetime-local" value="${dateStr}" style="width:100%;background:#232323;color:#fff;border:1px solid #444;border-radius:6px;padding:4px 6px;font-size:0.7rem;" /></td>
+    <td data-field="balance"><input type="text" value="${bal}" style="width:100%;background:#232323;color:#fff;border:1px solid #444;border-radius:6px;padding:4px 6px;font-size:0.7rem;" /></td>
+    <td data-field="portfolio_percent"><input type="text" value="${pPct.toFixed(4)}" style="width:100%;background:#232323;color:#fff;border:1px solid #444;border-radius:6px;padding:4px 6px;font-size:0.7rem;" /></td>
+    <td data-field="deposits_percent"><input type="text" value="${dPct.toFixed(4)}" style="width:100%;background:#232323;color:#fff;border:1px solid #444;border-radius:6px;padding:4px 6px;font-size:0.7rem;" /></td>
+    <td data-field="sp500_percent"><input type="text" value="${spPct.toFixed(4)}" style="width:100%;background:#232323;color:#fff;border:1px solid #444;border-radius:6px;padding:4px 6px;font-size:0.7rem;" /></td>
+    <td data-field="bet_percent"><input type="text" value="${betPct.toFixed(4)}" style="width:100%;background:#232323;color:#fff;border:1px solid #444;border-radius:6px;padding:4px 6px;font-size:0.7rem;" /></td>
+    <td style="display:flex;gap:6px;align-items:center;justify-content:flex-end;">
+      <button class="btn-sm btn-primary" onclick="saveEditedSnapshot(${id})">Save</button>
+      <button class="btn-sm btn-danger" onclick="cancelEditSnapshot()">Cancel</button>
+    </td>
+  `;
+}
+
+function cancelEditSnapshot() {
+  currentEditingSnapshotRow = null;
+  loadSnapshotsData();
+}
+
+async function saveEditedSnapshot(id) {
+  const row = currentEditingSnapshotRow;
+  if (!row) return;
+  const getVal = (field) => {
+    const input = row.querySelector(`td[data-field="${field}"] input`);
+    return input ? input.value.trim() : null;
+  };
+  const dtRaw = getVal('datetime');
+  let timestamp = Date.parse(dtRaw);
+  if (!Number.isFinite(timestamp)) timestamp = undefined; // Skip invalid timestamp
+  const balanceRaw = getVal('balance');
+  const portfolioPercentRaw = getVal('portfolio_percent');
+  const depositsPercentRaw = getVal('deposits_percent');
+  const sp500PercentRaw = getVal('sp500_percent');
+  const betPercentRaw = getVal('bet_percent');
+  const payload = {};
+  const parseNum = (v) => {
+    if (v == null) return undefined;
+    const num = parseFloat(String(v).replace(/[^0-9.\-]/g, ''));
+    return Number.isFinite(num) ? num : undefined;
+  };
+  const balNum = parseNum(balanceRaw);
+  if (balNum !== undefined) payload.portfolio_balance = balNum;
+  const pPct = parseNum(portfolioPercentRaw);
+  if (pPct !== undefined) payload.portfolio_percent = pPct;
+  const dPct = parseNum(depositsPercentRaw);
+  if (dPct !== undefined) payload.deposits_percent = dPct;
+  const spPct = parseNum(sp500PercentRaw);
+  if (spPct !== undefined) payload.sp500_percent = spPct;
+  const betPct = parseNum(betPercentRaw);
+  if (betPct !== undefined) payload.bet_percent = betPct;
+  if (timestamp !== undefined) payload.timestamp = timestamp;
+  if (Object.keys(payload).length === 0) {
+    alert('No valid values to update');
+    return;
+  }
+  try {
+    const resp = await fetch(`${API_BASE}/api/performance-snapshot/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      alert('Update failed: ' + (err.error || resp.status));
+      return;
+    }
+    currentEditingSnapshotRow = null;
+    await loadSnapshotsData();
+  } catch (e) {
+    console.error('Error updating snapshot', e);
+    alert('Error updating snapshot');
+  }
+}
+
+// ===== Manual Snapshot Row Creation =====
+let currentEditingSnapshotRow = null;
+function createEditableSnapshotRow() {
+  const tbody = document.getElementById('snapshots-tbody');
+  if (!tbody) return;
+  // Remove existing editing row if any
+  if (currentEditingSnapshotRow) {
+    currentEditingSnapshotRow.remove();
+    currentEditingSnapshotRow = null;
+  }
+  const row = document.createElement('tr');
+  row.classList.add('editing');
+  // Build a local datetime value suitable for <input type="datetime-local">
+  const now = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  const localValue = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  row.innerHTML = `
+    <td data-field="id">New</td>
+    <td data-field="datetime"><input type="datetime-local" value="${localValue}" style="width:100%;background:#232323;color:#fff;border:1px solid #444;border-radius:6px;padding:4px 6px;font-size:0.7rem;" /></td>
+    <td data-field="balance"><input type="text" placeholder="Balance €" style="width:100%;background:#232323;color:#fff;border:1px solid #444;border-radius:6px;padding:4px 6px;font-size:0.7rem;" /></td>
+    <td data-field="portfolio_percent"><input type="text" placeholder="Portfolio %" style="width:100%;background:#232323;color:#fff;border:1px solid #444;border-radius:6px;padding:4px 6px;font-size:0.7rem;" /></td>
+    <td data-field="deposits_percent"><input type="text" placeholder="Deposits %" style="width:100%;background:#232323;color:#fff;border:1px solid #444;border-radius:6px;padding:4px 6px;font-size:0.7rem;" /></td>
+    <td data-field="sp500_percent"><input type="text" placeholder="S&P 500 %" style="width:100%;background:#232323;color:#fff;border:1px solid #444;border-radius:6px;padding:4px 6px;font-size:0.7rem;" /></td>
+    <td data-field="bet_percent"><input type="text" placeholder="BET-TR %" style="width:100%;background:#232323;color:#fff;border:1px solid #444;border-radius:6px;padding:4px 6px;font-size:0.7rem;" /></td>
+    <td style="display:flex;gap:6px;align-items:center;justify-content:flex-end;">
+      <button class="btn-sm btn-primary" id="save-manual-snapshot-btn">Save</button>
+      <button class="btn-sm btn-danger" id="cancel-manual-snapshot-btn">Cancel</button>
+    </td>
+  `;
+  tbody.insertBefore(row, tbody.firstChild);
+  currentEditingSnapshotRow = row;
+  const balanceInput = row.querySelector('td[data-field="balance"] input');
+  if (balanceInput) balanceInput.focus();
+  const cancelBtn = row.querySelector('#cancel-manual-snapshot-btn');
+  const saveBtn = row.querySelector('#save-manual-snapshot-btn');
+  cancelBtn.addEventListener('click', () => {
+    row.remove();
+    currentEditingSnapshotRow = null;
+  });
+  saveBtn.addEventListener('click', async () => {
+    await saveManualSnapshotFromRow(row);
+  });
+}
+
+async function saveManualSnapshotFromRow(row) {
+  if (!row) return;
+  const getVal = (field) => {
+    const input = row.querySelector(`td[data-field="${field}"] input`);
+    if (!input) return null;
+    return input.value.trim();
+  };
+  const datetimeRaw = getVal('datetime');
+  let timestampOverride;
+  if (datetimeRaw) {
+    // Support datetime-local format and ISO
+    const parsedDate = new Date(datetimeRaw);
+    const parsed = parsedDate.getTime();
+    if (Number.isFinite(parsed)) {
+      timestampOverride = parsed;
+    }
+  }
+  const balanceRaw = getVal('balance');
+  const depositsPercentRaw = getVal('deposits_percent');
+  const portfolioPercentRaw = getVal('portfolio_percent');
+  const sp500PercentRaw = getVal('sp500_percent');
+  const betPercentRaw = getVal('bet_percent');
+  const balance = parseFloat(balanceRaw.replace(/[^0-9.\-]/g,'')) || 0;
+  // Derive total deposits if deposits % provided and portfolio percent present
+  let totalDeposits = 0;
+  const depositsPct = parseFloat(depositsPercentRaw.replace(/[^0-9.\-]/g,''));
+  if (Number.isFinite(depositsPct) && depositsPct !== 0 && balance > 0) {
+    // deposits_percent was stored as percentage change baseline? unknown; fallback simple proportional
+    totalDeposits = balance * (1 - (depositsPct/100));
+  } else {
+    // Fallback: use existing deposits total from DOM if available
+    const depositsEl = document.getElementById('total-deposits-embedded') || document.getElementById('total-deposits-amount');
+    if (depositsEl) totalDeposits = parseFloat(depositsEl.textContent.replace(/[^0-9.\-]/g,'')) || 0;
+  }
+  const bodyBase = {
+    portfolio_balance: Math.round(balance * 100)/100,
+    total_deposits: Math.round(totalDeposits * 100)/100
+  };
+  if (timestampOverride) bodyBase.timestamp = timestampOverride;
+  // Try manual endpoint first if percent overrides supplied
+  let manualPayload = { ...bodyBase };
+  const portfolioPct = parseFloat(portfolioPercentRaw.replace(/[^0-9.\-]/g,''));
+  const sp500Pct = parseFloat(sp500PercentRaw.replace(/[^0-9.\-]/g,''));
+  const betPct = parseFloat(betPercentRaw.replace(/[^0-9.\-]/g,''));
+  if (Number.isFinite(portfolioPct)) manualPayload.portfolio_percent_override = portfolioPct;
+  if (Number.isFinite(depositsPct)) manualPayload.deposits_percent_override = depositsPct;
+  if (Number.isFinite(sp500Pct)) manualPayload.sp500_percent_override = sp500Pct;
+  if (Number.isFinite(betPct)) manualPayload.bet_percent_override = betPct;
+  let ok = false;
+  try {
+    const respManual = await fetch(`${API_BASE}/api/performance-snapshot/manual`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(manualPayload)
+    });
+    if (respManual.ok) {
+      ok = true;
+    }
+  } catch (e) {
+    console.warn('Manual snapshot endpoint failed', e.message);
+  }
+  if (!ok) {
+    try {
+      const resp = await fetch(`${API_BASE}/api/performance-snapshot`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(bodyBase)
+      });
+      ok = resp.ok;
+    } catch (e) {
+      console.error('Fallback snapshot save failed', e.message);
+    }
+  }
+  if (ok) {
+    row.remove();
+    currentEditingSnapshotRow = null;
+    await loadSnapshotsData();
+  } else {
+    alert('Failed to save snapshot');
   }
 }
 
@@ -4040,6 +4645,36 @@ function initDeleteRangeButton() {
     });
   } else {
     console.error('Delete range button NOT found');
+  }
+
+  // Scroll shortcuts
+  const firstBtn = document.getElementById('scroll-first-row-btn');
+  const lastBtn = document.getElementById('scroll-last-row-btn');
+  const container = document.querySelector('.admin-table-panel .table-container');
+  if (firstBtn) {
+    const newBtn = firstBtn.cloneNode(true);
+    firstBtn.parentNode.replaceChild(newBtn, firstBtn);
+    newBtn.addEventListener('click', () => {
+      const tbody = document.getElementById('snapshots-tbody');
+      if (!tbody) return;
+      const firstRow = tbody.querySelector('tr');
+      if (!firstRow) return;
+      if (container) container.scrollTop = 0;
+      firstRow.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }
+  if (lastBtn) {
+    const newBtn = lastBtn.cloneNode(true);
+    lastBtn.parentNode.replaceChild(newBtn, lastBtn);
+    newBtn.addEventListener('click', () => {
+      const tbody = document.getElementById('snapshots-tbody');
+      if (!tbody) return;
+      const rows = tbody.querySelectorAll('tr');
+      const lastRow = rows[rows.length - 1];
+      if (!lastRow) return;
+      if (container) container.scrollTop = container.scrollHeight;
+      lastRow.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    });
   }
 }
 
