@@ -1097,16 +1097,14 @@ p {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.32rem 1rem; /* slightly taller rows */
-  /* Further lightened ~10% vs previous (alphas reduced) */
-  background: linear-gradient(135deg, rgba(0, 0, 0, 0.535), rgba(0, 0, 0, 0.382));
-  backdrop-filter: blur(10px);
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  padding: 6px 10px;
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.476), rgba(0, 0, 0, 0.34));
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.55);
   transition: all 0.3s ease;
   gap: 2px;
-  min-height: 36px; /* unify height with Profit/Return rows */
+  min-height: 36px;
 }
 
 /* Balance panel: increase row height by ~15% */
@@ -1237,23 +1235,23 @@ p {
 }
 
 .profit-box {
-  background: linear-gradient(135deg, rgba(0, 0, 0, 0.535), rgba(0, 0, 0, 0.382));
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 12px; /* unify with breakdown-item */
-  padding: 0.2rem 0.8rem; /* reduce inner spacing a bit */
-  font-size: 0.7rem; /* base size matches label size */
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.476), rgba(0, 0, 0, 0.34));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 6px 10px;
+  font-size: 0.7rem;
   font-weight: 600;
   color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 36px; /* same row height as breakdown-item */
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  min-height: 36px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.55);
   transition:
     background 160ms ease,
     box-shadow 160ms ease,
     transform 160ms ease;
-  line-height: 1.03; /* slightly tighter line height */
+  line-height: 1.03;
 }
 
 .profit-box:hover {
@@ -1307,10 +1305,10 @@ p {
 }
 
 .breakdown-item:hover {
-  background: linear-gradient(135deg, rgba(0, 0, 0, 0.566), rgba(0, 0, 0, 0.413));
-  transform: translateX(5px);
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.4);
-  border-color: rgba(255, 255, 255, 0.2);
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.503), rgba(0, 0, 0, 0.367));
+  transform: translateY(-2px);
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.6);
+  border-color: rgba(255, 255, 255, 0.22);
 }
 
 .breakdown-label {
@@ -2196,6 +2194,31 @@ p {
 .btn-primary:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+/* ===== Dividends Page Spacing ===== */
+/* Keep ~2mm gap between the switch and chart/table on both subpages */
+#dividends-section .chart-container {
+  margin-top: 2mm !important;    /* default top spacing */
+  margin-bottom: 2mm !important; /* gap before the switch/table */
+}
+/* Monthly: increase top gap to ~1cm from menu bar */
+#dividends-section.monthly-view .chart-container {
+  margin-top: 1cm !important;
+}
+/* Annual: keep 2mm top spacing */
+#dividends-section.annual-view .chart-container {
+  margin-top: 2mm !important;
+}
+/* Remove any extra top margins inside chart container */
+#dividends-section .chart-container h2 {
+  margin-top: 0 !important;
+}
+#dividends-section #dividends-monthly-table {
+  margin-top: 2mm !important;
+}
+#dividends-section #dividends-annual-subpage {
+  margin-top: 2mm !important;
 }
 
 .btn-danger {

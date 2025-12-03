@@ -169,6 +169,39 @@ db.run(
   }
 );
 
+// Create dividends_monthly table if it doesn't exist
+db.run(
+  `
+  CREATE TABLE IF NOT EXISTS dividends_monthly (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    year INTEGER NOT NULL,
+    month_index INTEGER NOT NULL,
+    amount REAL NOT NULL,
+    notes TEXT,
+    symbol TEXT,
+    currency TEXT
+  )
+`,
+  (err) => {
+    if (err) {
+      console.error('Error creating dividends_monthly table:', err);
+    } else {
+      console.log('Dividends monthly table ready');
+      // Ensure columns exist for older databases
+      db.run(`ALTER TABLE dividends_monthly ADD COLUMN symbol TEXT`, (e) => {
+        if (e && !String(e.message || '').includes('duplicate column')) {
+          console.warn('Could not add symbol column (may already exist):', e.message);
+        }
+      });
+      db.run(`ALTER TABLE dividends_monthly ADD COLUMN currency TEXT`, (e) => {
+        if (e && !String(e.message || '').includes('duplicate column')) {
+          console.warn('Could not add currency column (may already exist):', e.message);
+        }
+      });
+    }
+  }
+);
+
 // Create performance_snapshots table for tracking portfolio performance over time
 db.run(
   `
@@ -1673,6 +1706,34 @@ app.delete('/api/withdrawals/:id', (req, res) => {
   });
 });
 
+// ========== SETTINGS ENDPOINTS ==========
+// Simple settings key/value store
+db.run(
+  'CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)'
+);
+
+// Get investing start date
+app.get('/api/settings/investing-start', (_req, res) => {
+  db.get('SELECT value FROM settings WHERE key = ?', ['investing_start_date'], (err, row) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ value: row ? row.value : '' });
+  });
+});
+
+// Save investing start date
+app.post('/api/settings/investing-start', (req, res) => {
+  const { value } = req.body || {};
+  const val = value != null ? String(value) : '';
+  db.run(
+    'INSERT INTO settings(key, value) VALUES(?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value',
+    ['investing_start_date', val],
+    function (err) {
+      if (err) return res.status(500).json({ error: err.message });
+      res.status(201).json({ saved: true, value: val });
+    }
+  );
+});
+
 // Add new deposit
 app.post('/api/deposits', (req, res) => {
   const { count, date, amount, account, month } = req.body;
@@ -2067,6 +2128,109 @@ app.delete('/api/dividends/:id', (req, res) => {
       return;
     }
     res.json({ message: 'Dividend deleted successfully' });
+  });
+});
+
+// ======== DIVIDENDS MONTHLY CRUD ========
+// List monthly dividends ordered by year then month_index
+app.get('/api/dividends-monthly', (_req, res) => {
+  db.all(
+    'SELECT * FROM dividends_monthly ORDER BY year ASC, month_index ASC, id ASC',
+    [],
+    (err, rows) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json(rows);
+    }
+  );
+});
+
+// Create monthly dividend
+app.post('/api/dividends-monthly', (req, res) => {
+  const { year, month_index, amount, notes, symbol, currency } = req.body || {};
+  const yr = Number(year);
+  const mi = Number(month_index);
+  const amt = Number(amount);
+  if (!Number.isInteger(yr) || !Number.isInteger(mi) || !Number.isFinite(amt)) {
+    return res.status(400).json({ error: 'Invalid payload' });
+  }
+  db.run(
+    'INSERT INTO dividends_monthly (year, month_index, amount, notes, symbol, currency) VALUES (?, ?, ?, ?, ?, ?)',
+    [yr, mi, amt, notes != null ? String(notes) : null, symbol != null ? String(symbol) : null, currency != null ? String(currency) : null],
+    function (err) {
+      if (err) return res.status(500).json({ error: err.message });
+      db.get('SELECT * FROM dividends_monthly WHERE id = ?', [this.lastID], (e2, row) => {
+        if (e2) return res.status(500).json({ error: e2.message });
+        res.status(201).json(row);
+      });
+    }
+  );
+});
+
+// Update monthly dividend
+app.put('/api/dividends-monthly/:id', (req, res) => {
+  const { id } = req.params;
+  const { year, month_index, amount, notes, symbol, currency } = req.body || {};
+  const sets = [];
+  const values = [];
+  if (year != null) {
+    const yr = Number(year);
+    if (!Number.isInteger(yr)) return res.status(400).json({ error: 'Invalid year' });
+    sets.push('year = ?');
+    values.push(yr);
+  }
+  if (month_index != null) {
+    const mi = Number(month_index);
+    if (!Number.isInteger(mi)) return res.status(400).json({ error: 'Invalid month_index' });
+    sets.push('month_index = ?');
+    values.push(mi);
+  }
+  if (amount != null) {
+    const amt = Number(amount);
+    if (!Number.isFinite(amt)) return res.status(400).json({ error: 'Invalid amount' });
+    sets.push('amount = ?');
+    values.push(amt);
+  }
+  if (notes !== undefined) {
+    sets.push('notes = ?');
+    values.push(notes != null ? String(notes) : null);
+  }
+  if (symbol !== undefined) {
+    sets.push('symbol = ?');
+    values.push(symbol != null ? String(symbol) : null);
+  }
+  if (currency !== undefined) {
+    sets.push('currency = ?');
+    values.push(currency != null ? String(currency) : null);
+  }
+  if (!sets.length) return res.status(400).json({ error: 'No fields to update' });
+  db.run(
+    `UPDATE dividends_monthly SET ${sets.join(', ')} WHERE id = ?`,
+    [...values, id],
+    function (err) {
+      if (err) return res.status(500).json({ error: err.message });
+      if (this.changes === 0) return res.status(404).json({ error: 'Not found' });
+      db.get('SELECT * FROM dividends_monthly WHERE id = ?', [id], (e2, row) => {
+        if (e2) return res.status(500).json({ error: e2.message });
+        res.json(row);
+      });
+    }
+  );
+});
+
+// Delete monthly dividend
+app.delete('/api/dividends-monthly/:id', (req, res) => {
+  const { id } = req.params;
+  db.run('DELETE FROM dividends_monthly WHERE id = ?', [id], function (err) {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ deleted: this.changes });
+  });
+});
+
+// Delete all monthly dividends (start fresh)
+app.delete('/api/dividends-monthly', (_req, res) => {
+  db.run('DELETE FROM dividends_monthly', [], function (err) {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ deleted: this.changes });
   });
 });
 

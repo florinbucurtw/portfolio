@@ -17,7 +17,9 @@
           window.API_BASE_OVERRIDE = workerUrl;
           console.log('API_BASE_OVERRIDE activ:', workerUrl);
         } else {
-          console.log('Dev local – fără override.');
+          // Dev local: override către backend portul curent (server poate porni pe 3005)
+          window.API_BASE_OVERRIDE = 'http://localhost:3005';
+          console.log('Dev local – override către', window.API_BASE_OVERRIDE);
         }
       })();
     </script>
@@ -433,7 +435,7 @@
           <canvas id="dividendsChart"></canvas>
         </div>
 
-        <div class="table-header">
+        <div class="table-header" style="margin-top:10mm;">
           <button id="add-dividend-btn" class="add-btn">+</button>
           <div class="dividends-switch-wrapper" style="margin-left:auto; display:flex; align-items:center; gap:0.5rem;">
             <div class="allocation-switch dividends-switch secondary" role="tablist" aria-label="Dividends View Switch (Table)">
@@ -452,9 +454,7 @@
 
         <!-- Annual Subpage (shown only when Annual is selected) -->
         <div id="dividends-annual-subpage" style="display:none; margin-top:1.5rem;">
-          <div class="panel" style="padding:1rem;">
-            <h3 style="margin:0 0 0.75rem 0;">Annual Details</h3>
-          </div>
+          <div class="panel" style="padding:1rem;"></div>
         </div>
 
         <!-- Monthly Table (independent, empty; shown only when Monthly is selected) -->
@@ -498,7 +498,7 @@
           <div class="deposits-breakdown">
             <div class="breakdown-item" style="gap:0.75rem; align-items:center;">
               <span class="breakdown-label">Since when are you investing?</span>
-              <input id="settings-investing-start-date" type="date" style="padding:6px 10px; border:1px solid #444; border-radius:6px; background:#1f1f1f; color:#fff;" />
+              <input id="settings-investing-start-date" type="date" style="padding:6px 10px; border:1px solid #444; border-radius:6px; background:#e9d8fd; color:#1a1a1a;" />
               <button id="settings-investing-save-btn" class="btn-sm btn-primary" style="margin-left:6px;">Save</button>
             </div>
             <div class="breakdown-item">

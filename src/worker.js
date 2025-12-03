@@ -284,6 +284,56 @@ export default {
       return json({ message: 'Dividend deleted successfully' });
     }
 
+    // ===== Dividends Monthly (CRUD) =====
+    if (path === '/api/dividends-monthly' && method === 'GET') {
+      const { results } = await env.DB.prepare('SELECT * FROM dividends_monthly ORDER BY year DESC, month_index DESC, id ASC').all();
+      return json(results || []);
+    }
+    if (path === '/api/dividends-monthly' && method === 'POST') {
+      const body = await request.json();
+      // Expect: { year:number, month_index:1-12, month_label:string, dividend:number, currency:string, symbol:string }
+      const year = Number(body.year);
+      const month_index = Number(body.month_index);
+      const dividend = Number(body.dividend);
+      const currency = String(body.currency || 'RON');
+      const symbol = String(body.symbol || '');
+      const month_label = String(body.month_label || '');
+      if (!Number.isFinite(year) || !Number.isFinite(month_index) || !Number.isFinite(dividend)) {
+        return json({ error: 'Invalid monthly dividend payload' }, 400);
+      }
+      // Create table if missing
+      await env.DB.prepare('CREATE TABLE IF NOT EXISTS dividends_monthly (id INTEGER PRIMARY KEY AUTOINCREMENT, year INTEGER, month_index INTEGER, month_label TEXT, dividend REAL, currency TEXT, symbol TEXT)').run();
+      const res = await env.DB.prepare('INSERT INTO dividends_monthly (year, month_index, month_label, dividend, currency, symbol) VALUES (?, ?, ?, ?, ?, ?)')
+        .bind(year, month_index, month_label, dividend, currency, symbol)
+        .run();
+      return json({ id: res.lastRowId, year, month_index, month_label, dividend, currency, symbol }, 201);
+    }
+    if (path.startsWith('/api/dividends-monthly/') && method === 'PUT') {
+      const id = Number(path.split('/').pop());
+      const body = await request.json();
+      const sets = [];
+      const vals = [];
+      const fields = ['year','month_index','month_label','dividend','currency','symbol'];
+      for (const f of fields) {
+        if (Object.prototype.hasOwnProperty.call(body, f) && body[f] !== undefined) {
+          sets.push(`${f} = ?`);
+          vals.push(f === 'year' || f === 'month_index' || f === 'dividend' ? Number(body[f]) : String(body[f]));
+        }
+      }
+      if (!sets.length || !Number.isFinite(id)) return json({ error: 'Invalid update' }, 400);
+      // Ensure table exists
+      await env.DB.prepare('CREATE TABLE IF NOT EXISTS dividends_monthly (id INTEGER PRIMARY KEY AUTOINCREMENT, year INTEGER, month_index INTEGER, month_label TEXT, dividend REAL, currency TEXT, symbol TEXT)').run();
+      await env.DB.prepare(`UPDATE dividends_monthly SET ${sets.join(', ')} WHERE id = ?`).bind(...vals, id).run();
+      const row = await env.DB.prepare('SELECT * FROM dividends_monthly WHERE id = ?').bind(id).first();
+      return json(row || { id });
+    }
+    if (path.startsWith('/api/dividends-monthly/') && method === 'DELETE') {
+      const id = Number(path.split('/').pop());
+      await env.DB.prepare('CREATE TABLE IF NOT EXISTS dividends_monthly (id INTEGER PRIMARY KEY AUTOINCREMENT, year INTEGER, month_index INTEGER, month_label TEXT, dividend REAL, currency TEXT, symbol TEXT)').run();
+      await env.DB.prepare('DELETE FROM dividends_monthly WHERE id = ?').bind(id).run();
+      return json({ deleted: 1 });
+    }
+
     // Admin: bulk import stocks (upsert by symbol)
     if (path === '/api/admin/import-stocks' && method === 'POST') {
       const items = await request.json();
