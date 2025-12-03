@@ -1,12 +1,12 @@
 # Page snapshot
 
 ```yaml
-- generic [active] [ref=e1]:
+- generic [ref=e1]:
   - navigation [ref=e2]:
     - generic [ref=e3]:
       - generic [ref=e4]:
-        - generic [ref=e5]: "Balance: 70,399 €"
-        - generic [ref=e6]: "Profit: 20,417 €"
+        - generic [ref=e5]: "Balance: 0 €"
+        - generic [ref=e6]: "Profit: 0 €"
       - list [ref=e7]:
         - listitem [ref=e8]:
           - link "Dashboard" [ref=e9] [cursor=pointer]:
@@ -21,116 +21,32 @@
           - link "Deposits" [ref=e15] [cursor=pointer]:
             - /url: "#deposits"
         - listitem [ref=e16]:
-          - link "Dividends" [ref=e17] [cursor=pointer]:
-            - /url: "#dividends"
+          - link "Withdrawal" [ref=e17] [cursor=pointer]:
+            - /url: "#withdrawals"
         - listitem [ref=e18]:
-          - link "Admin" [ref=e19] [cursor=pointer]:
+          - link "Dividends" [active] [ref=e19] [cursor=pointer]:
+            - /url: "#dividends"
+        - listitem [ref=e20]:
+          - link "Settings" [ref=e21] [cursor=pointer]:
+            - /url: "#settings"
+        - listitem [ref=e22]:
+          - link "Admin" [ref=e23] [cursor=pointer]:
             - /url: "#admin"
-  - generic [ref=e21]:
-    - button "+" [ref=e25] [cursor=pointer]
-    - table [ref=e26]:
-      - rowgroup [ref=e27]:
-        - row "Nr. Year Annual Dividend Dividend / Month" [ref=e28]:
-          - columnheader "Nr." [ref=e29]
-          - columnheader "Year" [ref=e30]
-          - columnheader "Annual Dividend" [ref=e31]
-          - columnheader "Dividend / Month" [ref=e32]
-          - columnheader [ref=e33]
-      - rowgroup [ref=e34]:
-        - row "1 2025 1157 € 96.42 € ✎ 🗑" [ref=e35]:
-          - cell "1" [ref=e36]
-          - cell "2025" [ref=e37]
-          - cell "1157 €" [ref=e38]
-          - cell "96.42 €" [ref=e39]
-          - cell "✎ 🗑" [ref=e40]:
-            - button "✎" [ref=e41] [cursor=pointer]
-            - button "🗑" [ref=e42] [cursor=pointer]
-        - row "2 2025 240 € 20.00 € ✎ 🗑" [ref=e43]:
-          - cell "2" [ref=e44]
-          - cell "2025" [ref=e45]
-          - cell "240 €" [ref=e46]
-          - cell "20.00 €" [ref=e47]
-          - cell "✎ 🗑" [ref=e48]:
-            - button "✎" [ref=e49] [cursor=pointer]
-            - button "🗑" [ref=e50] [cursor=pointer]
-        - row "3 2025 0 € 0.00 € ✎ 🗑" [ref=e51]:
-          - cell "3" [ref=e52]
-          - cell "2025" [ref=e53]
-          - cell "0 €" [ref=e54]
-          - cell "0.00 €" [ref=e55]
-          - cell "✎ 🗑" [ref=e56]:
-            - button "✎" [ref=e57] [cursor=pointer]
-            - button "🗑" [ref=e58] [cursor=pointer]
-        - row "4 2025 0 € 0.00 € ✎ 🗑" [ref=e59]:
-          - cell "4" [ref=e60]
-          - cell "2025" [ref=e61]
-          - cell "0 €" [ref=e62]
-          - cell "0.00 €" [ref=e63]
-          - cell "✎ 🗑" [ref=e64]:
-            - button "✎" [ref=e65] [cursor=pointer]
-            - button "🗑" [ref=e66] [cursor=pointer]
-        - row "5 2025 240 € 20.00 € ✎ 🗑" [ref=e67]:
-          - cell "5" [ref=e68]
-          - cell "2025" [ref=e69]
-          - cell "240 €" [ref=e70]
-          - cell "20.00 €" [ref=e71]
-          - cell "✎ 🗑" [ref=e72]:
-            - button "✎" [ref=e73] [cursor=pointer]
-            - button "🗑" [ref=e74] [cursor=pointer]
-        - row "6 2025 0 € 0.00 € ✎ 🗑" [ref=e75]:
-          - cell "6" [ref=e76]
-          - cell "2025" [ref=e77]
-          - cell "0 €" [ref=e78]
-          - cell "0.00 €" [ref=e79]
-          - cell "✎ 🗑" [ref=e80]:
-            - button "✎" [ref=e81] [cursor=pointer]
-            - button "🗑" [ref=e82] [cursor=pointer]
-        - row "7 2025 0 € 0.00 € ✎ 🗑" [ref=e83]:
-          - cell "7" [ref=e84]
-          - cell "2025" [ref=e85]
-          - cell "0 €" [ref=e86]
-          - cell "0.00 €" [ref=e87]
-          - cell "✎ 🗑" [ref=e88]:
-            - button "✎" [ref=e89] [cursor=pointer]
-            - button "🗑" [ref=e90] [cursor=pointer]
-        - row "8 2025 240 € 20.00 € ✎ 🗑" [ref=e91]:
-          - cell "8" [ref=e92]
-          - cell "2025" [ref=e93]
-          - cell "240 €" [ref=e94]
-          - cell "20.00 €" [ref=e95]
-          - cell "✎ 🗑" [ref=e96]:
-            - button "✎" [ref=e97] [cursor=pointer]
-            - button "🗑" [ref=e98] [cursor=pointer]
-        - row "9 2025 0 € 0.00 € ✎ 🗑" [ref=e99]:
-          - cell "9" [ref=e100]
-          - cell "2025" [ref=e101]
-          - cell "0 €" [ref=e102]
-          - cell "0.00 €" [ref=e103]
-          - cell "✎ 🗑" [ref=e104]:
-            - button "✎" [ref=e105] [cursor=pointer]
-            - button "🗑" [ref=e106] [cursor=pointer]
-        - row "10 2025 0 € 0.00 € ✎ 🗑" [ref=e107]:
-          - cell "10" [ref=e108]
-          - cell "2025" [ref=e109]
-          - cell "0 €" [ref=e110]
-          - cell "0.00 €" [ref=e111]
-          - cell "✎ 🗑" [ref=e112]:
-            - button "✎" [ref=e113] [cursor=pointer]
-            - button "🗑" [ref=e114] [cursor=pointer]
-        - row "11 2025 240 € 20.00 € ✎ 🗑" [ref=e115]:
-          - cell "11" [ref=e116]
-          - cell "2025" [ref=e117]
-          - cell "240 €" [ref=e118]
-          - cell "20.00 €" [ref=e119]
-          - cell "✎ 🗑" [ref=e120]:
-            - button "✎" [ref=e121] [cursor=pointer]
-            - button "🗑" [ref=e122] [cursor=pointer]
-        - row "12 2025 0 € 0.00 € ✎ 🗑" [ref=e123]:
-          - cell "12" [ref=e124]
-          - cell "2025" [ref=e125]
-          - cell "0 €" [ref=e126]
-          - cell "0.00 €" [ref=e127]
-          - cell "✎ 🗑" [ref=e128]:
-            - button "✎" [ref=e129] [cursor=pointer]
-            - button "🗑" [ref=e130] [cursor=pointer]
+  - generic [ref=e25]:
+    - generic [ref=e28]:
+      - button "+" [ref=e29] [cursor=pointer]
+      - tablist "Dividends View Switch (Table)" [ref=e31]:
+        - tab "Monthly" [ref=e32] [cursor=pointer]:
+          - generic [ref=e33]: Monthly
+        - tab "Annual" [selected] [ref=e34] [cursor=pointer]:
+          - generic [ref=e35]: Annual
+    - table [ref=e37]:
+      - rowgroup [ref=e38]:
+        - row "Nr. ⇅ Year ⇅ Annual Dividend ⇅ Dividend / Month ⇅" [ref=e39]:
+          - columnheader "Nr. ⇅" [ref=e40]
+          - columnheader "Year ⇅" [ref=e41]
+          - columnheader "Annual Dividend ⇅" [ref=e42]
+          - columnheader "Dividend / Month ⇅" [ref=e43]
+          - columnheader [ref=e44]
+      - rowgroup
 ```
