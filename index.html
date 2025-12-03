@@ -427,6 +427,7 @@
       </div>
 
       <div id="dividends-section" class="section">
+        
         <!-- Dividends Chart -->
         <div class="chart-container" style="margin-bottom: 2rem">
           <canvas id="dividendsChart"></canvas>
@@ -434,11 +435,48 @@
 
         <div class="table-header">
           <button id="add-dividend-btn" class="add-btn">+</button>
+          <div class="dividends-switch-wrapper" style="margin-left:auto; display:flex; align-items:center; gap:0.5rem;">
+            <div class="allocation-switch dividends-switch secondary" role="tablist" aria-label="Dividends View Switch (Table)">
+              <button id="toggle-dividends-monthly-btn-table" role="tab" aria-selected="false" class="allocation-option" tabindex="-1">
+                <span class="option-label">Monthly</span>
+              </button>
+              <button id="toggle-dividends-annual-btn-table" role="tab" aria-selected="true" class="allocation-option active" tabindex="0">
+                <span class="option-label">Annual</span>
+              </button>
+              <div class="switch-glow" aria-hidden="true"></div>
+            </div>
+          </div>
         </div>
 
         <button id="floating-add-dividend-btn" class="floating-add-btn">+</button>
 
-        <table id="dividends-table">
+        <!-- Annual Subpage (shown only when Annual is selected) -->
+        <div id="dividends-annual-subpage" style="display:none; margin-top:1.5rem;">
+          <div class="panel" style="padding:1rem;">
+            <h3 style="margin:0 0 0.75rem 0;">Annual Details</h3>
+          </div>
+        </div>
+
+        <!-- Monthly Table (independent, empty; shown only when Monthly is selected) -->
+        <table id="dividends-monthly-table" class="data-table" style="display:none; margin-top:1rem;">
+          <thead>
+            <tr>
+              <th class="sortable" data-column="nr">Nr. <span class="sort-icon">⇅</span></th>
+              <th class="sortable" data-column="year">Year <span class="sort-icon">⇅</span></th>
+              <th class="sortable" data-column="month">Month <span class="sort-icon">⇅</span></th>
+              <th class="sortable" data-column="dividend">Dividend <span class="sort-icon">⇅</span></th>
+              <th class="sortable" data-column="symbol">Symbol <span class="sort-icon">⇅</span></th>
+              <th class="sortable" data-column="currency">Currency <span class="sort-icon">⇅</span></th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="dividends-monthly-table-body">
+            <!-- Intentionally empty -->
+          </tbody>
+        </table>
+
+          <!-- Dividends Table -->
+          <table id="dividends-table" class="data-table">
           <thead>
             <tr>
               <th class="sortable" data-column="nr">Nr. <span class="sort-icon">⇅</span></th>
@@ -468,6 +506,29 @@
               <span id="settings-investing-result" class="breakdown-value breakdown-value-white">Investing for 0 months</span>
             </div>
           </div>
+        </div>
+
+        <!-- FX Annual Averages moved from Admin to Settings -->
+        <div class="panel-zone" style="margin-top: 0.75rem;">
+          <h3 class="panel-zone-title">FX Annual Averages (USD/RON, EUR/RON)</h3>
+          <div class="table-header" style="margin-bottom:0.5rem; align-items:center;">
+            <button id="refresh-fx-avg-btn" class="btn-sm btn-primary" title="Refresh">🔄 Refresh</button>
+            <span id="fx-avg-last-updated" style="margin-left:1rem; opacity:0.8;"></span>
+          </div>
+          <table id="fx-averages-table" class="data-table">
+            <thead>
+              <tr>
+                <th class="sortable" data-column="year">Year <span class="sort-icon">⇅</span></th>
+                <th class="sortable" data-column="eur_ron">EUR/RON Avg <span class="sort-icon">⇅</span></th>
+                <th class="sortable" data-column="usd_ron">USD/RON Avg <span class="sort-icon">⇅</span></th>
+                <th class="sortable" data-column="usd_eur">USD/EUR Avg <span class="sort-icon">⇅</span></th>
+              </tr>
+            </thead>
+            <tbody id="fx-averages-table-body">
+              <!-- Filled dynamically -->
+            </tbody>
+          </table>
+          <p style="margin-top:0.5rem; opacity:0.7; font-size:0.9rem;">Updates monthly on the 1st automatically.</p>
         </div>
       </div>
 
@@ -556,12 +617,21 @@
       </div>
 
       <div id="admin-section" class="section">
-        <div class="admin-hero">
-          <h1 class="admin-title">Admin</h1>
-          <p class="admin-subtitle">Performance snapshots & maintenance</p>
+        <!-- Admin Submenu -->
+        <div class="allocation-switch-wrapper" style="margin-bottom: 0.75rem;">
+          <div class="allocation-switch" role="tablist" aria-label="Admin Submenu">
+            <button id="admin-tab-snapshots" role="tab" aria-selected="true" class="allocation-option active" tabindex="0">
+              <span class="option-label">Snapshots</span>
+            </button>
+            <button id="admin-tab-users" role="tab" aria-selected="false" class="allocation-option" tabindex="-1">
+              <span class="option-label">Users</span>
+            </button>
+            <div class="switch-glow" aria-hidden="true"></div>
+          </div>
         </div>
 
-        <div class="admin-grid">
+        <!-- Snapshots Subpage -->
+        <div id="snapshots-subpage" class="admin-grid" style="display: flex; flex-wrap: wrap; gap: 0.75rem;">
           <!-- Actions Panel -->
           <section class="admin-panel">
             <h3 class="panel-zone-title">Actions</h3>
@@ -577,14 +647,14 @@
           </section>
 
           <!-- Delete Range Panel -->
-          <section class="admin-panel">
+          <section class="admin-panel" id="delete-range-panel">
             <h3 class="panel-zone-title">Delete Range</h3>
             <div class="admin-range">
               <label for="delete-range-from" class="admin-label">From</label>
               <input type="number" id="delete-range-from" class="admin-input" placeholder="ID" min="1" />
               <label for="delete-range-to" class="admin-label">To</label>
               <input type="number" id="delete-range-to" class="admin-input" placeholder="ID" min="1" />
-              <button id="delete-range-btn" class="btn-sm btn-danger">🗑️ Delete</button>
+              <button id="delete-range-btn" class="btn-sm btn-danger" title="Delete" aria-label="Delete">🗑️</button>
             </div>
             <div class="admin-range-shortcuts" style="margin-top:0.6rem; display:flex; gap:0.4rem;">
               <button id="scroll-first-row-btn" class="btn-sm btn-primary" title="Scroll to first">⤒</button>
@@ -593,7 +663,7 @@
           </section>
 
           <!-- Stats Panel -->
-          <section class="admin-panel">
+          <section class="admin-panel" id="snapshots-stats-panel">
             <h3 class="panel-zone-title">Snapshot Stats</h3>
             <div class="snapshots-stats compact">
               <div class="stat-card mini">
@@ -612,7 +682,7 @@
           </section>
 
           <!-- Table Panel -->
-          <section class="admin-panel admin-table-panel">
+          <section class="admin-panel admin-table-panel" style="flex-basis: 100%; width: 100%;">
             <h3 class="panel-zone-title">Snapshots</h3>
             <div class="table-container">
               <table class="data-table">
@@ -635,6 +705,14 @@
                 </tbody>
               </table>
             </div>
+          </section>
+        </div>
+
+        <!-- Users Subpage (empty for now) -->
+        <div id="users-subpage" class="admin-grid" style="display: none;">
+          <section class="admin-panel">
+            <h3 class="panel-zone-title">Users</h3>
+            <p style="opacity:0.8;">No user management UI yet.</p>
           </section>
         </div>
       </div>
