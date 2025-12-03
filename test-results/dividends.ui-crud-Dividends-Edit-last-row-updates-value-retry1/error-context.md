@@ -1,0 +1,52 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e1]:
+  - navigation [ref=e2]:
+    - generic [ref=e3]:
+      - generic [ref=e4]:
+        - generic [ref=e5]: "Balance: 0 €"
+        - generic [ref=e6]: "Profit: 0 €"
+      - list [ref=e7]:
+        - listitem [ref=e8]:
+          - link "Dashboard" [ref=e9] [cursor=pointer]:
+            - /url: "#dashboard"
+        - listitem [ref=e10]:
+          - link "Stocks" [ref=e11] [cursor=pointer]:
+            - /url: "#stocks"
+        - listitem [ref=e12]:
+          - link "Allocation" [ref=e13] [cursor=pointer]:
+            - /url: "#sectors"
+        - listitem [ref=e14]:
+          - link "Deposits" [ref=e15] [cursor=pointer]:
+            - /url: "#deposits"
+        - listitem [ref=e16]:
+          - link "Withdrawal" [ref=e17] [cursor=pointer]:
+            - /url: "#withdrawals"
+        - listitem [ref=e18]:
+          - link "Dividends" [active] [ref=e19] [cursor=pointer]:
+            - /url: "#dividends"
+        - listitem [ref=e20]:
+          - link "Settings" [ref=e21] [cursor=pointer]:
+            - /url: "#settings"
+        - listitem [ref=e22]:
+          - link "Admin" [ref=e23] [cursor=pointer]:
+            - /url: "#admin"
+  - generic [ref=e25]:
+    - generic [ref=e28]:
+      - button "+" [ref=e29] [cursor=pointer]
+      - tablist "Dividends View Switch (Table)" [ref=e31]:
+        - tab "Monthly" [ref=e32] [cursor=pointer]:
+          - generic [ref=e33]: Monthly
+        - tab "Annual" [selected] [ref=e34] [cursor=pointer]:
+          - generic [ref=e35]: Annual
+    - table [ref=e37]:
+      - rowgroup [ref=e38]:
+        - row "Nr. ⇅ Year ⇅ Annual Dividend ⇅ Dividend / Month ⇅" [ref=e39]:
+          - columnheader "Nr. ⇅" [ref=e40]
+          - columnheader "Year ⇅" [ref=e41]
+          - columnheader "Annual Dividend ⇅" [ref=e42]
+          - columnheader "Dividend / Month ⇅" [ref=e43]
+          - columnheader [ref=e44]
+      - rowgroup
+```

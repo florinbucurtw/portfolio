@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="ro">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Register • Portfolio</title>
+    <link rel="stylesheet" href="style.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+  </head>
+  <body class="login-body">
+    <div class="login-container">
+      <div class="login-card">
+        <div class="login-brand">
+          <div class="brand-glow"></div>
+          <h1 class="brand-title">Create Account</h1>
+          <p class="brand-sub">Complete details to register</p>
+        </div>
+
+        <form id="register-form" class="login-form" autocomplete="on">
+          <div class="input-group">
+            <label for="first_name" class="input-label">First Name</label>
+            <input id="first_name" name="first_name" type="text" class="login-input" placeholder="John" required />
+          </div>
+
+          <div class="input-group">
+            <label for="last_name" class="input-label">Last Name</label>
+            <input id="last_name" name="last_name" type="text" class="login-input" placeholder="Doe" required />
+          </div>
+
+          <div class="input-group">
+            <label for="age" class="input-label">Age</label>
+            <input id="age" name="age" type="number" min="0" class="login-input" placeholder="30" />
+          </div>
+
+          <div class="input-group">
+            <label for="country" class="input-label">Country</label>
+            <select id="country" name="country" class="login-input"></select>
+          </div>
+
+          <div class="input-group">
+            <label for="email" class="input-label">Email</label>
+            <input id="email" name="email" type="email" class="login-input" placeholder="you@example.com" required />
+          </div>
+
+          <div class="input-group">
+            <label for="username" class="input-label">Username</label>
+            <input id="username" name="username" type="text" class="login-input" placeholder="yourhandle" required />
+          </div>
+
+          <div class="input-group">
+            <label for="password" class="input-label">Password</label>
+            <div class="password-wrapper">
+              <input id="password" name="password" type="password" class="login-input" placeholder="Enter a password" required />
+              <button type="button" id="toggle-password" class="password-toggle" aria-label="Show/Hide Password">👁️</button>
+            </div>
+          </div>
+
+          <button type="submit" class="login-btn primary" id="register-submit">Register</button>
+
+          <div class="login-actions" style="margin-top:0.4rem">
+            <a href="login.html" class="login-btn ghost">Back to Login</a>
+          </div>
+
+          <p id="register-message" class="login-footer" style="display:none"></p>
+        </form>
+      </div>
+    </div>
+
+    <script src="register.js"></script>
+  </body>
+</html>

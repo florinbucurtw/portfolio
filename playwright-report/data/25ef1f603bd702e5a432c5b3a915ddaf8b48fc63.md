@@ -1,0 +1,62 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e1]:
+  - navigation [ref=e2]:
+    - generic [ref=e3]:
+      - generic [ref=e4]:
+        - generic [ref=e5]: "Balance: 0 €"
+        - generic [ref=e6]: "Profit: 0 €"
+      - list [ref=e7]:
+        - listitem [ref=e8]:
+          - link "Dashboard" [ref=e9] [cursor=pointer]:
+            - /url: "#dashboard"
+        - listitem [ref=e10]:
+          - link "Stocks" [ref=e11] [cursor=pointer]:
+            - /url: "#stocks"
+        - listitem [ref=e12]:
+          - link "Allocation" [ref=e13] [cursor=pointer]:
+            - /url: "#sectors"
+        - listitem [ref=e14]:
+          - link "Deposits" [ref=e15] [cursor=pointer]:
+            - /url: "#deposits"
+        - listitem [ref=e16]:
+          - link "Withdrawal" [ref=e17] [cursor=pointer]:
+            - /url: "#withdrawals"
+        - listitem [ref=e18]:
+          - link "Dividends" [ref=e19] [cursor=pointer]:
+            - /url: "#dividends"
+        - listitem [ref=e20]:
+          - link "Settings" [ref=e21] [cursor=pointer]:
+            - /url: "#settings"
+        - listitem [ref=e22]:
+          - link "Admin" [ref=e23] [cursor=pointer]:
+            - /url: "#admin"
+  - generic [ref=e25]:
+    - generic [ref=e26]:
+      - button "+" [ref=e27] [cursor=pointer]
+      - button "Refresh Prices" [active] [ref=e28] [cursor=pointer]:
+        - img [ref=e29]
+      - button [ref=e33] [cursor=pointer]:
+        - img [ref=e34]
+    - table [ref=e37]:
+      - rowgroup [ref=e38]:
+        - row "Nr. Symbol Weight ⇅ Company Allocation ⇅ Shares Price Price Change ⇅ Broker ⇅ Sector ⇅ Risk ⇅" [ref=e39]:
+          - columnheader "Nr." [ref=e40]
+          - columnheader "Symbol" [ref=e41]
+          - columnheader "Weight ⇅" [ref=e42] [cursor=pointer]
+          - columnheader "Company" [ref=e43]
+          - columnheader "Allocation ⇅" [ref=e44] [cursor=pointer]
+          - columnheader "Shares" [ref=e45]
+          - columnheader "Price" [ref=e46]
+          - columnheader "Price Change ⇅" [ref=e47] [cursor=pointer]
+          - columnheader "Broker ⇅" [ref=e48] [cursor=pointer]
+          - columnheader "Sector ⇅" [ref=e49] [cursor=pointer]
+          - columnheader "Risk ⇅" [ref=e50] [cursor=pointer]:
+            - text: Risk
+            - img [ref=e52]:
+              - generic [ref=e54]: i
+            - text: ⇅
+          - columnheader [ref=e55]
+      - rowgroup
+```

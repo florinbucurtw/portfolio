@@ -1,0 +1,67 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e1]:
+  - navigation [ref=e2]:
+    - generic [ref=e3]:
+      - generic [ref=e4]:
+        - generic [ref=e5]: "Balance: 0 €"
+        - generic [ref=e6]: "Profit: 0 €"
+      - list [ref=e7]:
+        - listitem [ref=e8]:
+          - link "Dashboard" [ref=e9] [cursor=pointer]:
+            - /url: "#dashboard"
+        - listitem [ref=e10]:
+          - link "Stocks" [ref=e11] [cursor=pointer]:
+            - /url: "#stocks"
+        - listitem [ref=e12]:
+          - link "Allocation" [ref=e13] [cursor=pointer]:
+            - /url: "#sectors"
+        - listitem [ref=e14]:
+          - link "Deposits" [active] [ref=e15] [cursor=pointer]:
+            - /url: "#deposits"
+        - listitem [ref=e16]:
+          - link "Withdrawal" [ref=e17] [cursor=pointer]:
+            - /url: "#withdrawals"
+        - listitem [ref=e18]:
+          - link "Dividends" [ref=e19] [cursor=pointer]:
+            - /url: "#dividends"
+        - listitem [ref=e20]:
+          - link "Settings" [ref=e21] [cursor=pointer]:
+            - /url: "#settings"
+        - listitem [ref=e22]:
+          - link "Admin" [ref=e23] [cursor=pointer]:
+            - /url: "#admin"
+  - generic [ref=e25]:
+    - button "+" [ref=e27] [cursor=pointer]
+    - generic [ref=e29]:
+      - heading "Money invested:" [level=3] [ref=e30]
+      - generic [ref=e31]:
+        - generic [ref=e32]: XTB EUR
+        - generic [ref=e33]: 0.00 €
+      - generic [ref=e34]:
+        - generic [ref=e35]: Tradeville
+        - generic [ref=e36]: 0.00 €
+      - generic [ref=e37]:
+        - generic [ref=e38]: T212 + XTB USD
+        - generic [ref=e39]: 0.00 €
+      - generic [ref=e40]:
+        - generic [ref=e41]: Crypto
+        - generic [ref=e42]: 0.00 €
+      - generic [ref=e43]:
+        - generic [ref=e44]: Bank Deposits
+        - generic [ref=e45]: 0.00 €
+      - generic [ref=e46]:
+        - generic [ref=e47]: "Total Deposits:"
+        - generic [ref=e48]: 0.00 €
+    - table [ref=e49]:
+      - rowgroup [ref=e50]:
+        - row "Count ⇅ Date ⇅ Account ⇅ Month ⇅ Amount (€) ⇅ Actions" [ref=e51]:
+          - columnheader "Count ⇅" [ref=e52] [cursor=pointer]
+          - columnheader "Date ⇅" [ref=e53] [cursor=pointer]
+          - columnheader "Account ⇅" [ref=e54] [cursor=pointer]
+          - columnheader "Month ⇅" [ref=e55] [cursor=pointer]
+          - columnheader "Amount (€) ⇅" [ref=e56] [cursor=pointer]
+          - columnheader "Actions" [ref=e57]
+      - rowgroup
+```

@@ -415,7 +415,7 @@
       "company": "Vanguard World High Dividends",
       "allocation": "€364.08",
       "shares": "5.3228",
-      "share_price": "€68.81",
+      "share_price": "€68.8",
       "broker": "XTB-EURO",
       "risk": "🟦 Safe",
       "sector": "ETF - All World"
@@ -427,7 +427,7 @@
       "company": "Vaneck Dividend ETF",
       "allocation": "€373.46",
       "shares": "7.9732",
-      "share_price": "€46.585",
+      "share_price": "€46.555",
       "broker": "XTB-EURO",
       "risk": "🟦 Safe",
       "sector": "ETF - Dividend"
@@ -439,7 +439,7 @@
       "company": "Vanguard All World Dividends",
       "allocation": "€363.91",
       "shares": "2.5864",
-      "share_price": "€141.12",
+      "share_price": "€141.26",
       "broker": "XTB-EURO",
       "risk": "🟦 Safe",
       "sector": "ETF - All World"
@@ -451,7 +451,7 @@
       "company": "Virgin Galactic",
       "allocation": "€478.50",
       "shares": "150",
-      "share_price": "$4.109",
+      "share_price": "$4.32",
       "broker": "Trading212",
       "risk": "🟥 High Risk",
       "sector": "Space Industry"
@@ -463,7 +463,7 @@
       "company": "Aduro Clean Technologies",
       "allocation": "€2407.50",
       "shares": "225",
-      "share_price": "$13.43",
+      "share_price": "$13.46",
       "broker": "Trading212",
       "risk": "🟥 High Risk",
       "sector": "Industrials"
@@ -475,7 +475,7 @@
       "company": "Geron Corporation",
       "allocation": "€375.95",
       "shares": "365",
-      "share_price": "$1.26",
+      "share_price": "$1.27",
       "broker": "Trading212",
       "risk": "🟥 High Risk",
       "sector": "Healthcare"
@@ -487,7 +487,7 @@
       "company": "Origin Materials",
       "allocation": "€224.40",
       "shares": "561",
-      "share_price": "$0.466",
+      "share_price": "$0.469",
       "broker": "Trading212",
       "risk": "🟥 High Risk",
       "sector": "Basic Materials"
@@ -499,7 +499,7 @@
       "company": "D-wave Quantum",
       "allocation": "€2492.28",
       "shares": "129",
-      "share_price": "$23.435",
+      "share_price": "$24.885",
       "broker": "XTB-USD",
       "risk": "🟥 High Risk",
       "sector": "Technology"
@@ -511,7 +511,7 @@
       "company": "Rigetti Computing",
       "allocation": "€3526.40",
       "shares": "160",
-      "share_price": "$24.19",
+      "share_price": "$25.69",
       "broker": "Trading212",
       "risk": "🟥 High Risk",
       "sector": "Technology"
@@ -523,7 +523,7 @@
       "company": "RedWire Space",
       "allocation": "€504.85",
       "shares": "109.039",
-      "share_price": "$5.405",
+      "share_price": "$5.515",
       "broker": "Trading212",
       "risk": "🟥 High Risk",
       "sector": "Space Industry"
@@ -547,7 +547,7 @@
       "company": "Rocket Lab",
       "allocation": "€4482.60",
       "shares": "124",
-      "share_price": "$43.56",
+      "share_price": "$44.6",
       "broker": "Trading212",
       "risk": "🟥 High Risk",
       "sector": "Space Industry"
@@ -559,7 +559,7 @@
       "company": "IONQ",
       "allocation": "€929.89",
       "shares": "23",
-      "share_price": "$46.22",
+      "share_price": "$47.77",
       "broker": "XTB-USD",
       "risk": "🟥 High Risk",
       "sector": "Technology"
@@ -571,7 +571,7 @@
       "company": "KULR",
       "allocation": "€84.70",
       "shares": "35",
-      "share_price": "$3.28",
+      "share_price": "$3.433",
       "broker": "XTB-USD",
       "risk": "🟥 High Risk",
       "sector": "Technology"
@@ -583,7 +583,7 @@
       "company": "Big Bear",
       "allocation": "€186.84",
       "shares": "36",
-      "share_price": "$5.81",
+      "share_price": "$6.064",
       "broker": "XTB-USD",
       "risk": "🟥 High Risk",
       "sector": "Technology"
@@ -595,7 +595,7 @@
       "company": "FUBO TV",
       "allocation": "€199.43",
       "shares": "77",
-      "share_price": "$2.884",
+      "share_price": "$2.875",
       "broker": "XTB-USD",
       "risk": "🟥 High Risk",
       "sector": "Communication Services"
@@ -607,7 +607,7 @@
       "company": "UI PATH",
       "allocation": "€246.12",
       "shares": "21",
-      "share_price": "$14.855",
+      "share_price": "$14.973",
       "broker": "XTB-USD",
       "risk": "🟥 High Risk",
       "sector": "Technology"
@@ -619,7 +619,7 @@
       "company": "SOFI",
       "allocation": "€1301.68",
       "shares": "53",
-      "share_price": "$29.703",
+      "share_price": "$29.131",
       "broker": "XTB-USD",
       "risk": "🟥 High Risk",
       "sector": "Financial Services"
@@ -643,7 +643,7 @@
       "company": "VanEck Space Innovators ",
       "allocation": "€787.01",
       "shares": "16.52",
-      "share_price": "€48.15",
+      "share_price": "€48.405",
       "broker": "XTB-USD",
       "risk": "🟥 High Risk",
       "sector": "ETF - Technology"
@@ -655,7 +655,7 @@
       "company": "i-80 Gold",
       "allocation": "€10.42",
       "shares": "11.09",
-      "share_price": "$1.21",
+      "share_price": "$1.213",
       "broker": "Trading212",
       "risk": "🟥 High Risk",
       "sector": "Basic Materials"
@@ -667,7 +667,7 @@
       "company": "Tenaya Therapeutics",
       "allocation": "€5.81",
       "shares": "4.962",
-      "share_price": "$1.27",
+      "share_price": "$1.31",
       "broker": "Trading212",
       "risk": "🟥 High Risk",
       "sector": "Healthcare"
@@ -679,7 +679,7 @@
       "company": "SeaStar Medical",
       "allocation": "€4.47",
       "shares": "17.21",
-      "share_price": "$0.341",
+      "share_price": "$0.349",
       "broker": "Trading212",
       "risk": "🟥 High Risk",
       "sector": "Healthcare"
@@ -691,7 +691,7 @@
       "company": "HANetf Future of Defence",
       "allocation": "€153.80",
       "shares": "10",
-      "share_price": "€15.338",
+      "share_price": "€15.322",
       "broker": "XTB-USD",
       "risk": "🟥 High Risk",
       "sector": "ETF - Defense"
@@ -727,7 +727,7 @@
       "company": "AI and Big Data",
       "allocation": "€88.94",
       "shares": "0.583",
-      "share_price": "€152.72",
+      "share_price": "€153.1",
       "broker": "Trading212",
       "risk": "🟥 High Risk",
       "sector": "ETF - Technology"
