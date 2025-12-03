@@ -1,0 +1,133 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e1]:
+  - navigation [ref=e2]:
+    - generic [ref=e3]:
+      - generic [ref=e4]:
+        - generic [ref=e5]: "Balance: 70,684 €"
+        - generic [ref=e6]: "Profit: 20,802 €"
+      - list [ref=e7]:
+        - listitem [ref=e8]:
+          - link "Dashboard" [ref=e9] [cursor=pointer]:
+            - /url: "#dashboard"
+        - listitem [ref=e10]:
+          - link "Stocks" [ref=e11] [cursor=pointer]:
+            - /url: "#stocks"
+        - listitem [ref=e12]:
+          - link "Allocation" [ref=e13] [cursor=pointer]:
+            - /url: "#sectors"
+        - listitem [ref=e14]:
+          - link "Deposits" [active] [ref=e15] [cursor=pointer]:
+            - /url: "#deposits"
+        - listitem [ref=e16]:
+          - link "Withdrawal" [ref=e17] [cursor=pointer]:
+            - /url: "#withdrawals"
+        - listitem [ref=e18]:
+          - link "Dividends" [ref=e19] [cursor=pointer]:
+            - /url: "#dividends"
+        - listitem [ref=e20]:
+          - link "Settings" [ref=e21] [cursor=pointer]:
+            - /url: "#settings"
+        - listitem [ref=e22]:
+          - link "Admin" [ref=e23] [cursor=pointer]:
+            - /url: "#admin"
+  - generic [ref=e25]:
+    - button "+" [ref=e27] [cursor=pointer]
+    - generic [ref=e29]:
+      - heading "Money invested:" [level=3] [ref=e30]
+      - generic [ref=e31]:
+        - generic [ref=e32]: XTB EUR
+        - generic [ref=e33]: 9,482 €
+      - generic [ref=e34]:
+        - generic [ref=e35]: Tradeville
+        - generic [ref=e36]: 20,069 €
+      - generic [ref=e37]:
+        - generic [ref=e38]: T212 + XTB USD
+        - generic [ref=e39]: 10,165 €
+      - generic [ref=e40]:
+        - generic [ref=e41]: Crypto
+        - generic [ref=e42]: 2,337 €
+      - generic [ref=e43]:
+        - generic [ref=e44]: Bank Deposits
+        - generic [ref=e45]: 7,829 €
+      - generic [ref=e46]:
+        - generic [ref=e47]: "Total Deposits:"
+        - generic [ref=e48]: 49882.03 €
+    - table [ref=e49]:
+      - rowgroup [ref=e50]:
+        - row "Count ⇅ Date ⇅ Account ⇅ Month ⇅ Amount (€) ⇅ Actions" [ref=e51]:
+          - columnheader "Count ⇅" [ref=e52] [cursor=pointer]
+          - columnheader "Date ⇅" [ref=e53] [cursor=pointer]
+          - columnheader "Account ⇅" [ref=e54] [cursor=pointer]
+          - columnheader "Month ⇅" [ref=e55] [cursor=pointer]
+          - columnheader "Amount (€) ⇅" [ref=e56] [cursor=pointer]
+          - columnheader "Actions" [ref=e57]
+      - rowgroup [ref=e58]:
+        - row "1 26/11/2025 XTB-EURO January €9,482.48" [ref=e59]:
+          - cell "1" [ref=e60]
+          - cell "26/11/2025" [ref=e61]
+          - cell "XTB-EURO" [ref=e62]
+          - cell "January" [ref=e63]
+          - cell "€9,482.48" [ref=e64]
+          - cell [ref=e65]:
+            - button "Edit" [ref=e66] [cursor=pointer]:
+              - img [ref=e67]
+            - button "Delete" [ref=e70] [cursor=pointer]:
+              - img [ref=e71]
+        - row "2 26/11/2025 Tradeville January €20,069" [ref=e73]:
+          - cell "2" [ref=e74]
+          - cell "26/11/2025" [ref=e75]
+          - cell "Tradeville" [ref=e76]
+          - cell "January" [ref=e77]
+          - cell "€20,069" [ref=e78]
+          - cell [ref=e79]:
+            - button "Edit" [ref=e80] [cursor=pointer]:
+              - img [ref=e81]
+            - button "Delete" [ref=e84] [cursor=pointer]:
+              - img [ref=e85]
+        - row "3 26/11/2025 Trading212 January €5,165.05" [ref=e87]:
+          - cell "3" [ref=e88]
+          - cell "26/11/2025" [ref=e89]
+          - cell "Trading212" [ref=e90]
+          - cell "January" [ref=e91]
+          - cell "€5,165.05" [ref=e92]
+          - cell [ref=e93]:
+            - button "Edit" [ref=e94] [cursor=pointer]:
+              - img [ref=e95]
+            - button "Delete" [ref=e98] [cursor=pointer]:
+              - img [ref=e99]
+        - row "4 26/11/2025 XTB-USD January €5,000" [ref=e101]:
+          - cell "4" [ref=e102]
+          - cell "26/11/2025" [ref=e103]
+          - cell "XTB-USD" [ref=e104]
+          - cell "January" [ref=e105]
+          - cell "€5,000" [ref=e106]
+          - cell [ref=e107]:
+            - button "Edit" [ref=e108] [cursor=pointer]:
+              - img [ref=e109]
+            - button "Delete" [ref=e112] [cursor=pointer]:
+              - img [ref=e113]
+        - row "5 26/11/2025 Bank Deposit January €7,829" [ref=e115]:
+          - cell "5" [ref=e116]
+          - cell "26/11/2025" [ref=e117]
+          - cell "Bank Deposit" [ref=e118]
+          - cell "January" [ref=e119]
+          - cell "€7,829" [ref=e120]
+          - cell [ref=e121]:
+            - button "Edit" [ref=e122] [cursor=pointer]:
+              - img [ref=e123]
+            - button "Delete" [ref=e126] [cursor=pointer]:
+              - img [ref=e127]
+        - row "6 26/11/2025 Crypto January €2,336.50" [ref=e129]:
+          - cell "6" [ref=e130]
+          - cell "26/11/2025" [ref=e131]
+          - cell "Crypto" [ref=e132]
+          - cell "January" [ref=e133]
+          - cell "€2,336.50" [ref=e134]
+          - cell [ref=e135]:
+            - button "Edit" [ref=e136] [cursor=pointer]:
+              - img [ref=e137]
+            - button "Delete" [ref=e140] [cursor=pointer]:
+              - img [ref=e141]
+```

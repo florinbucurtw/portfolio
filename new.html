@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>New page</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body class="login-body">
+    <script>
+      // Protect this page: require token
+      (function(){
+        try {
+          const token = localStorage.getItem('auth_token');
+          if (!token) location.href = 'login.html';
+        } catch {}
+      })();
+    </script>
+    <div class="login-container">
+      <div class="login-card">
+        <div class="login-brand">
+          <div class="brand-glow"></div>
+          <h1 class="brand-title">New page</h1>
+          <p class="brand-sub">Welcome! You are signed in.</p>
+        </div>
+        <div class="login-actions">
+          <a href="index.html" class="login-btn ghost">Back to Dashboard</a>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

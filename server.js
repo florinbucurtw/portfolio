@@ -3,6 +3,7 @@ import cors from 'cors';
 import sqlite3pkg from 'sqlite3';
 import path from 'path';
 import fs from 'fs';
+import crypto from 'crypto';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'url';
 const require = createRequire(import.meta.url);
@@ -307,6 +308,32 @@ db.run(
           populateETFCountries();
         }
       });
+    }
+  }
+);
+
+// Create Users table for registration/login
+db.run(
+  `
+  CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    first_name TEXT NOT NULL,
+    last_name TEXT NOT NULL,
+    age INTEGER,
+    country TEXT,
+    email TEXT UNIQUE NOT NULL,
+    username TEXT UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL,
+    is_active INTEGER DEFAULT 0,
+    activation_token TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+  )
+`,
+  (err) => {
+    if (err) {
+      console.error('Error creating users table:', err);
+    } else {
+      console.log('Users table ready');
     }
   }
 );
@@ -2230,6 +2257,181 @@ app.delete('/api/dividends-monthly/:id', (req, res) => {
 app.delete('/api/dividends-monthly', (_req, res) => {
   db.run('DELETE FROM dividends_monthly', [], function (err) {
     if (err) return res.status(500).json({ error: err.message });
+    res.json({ deleted: this.changes });
+  });
+});
+
+// ========== AUTH: Register / Activate / Login ==========
+function hashPassword(pw) {
+  return crypto.createHash('sha256').update(String(pw)).digest('hex');
+}
+
+// Register a new user
+app.post('/api/register', (req, res) => {
+  const { first_name, last_name, age, country, email, username, password } = req.body || {};
+  if (!first_name || !last_name || !email || !username || !password) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
+  const ageNum = age != null ? Number(age) : null;
+  if (ageNum != null && (!Number.isInteger(ageNum) || ageNum < 0)) {
+    return res.status(400).json({ error: 'Invalid age' });
+  }
+  const token = crypto.randomBytes(24).toString('hex');
+  const pwHash = hashPassword(password);
+  db.run(
+    `INSERT INTO users (first_name, last_name, age, country, email, username, password_hash, is_active, activation_token)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?)`,
+    [String(first_name), String(last_name), ageNum, String(country || ''), String(email), String(username), pwHash, token],
+    function (err) {
+      if (err) {
+        if (String(err.message || '').includes('UNIQUE')) {
+          return res.status(409).json({ error: 'Email or username already exists' });
+        }
+        return res.status(500).json({ error: err.message });
+      }
+      const baseUrl = `http://localhost:${PORT}`;
+      const activation_url = `${baseUrl}/api/activate?token=${encodeURIComponent(token)}`;
+      console.log(`📧 Activation link for ${email}: ${activation_url}`);
+      // Optional email sending via SMTP (Nodemailer) if env vars provided
+      const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, MAIL_FROM } = process.env;
+      if (SMTP_HOST && SMTP_PORT && SMTP_USER && SMTP_PASS && MAIL_FROM) {
+        try {
+          const nodemailer = require('nodemailer');
+          const transporter = nodemailer.createTransport({
+            host: SMTP_HOST,
+            port: Number(SMTP_PORT),
+            secure: Number(SMTP_PORT) === 465, // use TLS if 465
+            auth: { user: SMTP_USER, pass: SMTP_PASS },
+          });
+          const mailOpts = {
+            from: MAIL_FROM,
+            to: email,
+            subject: 'Activate your Portfolio account',
+            html: `<p>Hello ${first_name},</p>
+                   <p>Please activate your account by clicking the link below:</p>
+                   <p><a href="${activation_url}">${activation_url}</a></p>
+                   <p>If you didn't request this, you can ignore this email.</p>`,
+          };
+          transporter.sendMail(mailOpts).then(() => {
+            console.log(`✉️ Activation email sent to ${email}`);
+            res.status(201).json({ registered: true, activation_url, emailed: true });
+          }).catch((e) => {
+            console.warn('Email send failed, returning link only:', e.message);
+            res.status(201).json({ registered: true, activation_url, emailed: false });
+          });
+          return; // response handled asynchronously above
+        } catch (e) {
+          console.warn('Nodemailer not available, returning link only:', e.message);
+        }
+      }
+      res.status(201).json({ registered: true, activation_url, emailed: false });
+    }
+  );
+});
+
+// Activate user via token
+app.get('/api/activate', (req, res) => {
+  const { token } = req.query || {};
+  if (!token) return res.status(400).send('<h1>Missing activation token</h1>');
+  db.get('SELECT id, username, email FROM users WHERE activation_token = ?', [String(token)], (err, row) => {
+    if (err) return res.status(500).send(`<h1>Error: ${err.message}</h1>`);
+    if (!row) return res.status(404).send('<h1>Invalid or already used token</h1>');
+    db.run('UPDATE users SET is_active = 1, activation_token = NULL WHERE id = ?', [row.id], (e2) => {
+      if (e2) return res.status(500).send(`<h1>Error: ${e2.message}</h1>`);
+      res.send(`
+        <!doctype html>
+        <html lang="en"><head><meta charset="utf-8"><title>Account Activated</title>
+        <style>body{font-family:Inter,system-ui,sans-serif;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;display:flex;align-items:center;justify-content:center;min-height:100vh} .card{background:rgba(255,255,255,0.12);backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,0.25);border-radius:18px;padding:1.2rem 1.5rem;box-shadow:0 12px 30px rgba(0,0,0,0.5);text-align:center}</style>
+        </head><body><div class="card">
+          <h1>✅ Account Activated</h1>
+          <p>User <b>${row.username}</b> can now sign in.</p>
+          <p><a href="/login.html" style="color:#00d9ff;font-weight:700;text-decoration:none">Go to Login</a></p>
+        </div></body></html>
+      `);
+    });
+  });
+});
+
+// Login endpoint
+app.post('/api/login', (req, res) => {
+  const { username, password } = req.body || {};
+  if (!username || !password) return res.status(400).json({ error: 'Missing credentials' });
+  db.get('SELECT id, username, password_hash, is_active FROM users WHERE username = ? OR email = ?', [String(username), String(username)], (err, row) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!row) return res.status(401).json({ error: 'Invalid credentials' });
+    if (!row.is_active) return res.status(403).json({ error: 'Account not activated' });
+    const ok = hashPassword(password) === row.password_hash;
+    if (!ok) return res.status(401).json({ error: 'Invalid credentials' });
+    const token = createToken({ uid: row.id, username: row.username });
+    res.json({ ok: true, token, user: { id: row.id, username: row.username } });
+  });
+});
+
+// Lightweight signed token (JWT-like) using HMAC-SHA256
+const AUTH_SECRET = process.env.AUTH_SECRET || 'dev-secret-change-me';
+function base64url(input) {
+  return Buffer.from(input).toString('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+}
+function createToken(payload) {
+  const header = { alg: 'HS256', typ: 'JWT' };
+  const exp = Math.floor(Date.now() / 1000) + 60 * 60 * 8; // 8h
+  const body = { ...payload, exp };
+  const h = base64url(JSON.stringify(header));
+  const b = base64url(JSON.stringify(body));
+  const data = `${h}.${b}`;
+  const sig = crypto.createHmac('sha256', AUTH_SECRET).update(data).digest('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+  return `${data}.${sig}`;
+}
+function verifyToken(token) {
+  try {
+    const parts = String(token).split('.');
+    if (parts.length !== 3) return null;
+    const [h, b, sig] = parts;
+    const data = `${h}.${b}`;
+    const expected = crypto.createHmac('sha256', AUTH_SECRET).update(data).digest('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+    if (expected !== sig) return null;
+    const payload = JSON.parse(Buffer.from(b.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8'));
+    if (payload.exp && Math.floor(Date.now() / 1000) > payload.exp) return null;
+    return payload;
+  } catch {
+    return null;
+  }
+}
+
+function authMiddleware(req, res, next) {
+  const auth = req.headers.authorization || '';
+  const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
+  const payload = token ? verifyToken(token) : null;
+  if (!payload) return res.status(401).json({ error: 'Unauthorized' });
+  req.user = payload;
+  next();
+}
+
+// Example protected endpoint
+app.get('/api/me', authMiddleware, (req, res) => {
+  res.json({ user: req.user });
+});
+
+// List users (admin view)
+app.get('/api/users', authMiddleware, (req, res) => {
+  db.all(
+    `SELECT id, first_name, last_name, age, country, email, username, is_active, created_at FROM users ORDER BY created_at DESC, id DESC`,
+    [],
+    (err, rows) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json(rows);
+    }
+  );
+});
+
+// Delete user (admin)
+app.delete('/api/users/:id', authMiddleware, (req, res) => {
+  const { id } = req.params;
+  const uid = Number(id);
+  if (!Number.isInteger(uid) || uid <= 0) return res.status(400).json({ error: 'Invalid id' });
+  db.run('DELETE FROM users WHERE id = ?', [uid], function (err) {
+    if (err) return res.status(500).json({ error: err.message });
+    if (this.changes === 0) return res.status(404).json({ error: 'User not found' });
     res.json({ deleted: this.changes });
   });
 });

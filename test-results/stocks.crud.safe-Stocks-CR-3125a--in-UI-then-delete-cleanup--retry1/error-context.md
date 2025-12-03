@@ -1,0 +1,142 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - navigation [ref=e2]:
+    - generic [ref=e3]:
+      - generic [ref=e4]:
+        - generic [ref=e5]: "Balance: 0 €"
+        - generic [ref=e6]: "Profit: 0 €"
+      - list [ref=e7]:
+        - listitem [ref=e8]:
+          - link "Dashboard" [ref=e9] [cursor=pointer]:
+            - /url: "#dashboard"
+        - listitem [ref=e10]:
+          - link "Stocks" [ref=e11] [cursor=pointer]:
+            - /url: "#stocks"
+        - listitem [ref=e12]:
+          - link "Allocation" [ref=e13] [cursor=pointer]:
+            - /url: "#sectors"
+        - listitem [ref=e14]:
+          - link "Deposits" [ref=e15] [cursor=pointer]:
+            - /url: "#deposits"
+        - listitem [ref=e16]:
+          - link "Withdrawal" [ref=e17] [cursor=pointer]:
+            - /url: "#withdrawals"
+        - listitem [ref=e18]:
+          - link "Dividends" [ref=e19] [cursor=pointer]:
+            - /url: "#dividends"
+        - listitem [ref=e20]:
+          - link "Settings" [ref=e21] [cursor=pointer]:
+            - /url: "#settings"
+        - listitem [ref=e22]:
+          - link "Admin" [ref=e23] [cursor=pointer]:
+            - /url: "#admin"
+  - generic [ref=e25]:
+    - generic [ref=e26]:
+      - heading "Balance by Risk" [level=2] [ref=e28]
+      - generic [ref=e30]:
+        - generic [ref=e31]:
+          - heading "Portfolio Performance" [level=2] [ref=e32]: Portfolio Performance
+          - generic [ref=e33]:
+            - button "1H" [ref=e34] [cursor=pointer]
+            - button "1D" [ref=e35] [cursor=pointer]
+            - button "1W" [ref=e36] [cursor=pointer]
+            - button "1M" [ref=e37] [cursor=pointer]
+            - button "6M" [ref=e38] [cursor=pointer]
+            - button "YTD" [ref=e39] [cursor=pointer]
+            - button "1Y" [ref=e40] [cursor=pointer]
+            - button "5Y" [ref=e41] [cursor=pointer]
+            - button "MAX" [ref=e42] [cursor=pointer]
+        - generic [ref=e43]:
+          - generic [ref=e44] [cursor=pointer]:
+            - checkbox "Portfolio Balance" [checked] [ref=e45]
+            - generic [ref=e47]: Portfolio Balance
+          - generic [ref=e48] [cursor=pointer]:
+            - checkbox "Total Deposits" [checked] [ref=e49]
+            - generic [ref=e51]: Total Deposits
+          - generic [ref=e52] [cursor=pointer]:
+            - checkbox "S&P 500" [checked] [ref=e53]
+            - generic [ref=e55]: S&P 500
+          - generic [ref=e56] [cursor=pointer]:
+            - checkbox "BET-TR" [checked] [ref=e57]
+            - generic [ref=e59]: BET-TR
+    - generic [ref=e62]:
+      - generic [ref=e64]:
+        - heading "Balance:" [level=3] [ref=e65]
+        - generic [ref=e66]:
+          - generic [ref=e67]: XTB EUR
+          - generic [ref=e68]: 0.00 €
+        - generic [ref=e69]:
+          - generic [ref=e70]: Tradeville
+          - generic [ref=e71]: 0.00 €
+        - generic [ref=e72]:
+          - generic [ref=e73]: T212 + XTB USD
+          - generic [ref=e74]: 0.00 €
+        - generic [ref=e75]:
+          - generic [ref=e76]: Crypto
+          - generic [ref=e77]: 0.00 €
+        - generic [ref=e78]:
+          - generic [ref=e79]: Bank Deposits
+          - generic [ref=e80]: 0.00 €
+      - generic [ref=e82]:
+        - heading "Money invested:" [level=3] [ref=e83]
+        - generic [ref=e84]:
+          - generic [ref=e85]: XTB EUR
+          - generic [ref=e86]: 0.00 €
+        - generic [ref=e87]:
+          - generic [ref=e88]: Tradeville
+          - generic [ref=e89]: 0.00 €
+        - generic [ref=e90]:
+          - generic [ref=e91]: T212 + XTB USD
+          - generic [ref=e92]: 0.00 €
+        - generic [ref=e93]:
+          - generic [ref=e94]: Crypto
+          - generic [ref=e95]: 0.00 €
+        - generic [ref=e96]:
+          - generic [ref=e97]: Bank Deposits
+          - generic [ref=e98]: 0.00 €
+      - generic [ref=e100]:
+        - heading "Profit:" [level=3] [ref=e101]
+        - generic [ref=e102]:
+          - generic [ref=e103]:
+            - generic [ref=e104]: XTB EUR
+            - generic [ref=e105]: 0.00 €
+          - generic [ref=e106]:
+            - generic [ref=e107]: Tradeville
+            - generic [ref=e108]: 0.00 €
+          - generic [ref=e109]:
+            - generic [ref=e110]: T212 + XTB USD
+            - generic [ref=e111]: 0.00 €
+          - generic [ref=e112]:
+            - generic [ref=e113]: Crypto
+            - generic [ref=e114]: 0.00 €
+          - generic [ref=e115]:
+            - generic [ref=e116]: Bank Deposits
+            - generic [ref=e117]: 0.00 €
+      - generic [ref=e119]:
+        - heading "Total return:" [level=3] [ref=e120]
+        - generic [ref=e121]:
+          - generic [ref=e122]: 0.00%
+          - generic [ref=e123]: 0.00%
+          - generic [ref=e124]: 0.00%
+          - generic [ref=e125]: 0.00%
+          - generic [ref=e126]: 0.00%
+      - generic [ref=e128]:
+        - heading "Metrics:" [level=3] [ref=e129]
+        - generic [ref=e130]:
+          - generic [ref=e131]: "Balance total return:"
+          - generic [ref=e132]: –
+        - generic [ref=e133]:
+          - generic [ref=e134]: "Average annual return:"
+          - generic [ref=e135]: +0.00%
+        - generic [ref=e136]:
+          - generic [ref=e137]: "Average monthly contribution:"
+          - generic [ref=e138]: 1,250 €
+        - generic [ref=e139]:
+          - generic [ref=e140]: "Withdrawal amount:"
+          - generic [ref=e141]: 0 €
+        - generic [ref=e142]:
+          - generic [ref=e143]: "Return of Capital Ratio:"
+          - generic [ref=e144]: 0.0%
+```

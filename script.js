@@ -3705,8 +3705,105 @@ function initAdminSubmenu() {
     }
   };
 
+  async function loadUsersIntoTable() {
+    try {
+      const tbody = document.getElementById('users-tbody');
+      if (!tbody) return;
+      // show loading state
+      tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; padding:1.2rem">Loading...</td></tr>`;
+      const token = localStorage.getItem('auth_token');
+      const resp = await fetch('/api/users', {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
+      if (!resp.ok) {
+        tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; padding:1.2rem; color:#f66">${resp.status === 401 ? 'Unauthorized' : 'Failed to load users'}</td></tr>`;
+        return;
+      }
+      const users = await resp.json();
+      if (!Array.isArray(users) || users.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; padding:1.2rem">No users</td></tr>`;
+        return;
+      }
+      const rowsHtml = users
+        .map((u) => {
+          const active = u.is_active ? 'Yes' : 'No';
+          return `
+            <tr data-id="${u.id}">
+              <td data-field="id">${u.id}</td>
+              <td data-field="username">${u.username || ''}</td>
+              <td data-field="email">${u.email || ''}</td>
+              <td data-field="first_name">${u.first_name || ''}</td>
+              <td data-field="last_name">${u.last_name || ''}</td>
+              <td data-field="age">${u.age ?? ''}</td>
+              <td data-field="country">${u.country || ''}</td>
+              <td data-field="is_active">${active}</td>
+              <td data-field="created_at">${u.created_at || ''}</td>
+              <td class="action-buttons">
+                <button class="delete-user-btn" title="Delete User">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="3 6 5 6 21 6"></polyline>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                    <line x1="10" y1="11" x2="10" y2="17"></line>
+                    <line x1="14" y1="11" x2="14" y2="17"></line>
+                  </svg>
+                </button>
+              </td>
+            </tr>`;
+        })
+        .join('');
+      tbody.innerHTML = rowsHtml;
+      // ensure sorting is attached for this table
+      attachSortingToTable(document.getElementById('users-table'));
+      // Wire delete buttons with confirmation
+      tbody.querySelectorAll('.delete-user-btn').forEach((btn) => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const tr = btn.closest('tr');
+          const id = tr?.dataset.id;
+          const username = tr?.querySelector('td[data-field="username"]')?.textContent || '';
+          if (!id) return;
+          showDeleteModal(`User ${username} (#${id})`, async () => {
+            try {
+              const token = localStorage.getItem('auth_token');
+              const resp = await fetch(`/api/users/${id}`, {
+                method: 'DELETE',
+                headers: token ? { Authorization: `Bearer ${token}` } : {}
+              });
+              if (resp.status === 401) {
+                alert('Unauthorized. Please log in again.');
+                location.href = 'login.html';
+                return;
+              }
+              if (!resp.ok) {
+                let msg = 'Failed to delete user';
+                try {
+                  const ct = resp.headers.get('content-type') || '';
+                  if (ct.includes('application/json')) {
+                    const j = await resp.json(); if (j && j.error) msg = j.error;
+                  } else {
+                    const t = await resp.text();
+                    msg = `${msg} (HTTP ${resp.status})` + (t ? `\n${t.slice(0, 400)}` : '');
+                  }
+                } catch {}
+                console.error('Delete user failed:', resp.status);
+                alert(msg);
+                return;
+              }
+              tr.remove();
+            } catch (err) {
+              alert('Error deleting user: ' + err.message);
+            }
+          });
+        });
+      });
+    } catch (e) {
+      const tbody = document.getElementById('users-tbody');
+      if (tbody) tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:1.2rem; color:#f66">Error: ${e.message}</td></tr>`;
+    }
+  }
+
   tabSnapshots.addEventListener('click', () => setActive('snapshots'));
-  tabUsers.addEventListener('click', () => setActive('users'));
+  tabUsers.addEventListener('click', () => { setActive('users'); loadUsersIntoTable(); });
 
   // Keyboard navigation
   [tabSnapshots, tabUsers].forEach((btn) => {
