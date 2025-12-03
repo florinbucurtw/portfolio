@@ -80,6 +80,75 @@
 .allocation-switch.countries-active .switch-glow {
   transform: translateX(100%);
 }
+/* Dividends switch: mirror Allocation behavior */
+.allocation-switch.monthly-active .switch-glow {
+  transform: translateX(0);
+}
+.allocation-switch.annual-active .switch-glow {
+  transform: translateX(100%);
+}
+/* Admin submenu: Snapshots vs Users */
+.allocation-switch.snapshots-active .switch-glow {
+  transform: translateX(0);
+}
+.allocation-switch.users-active .switch-glow {
+  transform: translateX(100%);
+}
+
+/* ===== Admin: Delete Range inputs and button ===== */
+#admin-section .admin-range .admin-input {
+  flex: 1 1 40%; /* allow shrink/grow while targeting ~40% */
+  max-width: calc(50% - 8px); /* ensure stays within panel */
+  min-width: 160px; /* avoid too-small inputs on narrow screens */
+  box-sizing: border-box;
+}
+#admin-section .admin-range {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem; /* reduce spacing ~80% */
+  flex-wrap: wrap; /* prevent overflow outside panel */
+}
+#admin-section #delete-range-btn {
+  min-width: 28px;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px; /* emoji icon size */
+}
+
+/* ===== Admin: Snapshot Stats panels sizing ===== */
+#admin-section .snapshots-stats.compact .stat-card.mini {
+  transform: scale(0.8);
+  transform-origin: top left;
+}
+#admin-section #snapshots-stats-panel {
+  /* Place on same row and set width */
+  flex: 0 0 50%;
+  max-width: 50%;
+}
+
+/* Place Delete Range panel on same row and reduce width by 50% */
+#admin-section #delete-range-panel {
+  flex: 0 0 50%;
+  max-width: 50%;
+}
+
+/* Enlarge fonts inside Snapshot Stats panel */
+#admin-section #snapshots-stats-panel .panel-zone-title {
+  font-size: 1.25rem;
+}
+#admin-section #snapshots-stats-panel .snapshots-stats.compact .stat-card.mini .stat-label {
+  font-size: 0.95rem;
+}
+#admin-section #snapshots-stats-panel .snapshots-stats.compact .stat-card.mini span#total-snapshots-count,
+#admin-section #snapshots-stats-panel .snapshots-stats.compact .stat-card.mini span#snapshots-date-range,
+#admin-section #snapshots-stats-panel .snapshots-stats.compact .stat-card.mini span#snapshots-size {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
 
 @media (max-width: 600px) {
   .allocation-option {
@@ -2538,4 +2607,85 @@ p {
   50% {
     background: rgba(102, 126, 234, 0.2);
   }
+}
+
+/* Dividends Monthly Table: match Annual visuals */
+#dividends-monthly-table {
+  width: 800px;
+  max-width: 90%;
+  margin: 0 auto;
+  border-collapse: collapse;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border-radius: 10px;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+}
+
+#dividends-monthly-table thead {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+#dividends-monthly-table th {
+  padding: 0.25rem; /* compact like annual */
+  text-align: left;
+  font-weight: bold;
+  color: white;
+  font-size: 0.8rem;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+#dividends-monthly-table td {
+  padding: 0.25rem; /* compact like annual */
+  text-align: left;
+  color: white;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 0.75rem;
+}
+
+#dividends-monthly-table tbody tr {
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.476), rgba(0, 0, 0, 0.34));
+}
+
+#dividends-monthly-table tbody tr:hover {
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.503), rgba(0, 0, 0, 0.367));
+}
+
+/* Brand / Navbar logo styles */
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.brand-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  text-decoration: none;
+}
+
+.brand-logo {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  object-fit: cover;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+}
+
+.brand-title {
+  font-weight: 800;
+  font-size: 1rem;
+  letter-spacing: 0.4px;
+  color: #ffffff;
+  text-shadow: 0 1px 12px rgba(102, 126, 234, 0.45);
+}
+
+/* Optional: slightly enlarge on hover for a premium feel */
+.brand-link:hover .brand-logo {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.45);
+}
+.brand-link:hover .brand-title {
+  filter: brightness(1.15);
 }

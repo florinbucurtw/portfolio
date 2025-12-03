@@ -2273,11 +2273,26 @@ function buildBaseCandidates() {
     candidates.push(window.API_BASE_OVERRIDE);
   }
   if (API_BASE) candidates.push(API_BASE);
-  // Common localhost ports
-  for (let p = 3000; p <= 3005; p++) {
+  // Also add current origin explicitly
+  if (typeof window !== 'undefined' && window.location && window.location.origin) {
+    candidates.push(window.location.origin);
+  }
+  // Common localhost ports (extended)
+  for (let p = 3000; p <= 3010; p++) {
     candidates.push(`http://localhost:${p}`);
   }
   return Array.from(new Set(candidates));
+}
+async function probeBase(base) {
+  try {
+    const resp = await fetch(`${base}/api/withdrawals`, { method: 'GET' });
+    if (resp && resp.ok) return true;
+    console.warn(`Probe ${base} -> status ${resp?.status}`);
+    return false;
+  } catch (e) {
+    console.warn(`Probe failed for ${base}: ${e?.message || e}`);
+    return false;
+  }
 }
 async function apiFetchWithFallback(method, path, payload) {
   const headers = { 'Content-Type': 'application/json' };
@@ -2286,19 +2301,45 @@ async function apiFetchWithFallback(method, path, payload) {
   if (API_BASE_CACHED) {
     bases.unshift(API_BASE_CACHED);
   }
-  for (const base of bases) {
+  // Reorder: prioritize same-origin first to avoid CORS, then override, then others
+  const origin = (typeof window !== 'undefined' && window.location && window.location.origin) ? window.location.origin : null;
+  const sortedBases = bases.sort((a,b) => {
+    if (origin && a === origin) return -1;
+    if (origin && b === origin) return 1;
+    if (typeof window !== 'undefined' && window.API_BASE_OVERRIDE) {
+      if (a === window.API_BASE_OVERRIDE) return -1;
+      if (b === window.API_BASE_OVERRIDE) return 1;
+    }
+    return 0;
+  });
+  // If making a mutating request and no cached base, probe for a reachable base using GET /api/withdrawals
+  if (!API_BASE_CACHED && method !== 'GET') {
+    for (const base of sortedBases) {
+      const ok = await probeBase(base);
+      if (ok) {
+        API_BASE_CACHED = base;
+        console.log(`API base probed & selected: ${API_BASE_CACHED}`);
+        break;
+      }
+    }
+  }
+  for (const base of (API_BASE_CACHED ? [API_BASE_CACHED, ...sortedBases] : sortedBases)) {
     try {
-      const resp = await fetch(`${base}${path}`, {
+      const url = `${base}${path}`;
+      console.log(`Trying API base: ${base} -> ${method} ${path}`);
+      const resp = await fetch(url, {
         method,
         headers,
         body: payload != null ? JSON.stringify(payload) : undefined,
       });
       if (resp.ok) {
         API_BASE_CACHED = base;
+        console.log(`API base selected: ${API_BASE_CACHED}`);
         return resp;
       }
+      console.warn(`API responded ${resp.status} for ${url}`);
     } catch (e) {
-      // try next candidate
+      console.warn(`API base failed: ${base} (${e?.message || e})`);
     }
   }
   return null;
@@ -2655,11 +2696,24 @@ function computeInvestingMonths(startStr) {
   let y = 0, m = 0, d = 1;
   const iso = /^\d{4}-\d{2}-\d{2}$/;
   const dmy = /^\d{2}\/\d{2}\/\d{4}$/;
+  const roMonthMap = {
+    ianuarie: 1, februarie: 2, martie: 3, aprilie: 4, mai: 5, iunie: 6,
+    iulie: 7, august: 8, septembrie: 9, octombrie: 10, noiembrie: 11, decembrie: 12,
+  };
+  const roPattern = /^(\d{1,2})\s+([A-Za-zăâîșț]+)\s+(\d{4})$/i; // e.g., "1 aprilie 2022"
   if (iso.test(startStr)) {
     const [yy, mm, dd] = startStr.split('-').map(Number);
     y = yy; m = mm; d = dd;
   } else if (dmy.test(startStr)) {
     const [dd, mm, yy] = startStr.split('/').map(Number);
+    y = yy; m = mm; d = dd;
+  } else if (roPattern.test(startStr.trim())) {
+    const match = startStr.trim().match(roPattern);
+    const dd = parseInt(match[1], 10);
+    const monthName = (match[2] || '').toLowerCase();
+    const yy = parseInt(match[3], 10);
+    const mm = roMonthMap[monthName] || 0;
+    if (!mm) return 0;
     y = yy; m = mm; d = dd;
   } else {
     // Fallback: try Date parse
@@ -2756,7 +2810,7 @@ function updateAverageMonthlyContribution() {
   } catch {}
   const avg = months > 0 ? totalInvestedExclBank / months : 0;
   const el = document.getElementById('metric-average-monthly-contribution');
-  if (el) el.textContent = Math.round(avg).toLocaleString('en-US') + ' €';
+  if (el) el.textContent = Math.round(Number.isFinite(avg) ? avg : 0).toLocaleString('en-US') + ' €';
 }
 
 // CAGR (Compound Annual Growth Rate) using Vfinal = total balance, Vinitial = money invested excluding Bank Deposits, n = months/12
@@ -2789,7 +2843,9 @@ function updateAverageAnnualReturn() {
   }
   const el = document.getElementById('metric-average-annual-return');
   if (el) {
-    el.textContent = (cagrPct || 0).toFixed(2) + '%';
+    const pct = Number.isFinite(cagrPct) ? cagrPct : 0;
+    const sign = pct >= 0 ? '+' : '';
+    el.textContent = `${sign}${pct.toFixed(2)}%`;
     el.classList.toggle('positive', cagrPct >= 0);
   }
 }
@@ -3337,12 +3393,30 @@ document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('.legend-toggle').forEach((checkbox) => {
     checkbox.addEventListener('change', function () {
       const datasetIndex = parseInt(this.dataset.dataset);
+      // Persist visibility state
+      if (!window.legendVisibility) window.legendVisibility = {};
+      window.legendVisibility[datasetIndex] = this.checked;
+      try { localStorage.setItem('legendVisibility', JSON.stringify(window.legendVisibility)); } catch {}
       if (window.performanceChart && window.performanceChart.data.datasets[datasetIndex]) {
         window.performanceChart.data.datasets[datasetIndex].hidden = !this.checked;
         window.performanceChart.update();
       }
     });
   });
+
+  // Initialize legend visibility from localStorage
+  try {
+    const savedLegend = localStorage.getItem('legendVisibility');
+    if (savedLegend) {
+      window.legendVisibility = JSON.parse(savedLegend);
+      document.querySelectorAll('.legend-toggle').forEach((cb) => {
+        const idx = parseInt(cb.dataset.dataset);
+        if (window.legendVisibility && window.legendVisibility[idx] != null) {
+          cb.checked = !!window.legendVisibility[idx];
+        }
+      });
+    }
+  } catch {}
 
   // Admin section event listeners
   const refreshSnapshotsBtn = document.getElementById('refresh-snapshots-btn');
@@ -3403,6 +3477,7 @@ document.addEventListener('DOMContentLoaded', () => {
         setTimeout(() => {
           console.log('Calling initDeleteRangeButton...');
           initDeleteRangeButton();
+          initAdminSubmenu();
         }, 100);
       }
     });
@@ -3412,8 +3487,65 @@ document.addEventListener('DOMContentLoaded', () => {
   if (document.querySelector('.section.active')?.id === 'admin-section') {
     console.log('Admin section already visible, initializing immediately');
     initDeleteRangeButton();
+    initAdminSubmenu();
+  }
+
+  // Initialize FX admin averages and do an initial refresh
+  try {
+    setupFxAdmin();
+    refreshFxAnnualAverages();
+  } catch (e) {
+    console.warn('FX admin setup failed:', e);
   }
 });
+
+// Admin submenu: Snapshots vs Users
+function initAdminSubmenu() {
+  const tabSnapshots = document.getElementById('admin-tab-snapshots');
+  const tabUsers = document.getElementById('admin-tab-users');
+  const subSnapshots = document.getElementById('snapshots-subpage');
+  const subUsers = document.getElementById('users-subpage');
+  const switchEl = tabSnapshots?.closest('.allocation-switch');
+  if (!tabSnapshots || !tabUsers || !subSnapshots || !subUsers) return;
+
+  const setActive = (view) => {
+    const isSnap = view === 'snapshots';
+    tabSnapshots.classList.toggle('active', isSnap);
+    tabSnapshots.setAttribute('aria-selected', String(isSnap));
+    tabSnapshots.setAttribute('tabindex', isSnap ? '0' : '-1');
+    tabUsers.classList.toggle('active', !isSnap);
+    tabUsers.setAttribute('aria-selected', String(!isSnap));
+    tabUsers.setAttribute('tabindex', !isSnap ? '0' : '-1');
+    subSnapshots.style.display = isSnap ? 'flex' : 'none';
+    subUsers.style.display = isSnap ? 'none' : 'flex';
+    // Update switch glow position via container state class
+    if (switchEl) {
+      switchEl.classList.toggle('snapshots-active', isSnap);
+      switchEl.classList.toggle('users-active', !isSnap);
+    }
+  };
+
+  tabSnapshots.addEventListener('click', () => setActive('snapshots'));
+  tabUsers.addEventListener('click', () => setActive('users'));
+
+  // Keyboard navigation
+  [tabSnapshots, tabUsers].forEach((btn) => {
+    btn.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === 'Right') {
+        e.preventDefault();
+        setActive('users');
+        tabUsers.focus();
+      } else if (e.key === 'ArrowLeft' || e.key === 'Left') {
+        e.preventDefault();
+        setActive('snapshots');
+        tabSnapshots.focus();
+      }
+    });
+  });
+
+  // Initial state: Snapshots
+  setActive('snapshots');
+}
 
 // ========== DIVIDENDS SECTION ==========
 
@@ -3421,7 +3553,33 @@ const dividendsTbody = document.getElementById('dividends-table-body');
 const addDividendBtn = document.getElementById('add-dividend-btn');
 const floatingAddDividendBtn = document.getElementById('floating-add-dividend-btn');
 const dividendsTable = document.getElementById('dividends-table');
+const dividendsMonthlyTable = document.getElementById('dividends-monthly-table');
+const dividendsMonthlyTbody = document.getElementById('dividends-monthly-table-body');
 let currentEditingDividendRow = null;
+const MONTHLY_DIVIDENDS_STORAGE_KEY = 'monthlyDividendsData';
+
+function readMonthlyFromStorage() {
+  try {
+    const raw = localStorage.getItem(MONTHLY_DIVIDENDS_STORAGE_KEY);
+    if (!raw) return null;
+    const arr = JSON.parse(raw);
+    if (!Array.isArray(arr)) return null;
+    return arr;
+  } catch (e) { console.warn('Monthly storage read failed', e); return null; }
+}
+
+function writeMonthlyToStorage() {
+  if (!dividendsMonthlyTbody) return;
+  const rows = Array.from(dividendsMonthlyTbody.querySelectorAll('tr'));
+  const data = rows.map((tr) => ({
+    year: parseInt(tr.querySelector('td[data-field="year"]')?.textContent || '0'),
+    month: (tr.querySelector('td[data-field="month"]')?.textContent || '').trim(),
+    dividend: (tr.querySelector('td[data-field="dividend"]')?.textContent || '').trim(),
+    symbol: (tr.querySelector('td[data-field="symbol"]')?.textContent || '').trim(),
+    currency: (tr.querySelector('td[data-field="currency"]')?.textContent || '').trim(),
+  }));
+  try { localStorage.setItem(MONTHLY_DIVIDENDS_STORAGE_KEY, JSON.stringify(data)); } catch (e) { console.warn('Monthly storage write failed', e); }
+}
 
 // Auto-save on click outside table
 document.addEventListener('click', function (e) {
@@ -3436,37 +3594,236 @@ document.addEventListener('click', function (e) {
     return;
   }
 
-  // Check if click is outside the dividends table
-  if (!dividendsTable.contains(e.target)) {
-    const id = currentEditingDividendRow.dataset.id;
-    if (id) {
-      // Editing existing row - save it
-      saveEditedDividend(parseInt(id));
-    } else {
-      // New row - save it
-      saveDividend();
+  // Check if click is outside the active dividends table based on current view
+  if (dividendsView === 'annual') {
+    if (dividendsTable && !dividendsTable.contains(e.target)) {
+      const id = currentEditingDividendRow.dataset.id;
+      if (id) {
+        // Editing existing row - save it
+        saveEditedDividend(parseInt(id));
+      } else {
+        // New row - save it
+        saveDividend();
+      }
+    }
+  } else if (dividendsView === 'monthly') {
+    if (dividendsMonthlyTable && !dividendsMonthlyTable.contains(e.target)) {
+      // Finalize monthly row edits (no backend persistence)
+      saveMonthlyDividend();
     }
   }
 });
 
 // Dividends Chart
 let dividendsChart = null;
+let dividendsView = 'annual'; // default changed to 'annual'
 
-function createDividendsChart(dividends) {
+function getFxAvgMapFromSettings() {
+  const rows = document.querySelectorAll('#fx-averages-table-body tr');
+  const map = {};
+  rows.forEach((tr) => {
+    const year = parseInt(tr.querySelector('td[data-field="year"]')?.textContent || '0');
+    const eurRon = parseFloat((tr.querySelector('td[data-field="eur_ron"]')?.textContent || '').replace(/[^0-9.\-]/g, ''));
+    const usdRon = parseFloat((tr.querySelector('td[data-field="usd_ron"]')?.textContent || '').replace(/[^0-9.\-]/g, ''));
+    const usdEur = parseFloat((tr.querySelector('td[data-field="usd_eur"]')?.textContent || '').replace(/[^0-9.\-]/g, ''));
+    if (year) map[year] = { eurRon, usdRon, usdEur };
+  });
+  // Fallback demo values if Settings not populated
+  const currentYear = new Date().getFullYear();
+  for (let y = 2022; y <= currentYear; y++) {
+    const existing = map[y] || {};
+    if (!Number.isFinite(existing.eurRon)) existing.eurRon = 4.95;
+    if (!Number.isFinite(existing.usdEur)) existing.usdEur = 1.08;
+    if (!Number.isFinite(existing.usdRon)) existing.usdRon = +(existing.usdEur * existing.eurRon).toFixed(4);
+    map[y] = existing;
+  }
+  return map;
+}
+
+function buildMonthlySeriesFromTable() {
+  const fxMap = getFxAvgMapFromSettings();
+  const tbody = document.getElementById('dividends-monthly-table-body');
+  const rows = Array.from(tbody?.querySelectorAll('tr') || []);
+  const monthsOrder = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const monthAliases = {
+    jan: 'January', feb: 'February', mar: 'March', apr: 'April', may: 'May', jun: 'June', jul: 'July', aug: 'August', sep: 'September', sept: 'September', oct: 'October', nov: 'November', dec: 'December',
+    novermber: 'November', marach: 'March',
+  };
+  // Aggregate per year-month in EUR
+  const agg = {}; // key: `${year}-${monthIndex}` -> sumEUR
+  let minYear = Infinity;
+  let maxYear = -Infinity;
+  rows.forEach((tr) => {
+    const year = parseInt(tr.querySelector('td[data-field="year"]')?.textContent || '0');
+    let monthName = (tr.querySelector('td[data-field="month"]')?.textContent || '').trim();
+    const mn = monthAliases[monthName.toLowerCase()];
+    if (mn) monthName = mn;
+    const dividend = parseFloat((tr.querySelector('td[data-field="dividend"]')?.textContent || '').replace(/[^0-9.\-]/g, '')) || 0;
+    const currency = (tr.querySelector('td[data-field="currency"]')?.textContent || '').trim().toUpperCase();
+    if (!year || !monthName) return;
+    const monthIndex = monthsOrder.indexOf(monthName);
+    if (monthIndex === -1) return;
+    if (year < minYear) minYear = year;
+    if (year > maxYear) maxYear = year;
+    // Convert to EUR using yearly averages from Settings
+    const fx = fxMap[year] || { eurRon: NaN, usdRon: NaN };
+    let eurValue = dividend;
+    if (currency === 'RON') {
+      const ronPerEur = fx.eurRon; // EUR/RON (RON per EUR)
+      if (Number.isFinite(ronPerEur) && ronPerEur > 0) eurValue = dividend / ronPerEur; else eurValue = 0;
+    } else if (currency === 'USD') {
+      const usdPerEur = fx.usdEur; // USD per EUR (USD/EUR)
+      if (Number.isFinite(usdPerEur) && usdPerEur > 0) {
+        eurValue = dividend / usdPerEur; // USD → EUR
+      } else {
+        // Fallback via USD/RON and EUR/RON if USD/EUR missing
+        const usdPerRon = fx.usdRon;
+        const ronPerEur = fx.eurRon;
+        if (Number.isFinite(usdPerRon) && Number.isFinite(ronPerEur) && usdPerRon > 0 && ronPerEur > 0) {
+          const valueRon = dividend * usdPerRon;
+          eurValue = valueRon / ronPerEur;
+        } else {
+          eurValue = 0;
+        }
+      }
+    } else if (currency === 'EUR' || currency === '') {
+      eurValue = dividend;
+    } else {
+      eurValue = 0;
+    }
+    const key = `${year}-${monthIndex}`;
+    agg[key] = (agg[key] || 0) + eurValue;
+  });
+  // If no rows, show empty
+  if (!isFinite(minYear) || !isFinite(maxYear)) {
+    // Derive year range from Settings FX table (ensures full 2022..current coverage)
+    const fxYears = Object.keys(fxMap).map((y) => parseInt(y)).filter((y) => !isNaN(y));
+    if (fxYears.length) {
+      minYear = Math.min(...fxYears);
+      maxYear = Math.max(...fxYears);
+    } else {
+      return { labels: [], values: [] };
+    }
+  }
+  // Build complete month sequence for all years with gaps as zero
+  const labels = [];
+  const values = [];
+  for (let y = minYear; y <= maxYear; y++) {
+    for (let m = 0; m < monthsOrder.length; m++) {
+      const key = `${y}-${m}`;
+      const v = agg[key] || 0;
+      labels.push(`${y} ${monthsOrder[m]}`);
+      values.push(+v.toFixed(2));
+    }
+  }
+  return { labels, values };
+}
+
+// Recompute Annual table from Monthly table (convert currencies to EUR using Settings FX)
+function recomputeAnnualFromMonthly() {
+  const fxMap = getFxAvgMapFromSettings();
+  const tbodyMonthly = document.getElementById('dividends-monthly-table-body');
+  const tbodyAnnual = document.getElementById('dividends-table-body');
+  if (!tbodyMonthly || !tbodyAnnual) return;
+  const rows = Array.from(tbodyMonthly.querySelectorAll('tr'));
+  const monthsOrderFull = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const aliases = {jan:'January',feb:'February',mar:'March',apr:'April',may:'May',jun:'June',jul:'July',aug:'August',sep:'September',sept:'September',oct:'October',nov:'November',dec:'December','novermber':'November','marach':'March','jan.':'January','feb.':'February','mar.':'March','apr.':'April','jun.':'June','jul.':'July','aug.':'August','sep.':'September','oct.':'October','nov.':'November','dec.':'December'};
+  const byYear = {};
+  rows.forEach((tr) => {
+    const year = parseInt(tr.querySelector('td[data-field="year"]')?.textContent || '0');
+    let monthName = (tr.querySelector('td[data-field="month"]')?.textContent || '').trim();
+    const mKey = monthName.toLowerCase();
+    if (aliases[mKey]) monthName = aliases[mKey];
+    const dividend = parseFloat((tr.querySelector('td[data-field="dividend"]')?.textContent || '').replace(/[^0-9.\-]/g, '')) || 0;
+    const currency = (tr.querySelector('td[data-field="currency"]')?.textContent || '').trim().toUpperCase();
+    if (!year || !monthName) return;
+    const fx = fxMap[year] || {};
+    let eurValue = dividend;
+    if (currency === 'RON') {
+      const ronPerEur = fx.eurRon;
+      eurValue = Number.isFinite(ronPerEur) && ronPerEur > 0 ? dividend / ronPerEur : 0;
+    } else if (currency === 'USD') {
+      const usdPerEur = fx.usdEur;
+      if (Number.isFinite(usdPerEur) && usdPerEur > 0) {
+        eurValue = dividend / usdPerEur;
+      } else if (Number.isFinite(fx.usdRon) && Number.isFinite(fx.eurRon) && fx.usdRon > 0 && fx.eurRon > 0) {
+        eurValue = (dividend * fx.usdRon) / fx.eurRon;
+      } else {
+        eurValue = 0;
+      }
+    } else if (currency === 'EUR' || currency === '') {
+      eurValue = dividend;
+    } else {
+      eurValue = 0;
+    }
+    if (!byYear[year]) byYear[year] = 0;
+    byYear[year] += eurValue;
+  });
+  // Update existing annual rows or create new ones
+  const existingRows = Array.from(tbodyAnnual.querySelectorAll('tr'));
+  const rowByYear = {};
+  existingRows.forEach((r) => {
+    const yearCell = r.querySelector('td[data-field="year"]');
+    const y = yearCell ? parseInt(yearCell.textContent) : NaN;
+    if (Number.isFinite(y)) rowByYear[y] = r;
+  });
+  Object.keys(byYear).map(Number).sort((a,b)=>a-b).forEach((y, idx) => {
+    const sum = byYear[y];
+    const annualValueText = `${sum.toFixed(2)} €`;
+    const monthlyValueText = `${(sum / 12).toFixed(2)} €`;
+    if (rowByYear[y]) {
+      const row = rowByYear[y];
+      const annualCell = row.querySelector('td[data-field="annual_dividend"]');
+      const monthlyCell = row.querySelector('td[data-field="monthly_dividend"]');
+      if (annualCell) annualCell.textContent = annualValueText;
+      if (monthlyCell) monthlyCell.textContent = monthlyValueText;
+    } else {
+      // Create new row for missing year
+      const row = document.createElement('tr');
+      row.innerHTML = `
+        <td data-field="nr">${tbodyAnnual.querySelectorAll('tr').length + 1}</td>
+        <td class="year-cell" data-field="year">${y}</td>
+        <td class="annual-dividend-cell" data-field="annual_dividend">${annualValueText}</td>
+        <td class="monthly-dividend" data-field="monthly_dividend">${monthlyValueText}</td>
+        <td>
+            <button class="edit-icon-btn" title="Edit">✎</button>
+            <button class="delete-icon-btn" title="Delete">🗑</button>
+        </td>
+      `;
+      tbodyAnnual.appendChild(row);
+      // Reattach handlers consistent with addDividendRow
+      const editBtn = row.querySelector('.edit-icon-btn');
+      const deleteBtn = row.querySelector('.delete-icon-btn');
+      editBtn.addEventListener('click', (e) => { e.stopPropagation(); /* editing annual stays as-is */ });
+      deleteBtn.addEventListener('click', (e) => { e.stopPropagation(); /* keep delete behavior minimal for now */ });
+    }
+  });
+}
+
+function createDividendsChart(dividends, view = 'monthly') {
   const ctx = document.getElementById('dividendsChart');
   if (!ctx) return;
 
-  // Destroy existing chart if it exists
   if (dividendsChart) {
     dividendsChart.destroy();
   }
 
-  // Prepare data - reverse for chronological order on chart
-  const reversedDividends = [...dividends].reverse();
-  const years = reversedDividends.map((d) => d.year);
-  const monthlyDividends = reversedDividends.map((d) => (d.annual_dividend / 12).toFixed(2));
+  let labels = [];
+  let datasetValues = [];
+  let datasetLabel = '';
+  if (view === 'annual') {
+    const reversedDividends = [...dividends].reverse();
+    labels = reversedDividends.map((d) => d.year);
+    datasetValues = reversedDividends.map((d) => Number(d.annual_dividend).toFixed(2));
+    datasetLabel = 'Annual Dividend (€)';
+    // tooltip suffix not used
+  } else {
+    const series = buildMonthlySeriesFromTable();
+    labels = series.labels;
+    datasetValues = series.values;
+    datasetLabel = 'Monthly Dividend (€)';
+  }
 
-  // Create gradient with teal color
   const gradient = ctx.getContext('2d').createLinearGradient(0, 0, 0, 400);
   gradient.addColorStop(0, 'rgba(100, 255, 218, 0.8)');
   gradient.addColorStop(1, 'rgba(100, 255, 218, 0.4)');
@@ -3474,11 +3831,11 @@ function createDividendsChart(dividends) {
   dividendsChart = new Chart(ctx, {
     type: 'bar',
     data: {
-      labels: years,
+      labels,
       datasets: [
         {
-          label: 'Monthly Dividend (€)',
-          data: monthlyDividends,
+          label: datasetLabel,
+          data: datasetValues,
           backgroundColor: gradient,
           borderColor: 'rgba(100, 255, 218, 1)',
           borderWidth: 2,
@@ -3497,10 +3854,7 @@ function createDividendsChart(dividends) {
           position: 'top',
           labels: {
             color: 'white',
-            font: {
-              size: 14,
-              weight: 'bold',
-            },
+            font: { size: 14, weight: 'bold' },
             padding: 20,
           },
         },
@@ -3514,7 +3868,7 @@ function createDividendsChart(dividends) {
           displayColors: false,
           callbacks: {
             label: function (context) {
-              return `€${context.parsed.y} per month`;
+              return `€${context.parsed.y}`;
             },
           },
         },
@@ -3522,33 +3876,16 @@ function createDividendsChart(dividends) {
       scales: {
         y: {
           beginAtZero: true,
-          grid: {
-            color: 'rgba(255, 255, 255, 0.1)',
-            drawBorder: false,
-          },
+          grid: { color: 'rgba(255, 255, 255, 0.1)', drawBorder: false },
           ticks: {
             color: 'white',
-            font: {
-              size: 12,
-              weight: 'bold',
-            },
-            callback: function (value) {
-              return '€' + value;
-            },
+            font: { size: 12, weight: 'bold' },
+            callback: (value) => '€' + value,
           },
         },
         x: {
-          grid: {
-            display: false,
-            drawBorder: false,
-          },
-          ticks: {
-            color: 'white',
-            font: {
-              size: 12,
-              weight: 'bold',
-            },
-          },
+          grid: { display: false, drawBorder: false },
+          ticks: { color: 'white', font: { size: 12, weight: 'bold' } },
         },
       },
     },
@@ -3560,17 +3897,562 @@ async function loadDividends() {
   try {
     const response = await fetch('/api/dividends');
     const dividends = await response.json();
-
+    window.currentDividends = dividends;
     dividendsTbody.innerHTML = '';
     dividends.forEach((dividend, index) => {
       addDividendRow(dividend, index + 1);
     });
-
-    // Update chart
-    createDividendsChart(dividends);
+    createDividendsChart(dividends, dividendsView);
+    initializeDividendsSwitch();
+    // Populate Monthly from localStorage if available; else use seed once
+    if (dividendsMonthlyTbody && dividendsMonthlyTbody.querySelectorAll('tr').length === 0) {
+      const stored = readMonthlyFromStorage();
+      if (stored && Array.isArray(stored) && stored.length > 0) {
+        populateMonthlyTableFromData(stored);
+      } else if (window.seedMonthlyDividends && Array.isArray(window.seedMonthlyDividends)) {
+        populateMonthlyTableFromData(window.seedMonthlyDividends);
+        writeMonthlyToStorage();
+      }
+    }
+    // Prepare seed monthly data from user-provided ordered table
+    const monthMap = {
+      January: 'Jan', February: 'Feb', March: 'Mar', April: 'Apr', May: 'May', June: 'Jun',
+      July: 'Jul', August: 'Aug', September: 'Sep', October: 'Oct', November: 'Nov', December: 'Dec',
+      // common typos
+      Novermber: 'Nov', Marach: 'Mar'
+    };
+    const seed = [
+      [2022,'June',27.37,'SNP','RON'],
+      [2022,'June',19.03,'TLV','RON'],
+      [2022,'September',35.44,'SNP','RON'],
+      [2022,'September',2.85,'BIO','RON'],
+      [2022,'September',8.07,'DIGI','RON'],
+      [2022,'November',4.2,'ONE','RON'],
+      [2022,'December',9.42,'AQ','RON'],
+      [2023,'March',5.67,'SFG','RON'],
+      [2023,'May',1.38,'US.O','USD'],
+      [2023,'May',7.14,'ONE','RON'],
+      [2023,'June',47.15,'FP','RON'],
+      [2023,'June',13.6,'AQ','RON'],
+      [2023,'June',146.3,'SNP','RON'],
+      [2023,'June',11.13,'TTS','RON'],
+      [2023,'June',10.15,'COTE','RON'],
+      [2023,'June',1.38,'US.O','USD'],
+      [2023,'June',11.92,'EL','RON'],
+      [2023,'June',47.05,'SNN','RON'],
+      [2023,'June',3.88,'BVB','RON'],
+      [2023,'June',1.37,'DE.VUSA','USD'],
+      [2023,'July',3.2,'SAFE','RON'],
+      [2023,'July',1.38,'US.O','USD'],
+      [2023,'July',37.35,'TGN','RON'],
+      [2023,'July',129.22,'SNG','RON'],
+      [2023,'July',6.81,'TEL','RON'],
+      [2023,'August',2.39,'SMTL','RON'],
+      [2023,'August',1.38,'US.O','USD'],
+      [2023,'August',33.55,'WINE','RON'],
+      [2023,'September',16.61,'BIO','RON'],
+      [2023,'September',18.4,'DIGI','RON'],
+      [2023,'September',1.38,'US.O','USD'],
+      [2023,'September',6.95,'DE.VUSA','USD'],
+      [2023,'September','1,621.11','FP','RON'],
+      [2023,'October',16.01,'VNC','RON'],
+      [2023,'October',11.76,'SFG','RON'],
+      [2023,'October',1.38,'US.O','USD'],
+      [2023,'October',176.16,'SNP','RON'],
+      [2023,'October',8.39,'BENTO','RON'],
+      [2023,'October',23.11,'TBM','RON'],
+      [2023,'November',197.52,'TLV','RON'],
+      [2023,'November',1.38,'US.O','USD'],
+      [2023,'December',1.38,'US.O','USD'],
+      [2023,'December',10.33,'DE.VUSA','USD'],
+      [2024,'January',1.39,'US.O','USD'],
+      [2024,'January',185.04,'BRD','RON'],
+      [2024,'January',11.79,'ONE','RON'],
+      [2024,'February',1.18,'US.O','USD'],
+      [2024,'March',1.17,'US.O','USD'],
+      [2024,'March',10.97,'DE.VUSA','USD'],
+      [2024,'May',3.38,'ARS','RON'],
+      [2024,'June',427.09,'SNP','RON'],
+      [2024,'June',32.91,'AQ','RON'],
+      [2024,'June',276.59,'BRD','RON'],
+      [2024,'June',16.39,'SFG','RON'],
+      [2024,'June',0.7,'MACO','RON'],
+      [2024,'June',218.67,'FP','RON'],
+      [2024,'June',40.95,'TTS','RON'],
+      [2024,'June',8.8,'COTE','RON'],
+      [2024,'June',182.81,'SNN','RON'],
+      [2024,'June',403.7,'TLV','RON'],
+      [2024,'June',11.97,'DE.VUSA','USD'],
+      [2024,'June',2.08,'TEL','RON'],
+      [2024,'June',471.46,'H2O','RON'],
+      [2024,'July',10.8,'ONE','RON'],
+      [2024,'July',32.18,'TGN','RON'],
+      [2024,'July',10.93,'EL','RON'],
+      [2024,'July',30.06,'DIGI','RON'],
+      [2024,'July',28.08,'ALU','RON'],
+      [2024,'July',127.36,'SNG','RON'],
+      [2024,'July',19.71,'BENTO','RON'],
+      [2024,'August',3.67,'BVB','RON'],
+      [2024,'August',11.6,'ROCE','RON'],
+      [2024,'September',358.37,'SNP','RON'],
+      [2024,'September',29.6,'BIO','RON'],
+      [2024,'September',13.15,'DE.VUSA','USD'],
+      [2024,'September',7.5,'RMAH','RON'],
+      [2024,'October',4.88,'ATB','RON'],
+      [2024,'October',23.48,'TBM','RON'],
+      [2024,'Novermber',15.9,'SFG','RON'],
+      [2024,'Novermber',20.27,'ONE','RON'],
+      [2025,'January',10.24,'SOCP','RON'],
+      [2025,'May',358.25,'BRD','RON'],
+      [2025,'May',20.7,'ONE','RON'],
+      [2025,'May',13.95,'SPX','RON'],
+      [2025,'Marach','1,086.85','SNP','RON'],
+      [2025,'May',4.22,'MACO','RON'],
+      [2025,'May',4.21,'ARS','RON'],
+      [2025,'June',48.18,'AQ','RON'],
+      [2025,'June',18.79,'SFG','RON'],
+      [2025,'June',58.28,'TTS','RON'],
+      [2025,'June',279.66,'SNN','RON'],
+      [2025,'June',683.01,'H2O','RON'],
+      [2025,'June',34.3,'EL','RON'],
+      [2025,'June','1,211.72','TLV','RON'],
+      [2025,'July',63.37,'DIGI','RON'],
+      [2025,'July',154.93,'TGN','RON'],
+      [2025,'July',227.75,'SNG','RON'],
+      [2025,'July',57.74,'ALU','RON'],
+      [2025,'July',119.15,'TEL','RON'],
+      [2025,'May',40.54,'BIO','RON'],
+      [2025,'September',0.01,'SOCP','RON'],
+      [2025,'September',57.54,'RMAH','RON'],
+      [2025,'August',6.76,'ATB','RON'],
+      [2025,'October',28.58,'TBM','RON'],
+      [2025,'Novermber',28.46,'ONE','RON']
+    ];
+    window.seedMonthlyDividends = seed.map(([year, monthName, div, symbol, currency]) => ({
+      year,
+      month: monthName,
+      dividend: div,
+      symbol,
+      currency,
+    }));
   } catch (error) {
     console.error('Error loading dividends:', error);
   }
+}
+
+function initializeDividendsSwitch() {
+  const tableMonthly = document.getElementById('toggle-dividends-monthly-btn-table');
+  const tableAnnual = document.getElementById('toggle-dividends-annual-btn-table');
+  const annualSubpage = document.getElementById('dividends-annual-subpage');
+  const secondarySwitch = document.querySelector('.allocation-switch.dividends-switch.secondary');
+  // Require the table-area switch buttons
+  if (!tableMonthly || !tableAnnual) return;
+  // Avoid re-binding
+  if (tableMonthly.dataset.initialized === 'true' || tableAnnual.dataset.initialized === 'true') return;
+  tableMonthly.dataset.initialized = 'true';
+  tableAnnual.dataset.initialized = 'true';
+
+  const setActiveClasses = (view) => {
+    const apply = (btnMonthly, btnAnnual) => {
+      if (!btnMonthly || !btnAnnual) return;
+      if (view === 'monthly') {
+        btnMonthly.classList.add('active');
+        btnMonthly.setAttribute('aria-selected', 'true');
+        btnMonthly.setAttribute('tabindex', '0');
+        btnAnnual.classList.remove('active');
+        btnAnnual.setAttribute('aria-selected', 'false');
+        btnAnnual.setAttribute('tabindex', '-1');
+      } else {
+        btnAnnual.classList.add('active');
+        btnAnnual.setAttribute('aria-selected', 'true');
+        btnAnnual.setAttribute('tabindex', '0');
+        btnMonthly.classList.remove('active');
+        btnMonthly.setAttribute('aria-selected', 'false');
+        btnMonthly.setAttribute('tabindex', '-1');
+      }
+    };
+    apply(tableMonthly, tableAnnual);
+    // Toggle container classes so glow/indicator moves like Allocation
+    const applyContainer = (container) => {
+      if (!container) return;
+      if (view === 'monthly') {
+        container.classList.add('monthly-active');
+        container.classList.remove('annual-active');
+      } else {
+        container.classList.add('annual-active');
+        container.classList.remove('monthly-active');
+      }
+    };
+    applyContainer(secondarySwitch);
+  };
+
+  const activate = (view) => {
+    dividendsView = view;
+    setActiveClasses(view);
+    if (window.currentDividends) {
+      createDividendsChart(window.currentDividends, dividendsView);
+    }
+    // Show Annual subpage only when Annual is active
+    if (annualSubpage) {
+      annualSubpage.style.display = view === 'annual' ? '' : 'none';
+    }
+    // Toggle table visibility: monthly table independent and empty
+    if (dividendsTable) {
+      dividendsTable.style.display = view === 'annual' ? '' : 'none';
+    }
+    if (dividendsMonthlyTable) {
+      dividendsMonthlyTable.style.display = view === 'monthly' ? '' : 'none';
+    }
+  };
+
+  // Event listeners for table-area switch
+  tableMonthly.addEventListener('click', () => activate('monthly'));
+  tableAnnual.addEventListener('click', () => activate('annual'));
+
+  // Keyboard accessibility and lateral toggle behavior (match Allocation page)
+  const allBtns = [tableMonthly, tableAnnual].filter(Boolean);
+  allBtns.forEach((btn) => {
+    btn.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === 'Right') {
+        e.preventDefault();
+        activate('annual');
+        // Move focus to Annual counterpart if available
+        const target = btn.classList.contains('allocation-option') && btn.id.includes('monthly')
+          ? document.getElementById(btn.id.replace('monthly', 'annual'))
+          : btn;
+        (target || tableAnnual).focus();
+      } else if (e.key === 'ArrowLeft' || e.key === 'Left') {
+        e.preventDefault();
+        activate('monthly');
+        const target = btn.classList.contains('allocation-option') && btn.id.includes('annual')
+          ? document.getElementById(btn.id.replace('annual', 'monthly'))
+          : btn;
+        (target || tableMonthly).focus();
+      }
+    });
+  });
+  // Initial sync
+  setActiveClasses(dividendsView);
+  if (annualSubpage) {
+    annualSubpage.style.display = dividendsView === 'annual' ? '' : 'none';
+  }
+  if (dividendsTable) {
+    dividendsTable.style.display = dividendsView === 'annual' ? '' : 'none';
+  }
+  if (dividendsMonthlyTable) {
+    dividendsMonthlyTable.style.display = dividendsView === 'monthly' ? '' : 'none';
+  }
+  // If switching to monthly and we have seed data, populate
+  if (
+    dividendsView === 'monthly' &&
+    window.seedMonthlyDividends &&
+    Array.isArray(window.seedMonthlyDividends) &&
+    dividendsMonthlyTbody &&
+    dividendsMonthlyTbody.querySelectorAll('tr').length === 0
+  ) {
+    const stored = readMonthlyFromStorage();
+    if (stored && stored.length > 0) {
+      populateMonthlyTableFromData(stored);
+    } else {
+      populateMonthlyTableFromData(window.seedMonthlyDividends);
+      writeMonthlyToStorage();
+    }
+  }
+}
+
+// (Monthly table logic reverted)
+
+// Add new monthly dividend row (editable, local-only)
+function addNewMonthlyDividendRow() {
+  if (!dividendsMonthlyTbody) return;
+  if (currentEditingDividendRow) {
+    // Remove any existing editing row in either table to avoid overlaps
+    currentEditingDividendRow.remove();
+  }
+
+  const row = document.createElement('tr');
+  row.classList.add('editing');
+  currentEditingDividendRow = row;
+
+  const currentYear = new Date().getFullYear();
+  const rowNumber = dividendsMonthlyTbody.querySelectorAll('tr:not(.editing)').length + 1;
+
+  // Year options (2022-2100)
+  let yearOptions = '';
+  for (let year = 2022; year <= 2100; year++) {
+    yearOptions += `<option value="${year}" ${year === currentYear ? 'selected' : ''}>${year}</option>`;
+  }
+  // Month options
+  const months = [
+    'Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'
+  ];
+  const currentMonthIdx = new Date().getMonth() + 1; // 1-12
+  const monthOptions = months
+    .map((m, i) => `<option value="${i+1}" ${i+1 === currentMonthIdx ? 'selected' : ''}>${m}</option>`)
+    .join('');
+  // Currency options (RON, USD, EUR)
+  const currencyOptions = ['RON','USD','EUR']
+    .map((c) => `<option value="${c}">${c}</option>`) // default RON first
+    .join('');
+
+  row.innerHTML = `
+      <td data-field="nr">${rowNumber}</td>
+      <td data-field="year"><select class="month-year-select">${yearOptions}</select></td>
+      <td data-field="month"><select class="month-select">${monthOptions}</select></td>
+      <td data-field="dividend" contenteditable="true" class="editable">0</td>
+      <td data-field="symbol" contenteditable="true" class="editable"></td>
+      <td data-field="currency"><select class="currency-select">${currencyOptions}</select></td>
+      <td>
+        <button class="save-icon-btn" title="Save">✓</button>
+        <button class="cancel-icon-btn" title="Cancel">✕</button>
+      </td>
+    `;
+
+  dividendsMonthlyTbody.insertBefore(row, dividendsMonthlyTbody.firstChild);
+
+  const dividendCell = row.querySelector('[data-field="dividend"]');
+  dividendCell.focus();
+
+  // Actions
+  const saveBtn = row.querySelector('.save-icon-btn');
+  const cancelBtn = row.querySelector('.cancel-icon-btn');
+  saveBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    saveMonthlyDividend();
+  });
+  cancelBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    cancelMonthlyDividendEdit();
+  });
+}
+
+// Finalize monthly dividend row (local-only, converts inputs to static text)
+function saveMonthlyDividend() {
+  if (!currentEditingDividendRow) return;
+  const row = currentEditingDividendRow;
+  const yearSelect = row.querySelector('.month-year-select');
+  const monthSelect = row.querySelector('.month-select');
+  const currencySelect = row.querySelector('.currency-select');
+  const dividendCell = row.querySelector('[data-field="dividend"]');
+  const symbolCell = row.querySelector('[data-field="symbol"]');
+
+  const year = yearSelect ? parseInt(yearSelect.value) : new Date().getFullYear();
+  const monthIdx = monthSelect ? parseInt(monthSelect.value) : 1;
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const monthLabel = months[Math.max(0, Math.min(11, monthIdx - 1))];
+  const currency = currencySelect ? currencySelect.value : 'RON';
+  const amount = parseFloat((dividendCell?.textContent || '0').replace(/[^0-9.\-]/g, '')) || 0;
+
+  // Replace selects with static text
+  const yearCell = row.querySelector('[data-field="year"]');
+  const monthCell = row.querySelector('[data-field="month"]');
+  const currencyCell = row.querySelector('[data-field="currency"]');
+  if (yearCell) yearCell.textContent = String(year);
+  if (monthCell) monthCell.textContent = monthLabel;
+  if (currencyCell) currencyCell.textContent = currency;
+  if (dividendCell) {
+    dividendCell.contentEditable = 'false';
+    dividendCell.classList.remove('editable');
+    // Dividend column should NOT include currency
+    dividendCell.textContent = `${amount.toFixed(2)}`;
+  }
+  if (symbolCell) {
+    symbolCell.contentEditable = 'false';
+    symbolCell.classList.remove('editable');
+    symbolCell.textContent = (symbolCell.textContent || '').trim();
+  }
+
+  // Add edit/delete actions
+  let actionsCell = row.querySelector('td:last-child');
+  actionsCell.innerHTML = `
+    <button class="edit-icon-btn" title="Edit">✎</button>
+    <button class="delete-icon-btn" title="Delete">🗑</button>
+  `;
+  const editBtn = actionsCell.querySelector('.edit-icon-btn');
+  const deleteBtn = actionsCell.querySelector('.delete-icon-btn');
+  editBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    editMonthlyDividend(row);
+  });
+  deleteBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    deleteMonthlyDividend(row);
+  });
+
+  row.classList.remove('editing');
+  currentEditingDividendRow = null;
+  // Renumber after save
+  renumberMonthlyRows();
+  writeMonthlyToStorage();
+}
+
+// Enter edit mode for an existing monthly row
+function editMonthlyDividend(row) {
+  if (!row) return;
+  // If another row is editing, cancel it first
+  if (currentEditingDividendRow && currentEditingDividendRow !== row) {
+    cancelMonthlyDividendEdit();
+  }
+  currentEditingDividendRow = row;
+  row.classList.add('editing');
+
+  const yearCell = row.querySelector('[data-field="year"]');
+  const monthCell = row.querySelector('[data-field="month"]');
+  const dividendCell = row.querySelector('[data-field="dividend"]');
+  const currencyCell = row.querySelector('[data-field="currency"]');
+  const symbolCell = row.querySelector('[data-field="symbol"]');
+
+  // Store previous values for cancel
+  row.dataset.prevYear = yearCell.textContent.trim();
+  row.dataset.prevMonth = monthCell.textContent.trim();
+  row.dataset.prevDividend = dividendCell.textContent.trim();
+  row.dataset.prevCurrency = currencyCell.textContent.trim();
+  row.dataset.prevSymbol = symbolCell.textContent.trim();
+
+  // Build selects
+  const currentYear = parseInt(row.dataset.prevYear || String(new Date().getFullYear()));
+  let yearOptions = '';
+  for (let year = 2022; year <= 2100; year++) {
+    yearOptions += `<option value="${year}" ${year === currentYear ? 'selected' : ''}>${year}</option>`;
+  }
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const monthOptions = months
+    .map((m, i) => `<option value="${i+1}" ${m === row.dataset.prevMonth ? 'selected' : ''}>${m}</option>`) 
+    .join('');
+  const currencyOptions = ['RON','USD','EUR']
+    .map((c) => `<option value="${c}" ${c === row.dataset.prevCurrency ? 'selected' : ''}>${c}</option>`) 
+    .join('');
+
+  yearCell.innerHTML = `<select class="month-year-select">${yearOptions}</select>`;
+  monthCell.innerHTML = `<select class="month-select">${monthOptions}</select>`;
+  dividendCell.contentEditable = 'true';
+  dividendCell.classList.add('editable');
+  currencyCell.innerHTML = `<select class="currency-select">${currencyOptions}</select>`;
+  // Symbol stays editable text
+  symbolCell.contentEditable = 'true';
+  symbolCell.classList.add('editable');
+
+  // Replace actions with save/cancel
+  const actionsCell = row.querySelector('td:last-child');
+  actionsCell.innerHTML = `
+    <button class="save-icon-btn" title="Save">✓</button>
+    <button class="cancel-icon-btn" title="Cancel">✕</button>
+  `;
+  const saveBtn = actionsCell.querySelector('.save-icon-btn');
+  const cancelBtn = actionsCell.querySelector('.cancel-icon-btn');
+  saveBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    saveMonthlyDividend();
+  });
+  cancelBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    cancelMonthlyDividendEdit();
+  });
+}
+
+// Cancel edit for monthly row (restore previous values)
+function cancelMonthlyDividendEdit() {
+  if (!currentEditingDividendRow) return;
+  const row = currentEditingDividendRow;
+  const yearCell = row.querySelector('[data-field="year"]');
+  const monthCell = row.querySelector('[data-field="month"]');
+  const dividendCell = row.querySelector('[data-field="dividend"]');
+  const currencyCell = row.querySelector('[data-field="currency"]');
+  const symbolCell = row.querySelector('[data-field="symbol"]');
+
+  yearCell.textContent = row.dataset.prevYear || yearCell.textContent;
+  monthCell.textContent = row.dataset.prevMonth || monthCell.textContent;
+  dividendCell.textContent = row.dataset.prevDividend || dividendCell.textContent;
+  dividendCell.contentEditable = 'false';
+  dividendCell.classList.remove('editable');
+  currencyCell.textContent = row.dataset.prevCurrency || currencyCell.textContent;
+  symbolCell.textContent = row.dataset.prevSymbol || symbolCell.textContent;
+
+  const actionsCell = row.querySelector('td:last-child');
+  actionsCell.innerHTML = `
+    <button class="edit-icon-btn" title="Edit">✎</button>
+    <button class="delete-icon-btn" title="Delete">🗑</button>
+  `;
+  const editBtn = actionsCell.querySelector('.edit-icon-btn');
+  const deleteBtn = actionsCell.querySelector('.delete-icon-btn');
+  editBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    editMonthlyDividend(row);
+  });
+  deleteBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    deleteMonthlyDividend(row);
+  });
+
+  row.classList.remove('editing');
+  delete row.dataset.prevYear;
+  delete row.dataset.prevMonth;
+  delete row.dataset.prevDividend;
+  delete row.dataset.prevCurrency;
+  delete row.dataset.prevSymbol;
+  currentEditingDividendRow = null;
+  try { recomputeAnnualFromMonthly(); } catch {}
+  writeMonthlyToStorage();
+}
+
+// Delete monthly row
+function deleteMonthlyDividend(row) {
+  if (!row) return;
+  row.remove();
+  if (currentEditingDividendRow === row) {
+    currentEditingDividendRow = null;
+  }
+  // Renumber after delete
+  renumberMonthlyRows();
+  try { recomputeAnnualFromMonthly(); } catch {}
+  writeMonthlyToStorage();
+}
+
+// Maintain sequential numbering in Monthly table
+function renumberMonthlyRows() {
+  if (!dividendsMonthlyTbody) return;
+  const rows = Array.from(dividendsMonthlyTbody.querySelectorAll('tr'));
+  rows.forEach((r, idx) => {
+    const nrCell = r.querySelector('[data-field="nr"]');
+    if (nrCell) nrCell.textContent = String(idx + 1);
+  });
+}
+
+// Populate Monthly table from provided data list
+function populateMonthlyTableFromData(items) {
+  if (!Array.isArray(items) || !dividendsMonthlyTbody) return;
+  dividendsMonthlyTbody.innerHTML = '';
+  const monthMap = {
+    January: 'Jan', February: 'Feb', March: 'Mar', April: 'Apr', May: 'May', June: 'Jun',
+    July: 'Jul', August: 'Aug', September: 'Sep', October: 'Oct', November: 'Nov', December: 'Dec',
+    Novermber: 'Nov', Marach: 'Mar'
+  };
+
+  items.forEach((it, idx) => {
+    const year = it.year ?? '';
+    const monthLabel = monthMap[it.month] || it.month || '';
+    const row = document.createElement('tr');
+    row.innerHTML = `
+      <td data-field="nr">${idx + 1}</td>
+      <td data-field="year">${year}</td>
+      <td data-field="month">${monthLabel}</td>
+      <td data-field="dividend">${Number(String(it.dividend).replace(/[,]/g,'')).toFixed(2)}</td>
+      <td data-field="symbol">${it.symbol}</td>
+      <td data-field="currency">${it.currency}</td>
+      <td>
+        <button class="edit-icon-btn" title="Edit">✎</button>
+        <button class="delete-icon-btn" title="Delete">🗑</button>
+      </td>
+    `;
+    dividendsMonthlyTbody.appendChild(row);
+
+    const editBtn = row.querySelector('.edit-icon-btn');
+    const deleteBtn = row.querySelector('.delete-icon-btn');
+    editBtn.addEventListener('click', (e) => { e.stopPropagation(); editMonthlyDividend(row); });
+    deleteBtn.addEventListener('click', (e) => { e.stopPropagation(); deleteMonthlyDividend(row); });
+  });
+  writeMonthlyToStorage();
+  try { recomputeAnnualFromMonthly(); } catch {}
 }
 
 // Add dividend row to table (read-only mode)
@@ -3842,18 +4724,163 @@ window.deleteDividend = async function (id) {
 // Add new dividend button
 if (addDividendBtn) {
   addDividendBtn.addEventListener('click', () => {
-    addNewDividendRow();
+    if (dividendsView === 'monthly') {
+      addNewMonthlyDividendRow();
+    } else {
+      addNewDividendRow();
+    }
   });
 }
 
 if (floatingAddDividendBtn) {
   floatingAddDividendBtn.addEventListener('click', () => {
-    addNewDividendRow();
+    if (dividendsView === 'monthly') {
+      addNewMonthlyDividendRow();
+    } else {
+      addNewDividendRow();
+    }
   });
 }
 
+// Floating button visibility for Dividends (mirror stocks behavior)
+function handleFloatingDividendButtonVisibility() {
+  if (!addDividendBtn || !floatingAddDividendBtn) return;
+  const dividendsSection = document.getElementById('dividends-section');
+  if (!dividendsSection || !dividendsSection.classList.contains('active')) {
+    floatingAddDividendBtn.classList.remove('visible');
+    return;
+  }
+  const btnRect = addDividendBtn.getBoundingClientRect();
+  const isVisible = btnRect.top >= 0 && btnRect.bottom <= window.innerHeight;
+  if (!isVisible) {
+    floatingAddDividendBtn.classList.add('visible');
+  } else {
+    floatingAddDividendBtn.classList.remove('visible');
+  }
+}
+
+window.addEventListener('scroll', handleFloatingDividendButtonVisibility);
+window.addEventListener('resize', handleFloatingDividendButtonVisibility);
+document.querySelectorAll('.nav-link').forEach((link) => {
+  link.addEventListener('click', () => {
+    setTimeout(handleFloatingDividendButtonVisibility, 120);
+  });
+});
+
 // ========== PERFORMANCE CHART ==========
 let performanceChart = null;
+// ========== FX ANNUAL AVERAGES (Admin) ==========
+async function fetchEcbSeriesCSV(seriesUrl) {
+  try {
+    const res = await fetch(seriesUrl, { headers: { 'Accept': 'text/csv' } });
+    const text = await res.text();
+    return text;
+  } catch (e) {
+    console.warn('FX fetch failed', e);
+    return '';
+  }
+}
+
+function computeYearlyAverageFromCSV(csvText) {
+  // ECB CSV has header; last column value. Parse date,value rows.
+  const lines = csvText.split(/\r?\n/).filter((l) => l.trim().length > 0);
+  // Find columns by header if present; fallback: date,value at end
+  const dataLines = lines.filter((l) => /\d{4}-\d{2}-\d{2}/.test(l));
+  const byYear = {};
+  dataLines.forEach((line) => {
+    const parts = line.split(',');
+    const dateStr = parts.find((p) => /\d{4}-\d{2}-\d{2}/.test(p)) || '';
+    const year = parseInt(dateStr.slice(0, 4));
+    const valueStr = parts[parts.length - 1];
+    const val = parseFloat(valueStr);
+    if (!Number.isFinite(val)) return;
+    if (!byYear[year]) byYear[year] = { sum: 0, count: 0 };
+    byYear[year].sum += val;
+    byYear[year].count += 1;
+  });
+  const averages = {};
+  Object.keys(byYear).forEach((y) => {
+    const { sum, count } = byYear[y];
+    averages[parseInt(y)] = count > 0 ? +(sum / count).toFixed(4) : null;
+  });
+  return averages;
+}
+
+async function loadFxAnnualAverages(startYear = 2022) {
+  const currentYear = new Date().getFullYear();
+  const base = 'https://sdw-wsrest.ecb.europa.eu/service/data/EXR';
+  const q = (code) => `${base}/D.${code}.EUR.SP00.A?startPeriod=${startYear}&endPeriod=${currentYear}&format=csv`;
+  // EUR/RON: RON.EUR (EUR base → RON)
+  const eurRonCSV = await fetchEcbSeriesCSV(q('RON'));
+  const eurRonAvg = computeYearlyAverageFromCSV(eurRonCSV);
+  // USD/EUR
+  const usdEurCSV = await fetchEcbSeriesCSV(q('USD'));
+  const usdEurAvg = computeYearlyAverageFromCSV(usdEurCSV);
+  // Derive USD/RON = USD/EUR × EUR/RON per year
+  const fxRows = [];
+  for (let y = startYear; y <= currentYear; y++) {
+    const eurRon = eurRonAvg[y] ?? null;
+    const usdEur = usdEurAvg[y] ?? null;
+    const usdRon = eurRon && usdEur ? +(eurRon * usdEur).toFixed(4) : null;
+    fxRows.push({ year: y, eurRon, usdRon, usdEur: usdEur ?? null });
+  }
+  return fxRows;
+}
+
+function renderFxAnnualAverages(rows) {
+  const tbody = document.getElementById('fx-averages-table-body');
+  const updatedSpan = document.getElementById('fx-avg-last-updated');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+  rows.forEach((r) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td data-field="year">${r.year}</td>
+      <td data-field="eur_ron">${r.eurRon ?? '—'}</td>
+      <td data-field="usd_ron">${r.usdRon ?? '—'}</td>
+      <td data-field="usd_eur">${r.usdEur ?? (r.eurRon && r.usdRon ? +(r.usdRon / r.eurRon).toFixed(4) : '—')}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+  if (updatedSpan) {
+    const ts = new Date();
+    updatedSpan.textContent = `Last updated: ${ts.toLocaleString()}`;
+  }
+}
+
+async function refreshFxAnnualAverages() {
+  let rows = await loadFxAnnualAverages(2022);
+  const allEmpty = rows.every((r) => (r.eurRon == null || r.eurRon === '—') && (r.usdRon == null || r.usdRon === '—'));
+  if (allEmpty) {
+    // Fallback demo values to visualize the table immediately
+    rows = [
+      { year: 2022, eurRon: 4.93, usdRon: 4.70 },
+      { year: 2023, eurRon: 4.94, usdRon: 4.55 },
+      { year: 2024, eurRon: 4.97, usdRon: 4.61 },
+      { year: new Date().getFullYear(), eurRon: 4.97, usdRon: 4.58 },
+    ];
+  }
+  renderFxAnnualAverages(rows);
+  localStorage.setItem('fxAvgLastMonth', String(new Date().getMonth()));
+  localStorage.setItem('fxAvgLastYear', String(new Date().getFullYear()));
+}
+
+function setupFxAdmin() {
+  const btn = document.getElementById('refresh-fx-avg-btn');
+  if (btn && !btn.dataset.initialized) {
+    btn.dataset.initialized = 'true';
+    btn.addEventListener('click', () => refreshFxAnnualAverages());
+  }
+  // Auto update on 1st of each month
+  const today = new Date();
+  const isFirst = today.getDate() === 1;
+  const lastMonth = parseInt(localStorage.getItem('fxAvgLastMonth') || '-1');
+  const lastYear = parseInt(localStorage.getItem('fxAvgLastYear') || '-1');
+  if (isFirst) {
+    const changedMonth = lastMonth !== today.getMonth() || lastYear !== today.getFullYear();
+    if (changedMonth) refreshFxAnnualAverages();
+  }
+}
 
 // Fetch and generate performance data from database snapshots (percentages already calculated)
 async function generatePerformanceData(range) {
@@ -4048,6 +5075,9 @@ async function updatePerformanceChart(range = '1m') {
     performanceChart.destroy();
   }
 
+  // Line thickness per range
+  const bw = (range === '1h') ? 3.5 : (range === '1d') ? 3 : 2.5;
+
   performanceChart = new Chart(ctx, {
     type: 'line',
     data: {
@@ -4058,7 +5088,8 @@ async function updatePerformanceChart(range = '1m') {
           data: data.portfolioData,
           borderColor: '#00d9ff',
           backgroundColor: 'rgba(0, 217, 255, 0.1)',
-          borderWidth: 3.5,
+          borderWidth: bw,
+          hidden: (window.legendVisibility && window.legendVisibility[0] === false) ? true : false,
           fill: true,
           tension: 0.4,
           pointRadius: 0,
@@ -4072,7 +5103,8 @@ async function updatePerformanceChart(range = '1m') {
           data: data.depositsData,
           borderColor: '#ffffff',
           backgroundColor: 'rgba(255, 255, 255, 0.1)',
-          borderWidth: 3.5,
+          borderWidth: bw,
+          hidden: (window.legendVisibility && window.legendVisibility[1] === false) ? true : false,
           fill: true,
           tension: 0.4,
           pointRadius: 0,
@@ -4087,7 +5119,8 @@ async function updatePerformanceChart(range = '1m') {
           data: data.sp500Data,
           borderColor: '#FFC107',
           backgroundColor: 'rgba(255, 193, 7, 0.05)',
-          borderWidth: 3.5,
+          borderWidth: bw,
+          hidden: (window.legendVisibility && window.legendVisibility[2] === false) ? true : false,
           fill: false,
           tension: 0.4,
           pointRadius: 0,
@@ -4101,7 +5134,8 @@ async function updatePerformanceChart(range = '1m') {
           data: data.betTRData,
           borderColor: '#ff8a80',
           backgroundColor: 'rgba(255, 138, 128, 0.05)',
-          borderWidth: 3.5,
+          borderWidth: bw,
+          hidden: (window.legendVisibility && window.legendVisibility[3] === false) ? true : false,
           fill: false,
           tension: 0.4,
           pointRadius: 0,
