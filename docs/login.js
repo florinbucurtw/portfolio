@@ -37,10 +37,18 @@
       if (!pw) { submitBtn.disabled=false; submitBtn.textContent='Sign In'; return showError(password, 'Please enter your password.'); }
 
       try {
-        const resp = await fetch('/api/login', {
+        const base = window.API_BASE || '';
+        const resp = await fetch(`${base}/api/login`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: user, password: pw })
         });
-        const data = await resp.json();
+        let data;
+        const ct = resp.headers.get('content-type') || '';
+        if (ct.includes('application/json')) {
+          data = await resp.json();
+        } else {
+          const text = await resp.text();
+          throw new Error(`Unexpected response (${resp.status}): ${text.slice(0,200)}`);
+        }
         if (!resp.ok) { throw new Error(data?.error || 'Login failed'); }
         try {
           localStorage.setItem('auth_token', data.token);
