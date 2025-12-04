@@ -1,0 +1,2975 @@
+/* ===== Stocks Cards Layout ===== */
+/* === Allocation View Switch (Sectors/Countries) === */
+.allocation-switch-wrapper {
+  display: flex;
+  justify-content: center;
+  margin: 2.2rem 0 1.2rem 0;
+  width: 100%;
+}
+
+.allocation-switch {
+  position: relative;
+  display: inline-flex;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.04));
+  backdrop-filter: blur(18px);
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  border-radius: 50px;
+  padding: 0.35rem 0.5rem;
+  gap: 0.4rem;
+  box-shadow:
+    0 12px 35px rgba(0, 0, 0, 0.35),
+    inset 0 2px 6px rgba(255, 255, 255, 0.3);
+}
+
+.allocation-option {
+  position: relative;
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 0.6rem 1.35rem;
+  border-radius: 40px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  transition:
+    color 0.35s ease,
+    transform 0.35s ease;
+  letter-spacing: 0.3px;
+}
+
+.allocation-option .option-icon svg {
+  display: block;
+}
+
+.allocation-option.active {
+  color: #ffffff;
+  text-shadow: 0 0 8px rgba(255, 255, 255, 0.6);
+}
+
+.allocation-option:not(.active):hover {
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.switch-glow {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  height: calc(100% - 8px);
+  width: calc(50% - 8px);
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #4facfe 100%);
+  border-radius: 40px;
+  box-shadow:
+    0 8px 25px rgba(102, 126, 234, 0.5),
+    inset 0 0 0 2px rgba(255, 255, 255, 0.25);
+  transition:
+    transform 0.5s cubic-bezier(0.77, 0, 0.175, 1),
+    width 0.3s ease;
+  z-index: 0;
+}
+
+.allocation-switch .allocation-option {
+  z-index: 1;
+}
+
+.allocation-switch.sectors-active .switch-glow {
+  transform: translateX(0);
+}
+.allocation-switch.countries-active .switch-glow {
+  transform: translateX(100%);
+}
+/* Dividends switch: mirror Allocation behavior */
+.allocation-switch.monthly-active .switch-glow {
+  transform: translateX(0);
+}
+.allocation-switch.annual-active .switch-glow {
+  transform: translateX(100%);
+}
+/* Admin submenu: Snapshots vs Users */
+.allocation-switch.snapshots-active .switch-glow {
+  transform: translateX(0);
+}
+.allocation-switch.users-active .switch-glow {
+  transform: translateX(100%);
+}
+
+/* ===== Admin: Delete Range inputs and button ===== */
+#admin-section .admin-range .admin-input {
+  flex: 1 1 40%; /* allow shrink/grow while targeting ~40% */
+  max-width: calc(50% - 8px); /* ensure stays within panel */
+  min-width: 160px; /* avoid too-small inputs on narrow screens */
+  box-sizing: border-box;
+}
+#admin-section .admin-range {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem; /* reduce spacing ~80% */
+  flex-wrap: wrap; /* prevent overflow outside panel */
+}
+#admin-section #delete-range-btn {
+  min-width: 28px;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px; /* emoji icon size */
+}
+
+/* ===== Admin: Snapshot Stats panels sizing ===== */
+#admin-section .snapshots-stats.compact .stat-card.mini {
+  transform: scale(0.8);
+  transform-origin: top left;
+}
+#admin-section #snapshots-stats-panel {
+  /* Place on same row and set width */
+  flex: 0 0 50%;
+  max-width: 50%;
+}
+
+/* Place Delete Range panel on same row and reduce width by 50% */
+#admin-section #delete-range-panel {
+  flex: 0 0 50%;
+  max-width: 50%;
+}
+
+/* Enlarge fonts inside Snapshot Stats panel */
+#admin-section #snapshots-stats-panel .panel-zone-title {
+  font-size: 1.25rem;
+}
+#admin-section #snapshots-stats-panel .snapshots-stats.compact .stat-card.mini .stat-label {
+  font-size: 0.95rem;
+}
+#admin-section #snapshots-stats-panel .snapshots-stats.compact .stat-card.mini span#total-snapshots-count,
+#admin-section #snapshots-stats-panel .snapshots-stats.compact .stat-card.mini span#snapshots-date-range,
+#admin-section #snapshots-stats-panel .snapshots-stats.compact .stat-card.mini span#snapshots-size {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+@media (max-width: 600px) {
+  .allocation-option {
+    padding: 0.55rem 1rem;
+    font-size: 0.75rem;
+  }
+}
+
+/* === New Vertical Allocation Layout === */
+.allocation-container.vertical-layout {
+  max-width: 1280px;
+  margin: 0 auto;
+  display: flex;
+  align-items: stretch;
+  gap: 2.2rem;
+  padding: 0 1rem 2rem 1rem;
+}
+
+.allocation-stats.vertical-list {
+  flex: 0 0 322px; /* reduced by ~25% from 430px */
+  padding: 1.2rem 0.9rem 1.15rem 1rem;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.045));
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 20px;
+  box-shadow:
+    0 16px 42px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+
+.allocation-list-vertical {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  overflow-y: auto;
+  padding-right: 6px;
+  scrollbar-width: thin;
+  max-height: 460px;
+}
+
+.allocation-list-vertical::-webkit-scrollbar {
+  width: 8px;
+}
+.allocation-list-vertical::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+}
+.allocation-list-vertical::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  border-radius: 10px;
+}
+
+.allocation-list-vertical > div {
+  border-left-width: 4px !important;
+}
+
+/* Darker allocation items (~40% more dark vs previous) */
+.allocation-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.27rem 0.9rem 0.22rem 0.9rem; /* further compact (~30% reduction) */
+  /* Lighten from previous (0.58/0.40) by ~25% alpha -> 0.435/0.30 */
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.435), rgba(0, 0, 0, 0.3));
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  box-shadow: 0 3px 9px rgba(0, 0, 0, 0.32);
+  transition:
+    background 0.25s ease,
+    transform 0.25s ease,
+    box-shadow 0.25s ease;
+}
+.allocation-item:hover {
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.47), rgba(0, 0, 0, 0.33));
+  transform: translateX(3px);
+  box-shadow: 0 5px 13px rgba(0, 0, 0, 0.4);
+  border-color: rgba(255, 255, 255, 0.16);
+}
+.allocation-item .allocation-name {
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 0.78rem; /* +2 steps from 0.66rem */
+  letter-spacing: 0.35px;
+  line-height: 1.08;
+}
+.allocation-item .allocation-percentage {
+  color: #e0e0e0; /* paler white */
+  font-weight: 700;
+  font-size: 0.95rem; /* +2 steps from 0.78rem */
+  padding: 0.15rem 0.2rem 0 0; /* remove left padding */
+  text-shadow: 0 0 4px rgba(255, 255, 255, 0.25);
+  width: 100%;
+  display: block;
+  text-align: right;
+}
+
+.allocation-pie-wrapper.square-pie {
+  flex: 1 1 auto;
+  width: 540px;
+  height: 540px;
+  max-width: 540px;
+  max-height: 540px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 0.3rem;
+  padding: 1.6rem;
+}
+
+.allocation-pie-wrapper.square-pie canvas {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 500px;
+  max-height: 500px;
+}
+
+@media (max-width: 1100px) {
+  .allocation-container.vertical-layout {
+    flex-direction: column-reverse;
+    align-items: center;
+  }
+  .allocation-stats.vertical-list {
+    flex: 0 0 auto;
+    width: 100%;
+    max-width: 620px;
+  }
+  .allocation-pie-wrapper.square-pie {
+    width: 480px;
+    height: 480px;
+  }
+}
+
+@media (max-width: 650px) {
+  .allocation-pie-wrapper.square-pie {
+    width: 380px;
+    height: 380px;
+    padding: 1.1rem;
+  }
+  .allocation-list-vertical {
+    max-height: 380px;
+  }
+}
+.stocks-table {
+  width: 100%;
+  max-width: 960px; /* center like Allocation panels */
+  margin: 0 auto; /* perfect centering */
+  border-collapse: separate;
+  border-spacing: 0 0; /* remove vertical gap between rows */
+}
+
+/* Center the Stocks header controls to the same width */
+#stocks-section .table-header {
+  max-width: 960px;
+  margin: 0 auto 1.5rem;
+}
+
+/* Stocks: match panel card gradient for column headers */
+#stocks-section .stocks-table thead th {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.05));
+  border-color: rgba(255, 255, 255, 0.25);
+  box-shadow: none;
+}
+
+/* Subtle hover for Stocks headers: lighten slightly */
+#stocks-section .stocks-table th.sortable:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* Center the Deposits header controls to the same width */
+#deposits-section .table-header {
+  /* revert to default (no forced centering) */
+  max-width: unset;
+  margin: 0 0 1.5rem 0;
+}
+
+.stocks-table thead tr {
+  display: grid;
+  grid-template-columns: 33px 70px 94px 1.38fr 112px 81px 70px 136px 101px 115px 115px 90px; /* Shrunk Price Change column by 15% (160px -> 136px) */
+  gap: 8px;
+}
+
+/* Deposits table header grid */
+#deposits-section .stocks-table thead tr {
+  display: grid;
+  grid-template-columns: 70px 160px 140px 160px 140px 120px; /* revert to original widths */
+  gap: 8px;
+}
+
+/* Prevent wrapping of the 'Price Change' column header text */
+.stocks-table thead th:nth-child(8) {
+  white-space: nowrap;
+}
+.stocks-table thead th {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.05));
+  color: #ffffff;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  font-weight: 700;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+#stocks-tbody tr {
+  display: grid;
+  grid-template-columns: 33px 70px 94px 1.38fr 112px 81px 70px 136px 101px 115px 115px 90px; /* Match 15% shrink for Price Change column in body */
+  gap: 3px;
+  /* Darker card background for clear breakdown contrast */
+  /* Lightened ~15% (reduced alpha values for a brighter appearance) */
+  /* Lightened further by ~20% (alphas * 0.8) */
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.476), rgba(0, 0, 0, 0.34));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 3px; /* further compact (~30% of 4px) */
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.55);
+  min-height: unset;
+  align-items: center;
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease,
+    border-color 160ms ease,
+    background 160ms ease;
+}
+
+/* Deposits table rows styled like Stocks cards */
+#deposits-tbody tr {
+  display: grid;
+  grid-template-columns: 70px 160px 140px 160px 140px 120px; /* revert to original widths */
+  gap: 3px;
+  /* Match lightened Stocks row gradient */
+  /* Lightened ~20% (alphas *0.8) */
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.476), rgba(0, 0, 0, 0.34));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 3px; /* further compact */
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.55);
+  min-height: unset;
+  align-items: center;
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease,
+    border-color 160ms ease,
+    background 160ms ease;
+}
+
+#deposits-tbody tr:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.6);
+  border-color: rgba(255, 255, 255, 0.22);
+  /* Lightened hover similar to Stocks */
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.503), rgba(0, 0, 0, 0.367));
+}
+
+#stocks-tbody tr:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.6);
+  border-color: rgba(255, 255, 255, 0.22);
+  /* Hover state also lightened proportionally */
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.503), rgba(0, 0, 0, 0.367));
+}
+
+#stocks-tbody td {
+  background: transparent;
+  color: #eee;
+  padding: 0 3px; /* zero vertical padding */
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: none;
+  line-height: 1.05; /* slightly tighter */
+}
+
+#deposits-tbody td {
+  background: transparent;
+  color: #eee;
+  padding: 0 3px; /* zero vertical padding */
+  display: flex;
+  align-items: center;
+  justify-content: space-between; /* revert alignment */
+  text-align: left; /* revert alignment */
+  border: none;
+  line-height: 1.05;
+}
+
+/* Center Deposits header labels */
+#deposits-section .stocks-table thead th {
+  text-align: left; /* revert header label alignment */
+}
+
+#stocks-tbody td[data-field='number'] {
+  justify-content: center;
+  font-weight: 700;
+  color: #9e9e9e;
+}
+
+#stocks-tbody td[data-field='symbol'],
+#stocks-tbody td[data-field='company'] {
+  font-weight: 600;
+  color: #fff;
+}
+
+/* Center content in Symbol column */
+#stocks-tbody td[data-field='symbol'] {
+  justify-content: center !important;
+  text-align: center;
+}
+
+#stocks-tbody td[data-field='allocation'],
+#stocks-tbody td[data-field='weight'] {
+  color: #00d9ff;
+  font-weight: 700;
+}
+
+/* Center content in Weight column */
+#stocks-tbody td[data-field='weight'] {
+  justify-content: center;
+  text-align: center;
+}
+
+#stocks-tbody td[data-field='share_price'],
+#stocks-tbody td[data-field='price_change'] {
+  font-weight: 600;
+}
+
+/* Align Price column slightly left */
+#stocks-tbody td[data-field='share_price'] {
+  justify-content: flex-start !important;
+  text-align: left !important;
+  padding-left: 6px;
+  padding-right: 0;
+}
+
+/* Align Price Change column left (not centered) */
+#stocks-tbody td[data-field='price_change'] {
+  justify-content: flex-start !important;
+  text-align: left !important;
+  padding-left: 6px;
+  padding-right: 0;
+}
+
+/* Align Price Change header label left */
+.stocks-table thead th:nth-child(8) {
+  text-align: left;
+}
+
+/* Align Price header label left */
+.stocks-table thead th:nth-child(7) {
+  text-align: left;
+}
+
+/* Align Shares column slightly left */
+#stocks-tbody td[data-field='shares'] {
+  display: flex;
+  justify-content: flex-start !important;
+  align-items: center !important;
+  text-align: left !important;
+  padding-left: 6px;
+  padding-right: 0;
+}
+
+#stocks-tbody td[data-field='shares'] input {
+  text-align: left !important;
+}
+
+/* Align Shares header label left */
+.stocks-table thead th:nth-child(6) {
+  text-align: left;
+}
+
+/* Deposits: align numeric and action columns */
+#deposits-section .stocks-table thead th:nth-child(1),
+#deposits-tbody td[data-field='count'] {
+  justify-content: center;
+  text-align: center;
+  font-weight: 700;
+  color: #9e9e9e;
+}
+
+#deposits-section .stocks-table thead th:nth-child(3),
+#deposits-tbody td[data-field='amount'] {
+  color: #00d9ff;
+  font-weight: 700;
+}
+
+#deposits-tbody td.action-buttons {
+  justify-content: flex-end; /* revert actions alignment */
+  align-items: center;
+  gap: 8px;
+}
+
+#stocks-tbody td[data-field='risk'] {
+  font-weight: 700;
+  white-space: nowrap; /* force single line */
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#stocks-tbody td.action-buttons {
+  justify-content: flex-end; /* place buttons at end of row */
+  align-items: center;
+  gap: 8px;
+  grid-column: 12; /* force actions cell to the final grid column */
+}
+
+.stocks-table .sort-icon {
+  opacity: 0.6;
+  margin-left: 6px;
+}
+
+.stocks-table th.sorted-asc .sort-icon::after {
+  content: '↑';
+  margin-left: 4px;
+}
+.stocks-table th.sorted-desc .sort-icon::after {
+  content: '↓';
+  margin-left: 4px;
+}
+
+/* Inputs/selects inside cards */
+#stocks-tbody .editable-cell input,
+#stocks-tbody .editable-cell select {
+  width: 100%;
+  background: #232323;
+  color: #fff;
+  border: 1px solid #3a3a3a;
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+
+/* Price change colors already set inline; add default neutral */
+.price-change-cell {
+  color: #ccc;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding-top: 80px;
+}
+
+/* === Login Page === */
+.login-body {
+  padding-top: 0; /* no navbar spacing on login */
+}
+
+.login-container {
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1rem;
+}
+
+.login-card {
+  width: 100%;
+  max-width: 520px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.05));
+  backdrop-filter: blur(22px);
+  border-radius: 25px;
+  padding: 1.6rem 1.6rem 1.2rem 1.6rem;
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.5),
+    0 10px 25px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  transform: perspective(1000px) rotateX(2deg);
+  transition: all 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.login-card:hover {
+  transform: perspective(1000px) rotateX(0deg) translateY(-4px) scale(1.01);
+}
+
+.login-brand {
+  position: relative;
+  text-align: center;
+  margin-bottom: 1rem;
+}
+
+.brand-logo-wrap {
+  width: 120px;
+  height: 120px;
+  margin: 0 auto 0.6rem auto;
+  border-radius: 26px;
+  background: linear-gradient(135deg, rgba(255,255,255,0.16), rgba(255,255,255,0.06));
+  border: 1px solid rgba(255,255,255,0.22);
+  box-shadow:
+    0 14px 36px rgba(0,0,0,0.45),
+    inset 0 1px 0 rgba(255,255,255,0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(16px);
+}
+
+.brand-logo {
+  width: 86px;
+  height: 86px;
+  object-fit: contain;
+  filter: drop-shadow(0 8px 18px rgba(0,0,0,0.45));
+}
+
+.brand-glow {
+  position: absolute;
+  inset: -2px;
+  border-radius: 22px;
+  background: linear-gradient(45deg, #667eea, #764ba2, #f093fb, #4facfe);
+  opacity: 0.15;
+  filter: blur(18px);
+  pointer-events: none;
+}
+
+.brand-title {
+  color: #ffffff;
+  font-size: 1.7rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-shadow:
+    2px 2px 4px rgba(0, 0, 0, 0.5),
+    0 0 18px rgba(255, 255, 255, 0.35);
+}
+
+.brand-sub {
+  margin-top: 0.25rem;
+  color: rgba(255, 255, 255, 0.85);
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.input-group {
+  text-align: left;
+}
+
+.input-label {
+  display: block;
+  margin-bottom: 0.35rem;
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 700;
+  font-size: 0.78rem;
+  letter-spacing: 0.2px;
+}
+
+.password-wrapper {
+  position: relative;
+}
+
+.login-input {
+  width: 100%;
+  background: #232323;
+  color: #fff;
+  border: 1px solid #3a3a3a;
+  border-radius: 10px;
+  padding: 12px 42px 12px 12px;
+  font-size: 0.95rem;
+  outline: none;
+  transition: box-shadow 0.25s ease, border-color 0.25s ease;
+}
+
+.login-input:focus {
+  border-color: rgba(255, 255, 255, 0.45);
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.35);
+}
+
+.login-input::placeholder { color: rgba(255,255,255,0.6); }
+
+@keyframes shakeX {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-6px); }
+  50% { transform: translateX(6px); }
+  75% { transform: translateX(-4px); }
+}
+
+.shake {
+  animation: shakeX 0.35s ease;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.password-toggle:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.login-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 0.25rem;
+}
+
+.remember-me {
+  display: inline-flex;
+  gap: 0.5rem;
+  align-items: center;
+  color: rgba(255, 255, 255, 0.85);
+  user-select: none;
+}
+
+.remember-me input {
+  accent-color: #ffffff;
+}
+
+.forgot-link {
+  color: #00d9ff;
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.forgot-link:hover {
+  text-decoration: underline;
+}
+
+.login-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.8rem 1rem;
+  border-radius: 12px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  cursor: pointer;
+  transition: transform 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
+  text-decoration: none;
+}
+
+.login-btn.primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: 2px solid rgba(255, 255, 255, 0.5);
+  color: #ffffff;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.login-btn.primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
+}
+
+.login-btn.ghost {
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  color: #ffffff;
+}
+
+.login-btn.ghost:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.login-separator {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0.8rem 0 0.4rem 0;
+}
+
+.sep-line {
+  flex: 1;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.sep-text {
+  color: rgba(255, 255, 255, 0.85);
+  font-weight: 700;
+  font-size: 0.8rem;
+}
+
+.login-actions {
+  display: grid;
+  grid-template-columns: 1fr;
+}
+
+.login-footer {
+  margin-top: 0.9rem;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 0.8rem;
+}
+
+/* Navbar Styles */
+.navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  z-index: 1000;
+  padding: 1rem 0;
+}
+
+.nav-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.nav-stats {
+  display: flex;
+  gap: 2rem;
+  justify-content: center;
+  align-items: center;
+}
+
+.stat-item {
+  color: white;
+  font-size: 1.5rem;
+  font-weight: 700;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.4);
+}
+
+#total-balance {
+  color: #00d9ff;
+  font-size: 1.7rem;
+  font-weight: 800;
+  text-shadow:
+    0 0 15px rgba(0, 217, 255, 0.5),
+    2px 2px 4px rgba(0, 0, 0, 0.4);
+}
+
+#total-profit {
+  color: #00ff88;
+  font-size: 1.7rem;
+  font-weight: 800;
+  text-shadow:
+    0 0 15px rgba(0, 255, 136, 0.4),
+    2px 2px 4px rgba(0, 0, 0, 0.4);
+}
+
+.nav-menu {
+  display: flex;
+  list-style: none;
+  gap: 1.2rem;
+  justify-content: center;
+}
+
+.nav-menu li a {
+  color: white;
+  text-decoration: none;
+  font-size: 0.935rem;
+  transition: all 0.3s ease;
+  padding: 0.5rem 1rem;
+  border-radius: 5px;
+}
+
+.nav-menu li a:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px);
+}
+
+.nav-menu li a.active {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.container {
+  text-align: center;
+  color: white;
+  width: 90%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 3rem 2rem;
+}
+
+.section {
+  display: none;
+  min-height: calc(100vh - 140px);
+}
+
+.section.active {
+  display: block;
+}
+
+#dashboard-section.active {
+  display: block;
+}
+
+#dividends-section.active {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+#stocks-section,
+#deposits-section,
+#dividends-section {
+  padding-top: 0;
+  margin-top: -2rem;
+}
+
+h1 {
+  font-size: 3rem;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+  margin-bottom: 2rem;
+}
+
+p {
+  font-size: 1.5rem;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+/* Dashboard Grid */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 2rem;
+  width: 100%;
+  align-items: start;
+}
+
+@media (max-width: 768px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Chart Styles - WOW 3D Effect */
+.chart-container {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.05));
+  backdrop-filter: blur(20px);
+  border-radius: 25px;
+  padding: 1.5rem;
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.5),
+    0 10px 25px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  max-width: 300px;
+  height: 380px;
+  transform: perspective(1000px) rotateX(2deg);
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  position: relative;
+  z-index: 100; /* keep pie chart above nearby panels/popups */
+  margin-top: 1.5rem;
+  display: flex;
+  flex-direction: column;
+}
+
+/* === Dashboard Metrics Overlay (top-right of Balance pie chart) === */
+.dashboard-metrics-overlay {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.85rem 1rem 0.9rem 1rem;
+  background: radial-gradient(circle at 30% 25%, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 70%);
+  backdrop-filter: blur(14px) saturate(160%);
+  border: 1px solid rgba(255,255,255,0.35);
+  border-radius: 18px;
+  box-shadow:
+    0 10px 28px rgba(0,0,0,0.45),
+    0 4px 12px rgba(0,0,0,0.35),
+    inset 0 1px 0 rgba(255,255,255,0.4),
+    inset 0 -1px 0 rgba(0,0,0,0.2);
+  min-width: 220px;
+  z-index: 120;
+}
+
+.dashboard-metrics-overlay::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(102,126,234,0.35), rgba(118,75,162,0.35));
+  mix-blend-mode: overlay;
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+.metric-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.35rem 0.6rem 0.4rem 0.6rem;
+  background: linear-gradient(135deg, rgba(0,0,0,0.38), rgba(0,0,0,0.26));
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 12px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.35);
+  position: relative;
+  overflow: hidden;
+}
+
+.metric-row::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, rgba(255,255,255,0.12), rgba(255,255,255,0));
+  opacity: 0;
+  transition: opacity 0.35s ease;
+}
+
+.metric-row:hover::after {
+  opacity: 1;
+}
+
+.metric-label {
+  color: rgba(255,255,255,0.86);
+  font-size: 0.63rem;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+  flex: 1;
+}
+
+.metric-value {
+  font-size: 0.75rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.3px;
+  color: #ffffff;
+  text-shadow:
+    0 0 10px rgba(255,255,255,0.25),
+    1px 1px 2px rgba(0,0,0,0.6);
+  white-space: nowrap;
+}
+
+.metric-value.positive { color: #00ff88; text-shadow: 0 0 10px rgba(0,255,136,0.45); }
+.metric-value.warning { color: #ffc107; text-shadow: 0 0 10px rgba(255,193,7,0.4); }
+.metric-value.accent { color: #00d9ff; text-shadow: 0 0 10px rgba(0,217,255,0.4); }
+
+@media (max-width: 900px) {
+  .dashboard-metrics-overlay {
+    position: static;
+    margin-top: 0.8rem;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0.8rem 0.9rem;
+  }
+  .metric-row { flex: 1 1 calc(50% - 0.5rem); }
+}
+
+.chart-container::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  background: linear-gradient(45deg, #667eea, #764ba2, #f093fb, #4facfe);
+  border-radius: 25px;
+  z-index: -1;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+
+/* Wide Panel Container */
+.wide-panel-container {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.05));
+  backdrop-filter: blur(20px);
+  border-radius: 25px;
+  padding: 1.5rem;
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.5),
+    0 10px 25px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  transform: perspective(1000px) rotateX(2deg);
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  position: relative;
+  margin-top: 2rem;
+  width: calc(100% + 10px);
+  margin-left: -5px;
+  min-height: 280px;
+}
+
+.wide-panel-container::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  background: linear-gradient(45deg, #667eea, #764ba2, #f093fb, #4facfe);
+  border-radius: 25px;
+  z-index: -1;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+
+.wide-panel-container:hover::before {
+  opacity: 0.6;
+}
+
+.wide-panel-container:hover {
+  transform: perspective(1000px) rotateX(0deg) translateY(-5px);
+  box-shadow:
+    0 30px 80px rgba(0, 0, 0, 0.6),
+    0 15px 35px rgba(0, 0, 0, 0.4),
+    inset 0 2px 0 rgba(255, 255, 255, 0.2);
+}
+
+.wide-panel-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr); /* fit 5 zones on one row */
+  gap: 1mm; /* ultra-tight spacing between the 5 zones */
+  width: 100%;
+  height: 100%;
+}
+
+.panel-zone {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.03));
+  border-radius: 15px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 1rem;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+/* Metrics panel adjustments */
+.metrics-panel-zone {
+  padding: calc(0.85rem + 5mm) 0.7rem 0.9rem 0.7rem; /* add ~5mm top spacing above title */
+  display: flex;
+}
+
+.metrics-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem; /* halve spacing between metric rows */
+  width: 100%;
+}
+
+.metrics-panel .panel-zone-title {
+  margin-bottom: 0.55rem;
+}
+
+@media (max-width: 1350px) {
+  .wide-panel-grid {
+    grid-template-columns: repeat(2, 1fr); /* responsive fallback */
+    row-gap: 1.2rem;
+  }
+}
+
+/* Shrink the Deposits tab panel by ~20% in both width and height */
+#deposits-section .panel-zone {
+  transform: scale(0.9);
+  transform-origin: top center;
+}
+
+.panel-zone:hover {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.05));
+  transform: translateY(-3px);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+}
+
+.panel-zone-tall {
+  height: 230px;
+}
+
+/* Deposits Breakdown */
+.panel-zone-title {
+  color: white;
+  font-size: 1.1rem;
+  font-weight: 700;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.deposits-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 0; /* remove spacing between allocation items */
+  width: 100%;
+  padding: 0.5rem;
+  height: 100%;
+}
+
+/* Narrow + centered version inside Deposits tab */
+#deposits-section .deposits-breakdown {
+  width: 50%; /* previous width (will be overridden below) */
+  margin: 0.5rem auto 1rem auto;
+}
+
+#deposits-section .deposits-breakdown .breakdown-item {
+  justify-content: space-between; /* restore default alignment */
+  text-align: left; /* restore default text alignment */
+  gap: 2px;
+}
+
+#deposits-section .deposits-breakdown .breakdown-label,
+#deposits-section .deposits-breakdown .breakdown-value,
+#deposits-section .deposits-breakdown .breakdown-value-white {
+  display: inline-block;
+  text-align: left; /* restore left alignment */
+}
+
+/* === Deposits Section: Full-width Money Invested panel === */
+/* Override earlier shrink & width constraints to match table / total panel width */
+#deposits-section .panel-zone {
+  transform: none !important; /* remove scale(0.9) shrink */
+  width: 100%;
+  max-width: 768px; /* align with deposits table max width (reduced by 20%) */
+  margin-left: auto;
+  margin-right: auto;
+}
+#deposits-section .deposits-breakdown {
+  width: 100% !important; /* fill full available width inside panel */
+  margin: 0.5rem 0 1rem 0 !important; /* remove auto centering gaps */
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+}
+#deposits-section .deposits-breakdown .breakdown-item {
+  padding-left: 0.8rem;
+  padding-right: 0.8rem;
+}
+
+/* Embedded Total Deposits row: match panel background and increase font size */
+#deposits-section .deposits-breakdown .breakdown-item.total-deposits-row {
+  /* Use same background treatment as panel */
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.03));
+  border-color: rgba(255, 255, 255, 0.1);
+}
+#deposits-section .deposits-breakdown .breakdown-item.total-deposits-row .breakdown-label {
+  font-size: 1.1rem; /* +2 steps over 0.9rem */
+  font-weight: 400; /* regular, not bold */
+}
+#deposits-section .deposits-breakdown .breakdown-item.total-deposits-row .breakdown-value,
+#deposits-section .deposits-breakdown .breakdown-item.total-deposits-row .breakdown-value-white {
+  font-size: 1.2rem; /* +2 steps over 1.0rem */
+  font-weight: 700;
+}
+
+/* Deposits table: amount values should be white */
+#deposits-section td[data-field="amount"] {
+  color: #ffffff;
+}
+
+/* Deposits table: header 'Account' in white (override any theme color) */
+#deposits-section table.stocks-table thead tr th[data-column="account"] {
+  color: #ffffff !important;
+}
+
+/* Deposits table: align Account, Month, Amount text to the left (not centered) */
+#deposits-section td[data-field="account"],
+#deposits-section td[data-field="month"],
+#deposits-section td[data-field="amount"] {
+  text-align: left;
+}
+
+/* Align Total Deposits panel and Deposits table to reduced width */
+#deposits-section .deposits-total,
+#deposits-section .stocks-table {
+  max-width: 768px;
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Increase font sizes for the 5 rows in Deposits tab */
+#deposits-section .deposits-breakdown .breakdown-label {
+  font-size: 0.9rem; /* was 0.7rem */
+}
+
+#deposits-section .deposits-breakdown .breakdown-value,
+#deposits-section .deposits-breakdown .breakdown-value-white {
+  font-size: 1rem; /* was 0.8rem */
+}
+
+.breakdown-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 10px;
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.476), rgba(0, 0, 0, 0.34));
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.55);
+  transition: all 0.3s ease;
+  gap: 2px;
+  min-height: 36px;
+}
+
+/* Balance panel: increase row height by ~15% */
+.wide-panel-grid .panel-zone:first-child .breakdown-item {
+  min-height: 41px; /* 36px * 1.15 ≈ 41.4px */
+  padding: 0.368rem 2.5mm; /* horizontal padding ~2.5mm */
+}
+
+/* Money invested panel: increase each row height by ~1.4mm */
+.wide-panel-grid .panel-zone:nth-child(2) .breakdown-item {
+  min-height: calc(36px + 1.4mm);
+  padding-top: calc(0.32rem + 0.18mm);
+  padding-bottom: calc(0.32rem + 0.18mm);
+}
+
+/* Balance panel: reduce left/right gutters to ~1mm */
+.wide-panel-grid .panel-zone:first-child {
+  padding-left: 2.5mm;
+  padding-right: 2.5mm;
+}
+.wide-panel-grid .panel-zone:first-child .deposits-breakdown {
+  padding-left: 0;
+  padding-right: 0;
+}
+
+/* Money invested panel (2nd): match ~2.5mm gutters and row padding */
+.wide-panel-grid .panel-zone:nth-child(2) {
+  padding-left: 2.5mm;
+  padding-right: 2.5mm;
+}
+.wide-panel-grid .panel-zone:nth-child(2) .deposits-breakdown {
+  padding-left: 0;
+  padding-right: 0;
+}
+.wide-panel-grid .panel-zone:nth-child(2) .breakdown-item {
+  padding-left: 2.5mm;
+  padding-right: 2.5mm;
+}
+
+/* Profit panel (3rd): match ~2.5mm gutters and row padding */
+.wide-panel-grid .panel-zone:nth-child(3) {
+  padding-left: 2.5mm;
+  padding-right: 2.5mm;
+}
+.wide-panel-grid .panel-zone:nth-child(3) .profit-box {
+  padding-left: 2.5mm;
+  padding-right: 2.5mm;
+}
+
+/* Total return panel (4th): match ~2.5mm gutters and row padding */
+.wide-panel-grid .panel-zone:nth-child(4) {
+  padding-left: 2.5mm;
+  padding-right: 2.5mm;
+}
+.wide-panel-grid .panel-zone:nth-child(4) .profit-box {
+  padding-left: 2.5mm;
+  padding-right: 2.5mm;
+}
+
+/* Profit panel: increase each row height by ~1.4mm */
+.wide-panel-grid .panel-zone:nth-child(3) .profit-box {
+  min-height: calc(36px + 1.4mm);
+  padding-top: calc(0.2rem + 0.18mm);
+  padding-bottom: calc(0.2rem + 0.18mm);
+}
+
+/* Total return panel: increase each row height by ~1.4mm */
+.wide-panel-grid .panel-zone:nth-child(4) .profit-box {
+  min-height: calc(36px + 1.4mm);
+  padding-top: calc(0.2rem + 0.18mm);
+  padding-bottom: calc(0.2rem + 0.18mm);
+}
+
+/* === Deposits Page: Reduce Money Invested panel height (only duplicate panel) === */
+/* Apply ~15% vertical reduction while preserving font sizes/content scale */
+#deposits-section .panel-zone .deposits-breakdown .breakdown-item {
+  min-height: 31px; /* 36px * 0.85 ≈ 30.6px */
+  padding-top: 0.27rem; /* 0.32rem * 0.85 ≈ 0.272rem */
+  padding-bottom: 0.27rem;
+}
+/* Reduce panel vertical padding itself by 15% (keep horizontal) */
+#deposits-section .panel-zone {
+  padding-top: 0.85rem; /* was 1rem */
+  padding-bottom: 0.85rem;
+  /* Width reduction by ~20% while keeping content scale */
+  max-width: 768px; /* 960px * 0.8 */
+  width: 100%;
+}
+
+/* === Profit Split Grid === */
+.profit-split-grid {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr; /* two columns */
+  gap: 0.25rem; /* tighter spacing between columns */
+  width: 100%;
+}
+
+.profit-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0; /* no space between rows, matches Balance/Money Invested */
+}
+
+/* Combined column: label + value on one row */
+.profit-col.combined .profit-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-left: 0.7rem;
+  padding-right: 0.7rem;
+}
+
+.profit-col.combined .profit-label {
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  color: #e0e0e0;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.6);
+  font-size: 0.7rem; /* align with previous label size */
+}
+
+.profit-col.combined .profit-value {
+  color: #00d9ff;
+  font-weight: 700;
+  text-shadow:
+    0 0 10px rgba(0, 217, 255, 0.4),
+    1px 1px 2px rgba(0, 0, 0, 0.5);
+  font-size: 0.8rem; /* match previous profit value emphasis */
+}
+
+.profit-box {
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.476), rgba(0, 0, 0, 0.34));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 6px 10px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.55);
+  transition:
+    background 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+  line-height: 1.03;
+}
+
+.profit-box:hover {
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.566), rgba(0, 0, 0, 0.413));
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.45);
+  transform: translateY(-2px);
+}
+
+.profit-col.brokers .profit-box.profit-label {
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  color: #e0e0e0;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.6);
+  font-size: 0.7rem; /* align with breakdown-label */
+}
+/* Force single-line for the 3rd broker label (T212 + XTB USD) */
+.profit-col.brokers .profit-box.profit-label:nth-child(3) {
+  white-space: nowrap;
+}
+
+.profit-col.profits .profit-box {
+  color: #00d9ff;
+  font-weight: 700;
+  text-shadow:
+    0 0 10px rgba(0, 217, 255, 0.4),
+    1px 1px 2px rgba(0, 0, 0, 0.5);
+  font-size: 0.8rem; /* match breakdown-value emphasis */
+}
+
+.profit-col.returns .profit-box {
+  color: #00ff88;
+  font-weight: 700;
+  text-shadow:
+    0 0 10px rgba(0, 255, 136, 0.4),
+    1px 1px 2px rgba(0, 0, 0, 0.6);
+  font-size: 0.8rem; /* same emphasis as profit values */
+}
+
+/* Title above the returns column */
+.profit-column-title {
+  color: white;
+  font-weight: 700;
+  font-size: 0.9rem;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+  margin: 0.1rem 0 0.2rem 0; /* tight spacing */
+  text-align: center;
+}
+
+.breakdown-item-compact {
+  gap: 0px;
+}
+
+.breakdown-item:hover {
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.503), rgba(0, 0, 0, 0.367));
+  transform: translateY(-2px);
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.6);
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
+.breakdown-label {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.breakdown-value {
+  color: #00d9ff;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-shadow:
+    0 0 10px rgba(0, 217, 255, 0.4),
+    1px 1px 2px rgba(0, 0, 0, 0.3);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.breakdown-value-white {
+  color: white !important;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5) !important;
+}
+
+.breakdown-value-profit {
+  text-align: right;
+  white-space: nowrap;
+  display: inline-block;
+  width: 140px;
+  font-variant-numeric: tabular-nums;
+}
+
+.chart-container:hover {
+  transform: perspective(1000px) rotateX(0deg) translateY(-10px) scale(1.02);
+  box-shadow:
+    0 30px 80px rgba(0, 0, 0, 0.6),
+    0 15px 35px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+.chart-container:hover::before {
+  opacity: 0.3;
+}
+
+.chart-container h2 {
+  color: #ffffff;
+  text-align: center;
+  margin-bottom: 1rem;
+  font-size: 1.3rem;
+  font-weight: 700;
+  text-shadow:
+    2px 2px 4px rgba(0, 0, 0, 0.5),
+    0 0 20px rgba(255, 255, 255, 0.3);
+  letter-spacing: 0.5px;
+}
+
+#balance-pie-chart {
+  max-width: 250px;
+  max-height: 250px;
+  margin: 0 auto;
+  filter: drop-shadow(0 15px 25px rgba(0, 0, 0, 0.4));
+  position: relative;
+  z-index: 101; /* ensure canvas renders above decorations */
+}
+
+/* Performance Chart Styles */
+.performance-chart-container {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.05));
+  backdrop-filter: blur(20px);
+  border-radius: 25px;
+  padding: 1.5rem;
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.5),
+    0 10px 25px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  transform: perspective(1000px) rotateX(2deg);
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  position: relative;
+  margin-top: 1.5rem;
+  height: 380px;
+  display: flex;
+  flex-direction: column;
+}
+
+.performance-chart-container::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  background: linear-gradient(45deg, #667eea, #764ba2, #f093fb, #4facfe);
+  border-radius: 25px;
+  z-index: -1;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+
+.performance-chart-container:hover {
+  transform: perspective(1000px) rotateX(0deg) translateY(-5px) scale(1.01);
+  box-shadow:
+    0 30px 80px rgba(0, 0, 0, 0.6),
+    0 15px 35px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+.performance-chart-container:hover::before {
+  opacity: 0.3;
+}
+
+.chart-header {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  margin-bottom: 0.75rem;
+  gap: 0.75rem;
+  flex-shrink: 0;
+}
+
+.chart-header h2 {
+  color: #ffffff;
+  font-size: 1.3rem;
+  font-weight: 700;
+  text-shadow:
+    2px 2px 4px rgba(0, 0, 0, 0.5),
+    0 0 20px rgba(255, 255, 255, 0.3);
+  letter-spacing: 0.5px;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.performance-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 1rem;
+  font-weight: 700;
+  backdrop-filter: blur(10px);
+  border: 2px solid;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  transition: all 0.3s ease;
+  min-width: 100px;
+  justify-content: center;
+}
+
+.performance-badge.positive {
+  background: rgba(240, 235, 255, 0.95);
+  border-color: rgba(0, 255, 136, 0.6);
+  color: #00ff88;
+  text-shadow: 0 0 15px rgba(0, 255, 136, 0.4);
+}
+
+.performance-badge.negative {
+  background: rgba(240, 235, 255, 0.95);
+  border-color: rgba(255, 107, 107, 0.6);
+  color: #d32f2f;
+  text-shadow: 0 0 10px rgba(255, 107, 107, 0.3);
+}
+
+.performance-badge:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+}
+
+.time-range-selector {
+  display: flex;
+  gap: 0.5rem;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 0.4rem;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  flex-wrap: wrap;
+}
+
+.time-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: white;
+  padding: 0.4rem 0.8rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  min-width: 40px;
+}
+
+.time-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.time-btn.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-color: rgba(255, 255, 255, 0.4);
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.5);
+  transform: translateY(-2px);
+}
+
+.chart-legend {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.legend-checkbox {
+  cursor: pointer;
+  transition: opacity 0.3s ease;
+  user-select: none;
+}
+
+.legend-checkbox:hover {
+  opacity: 0.8;
+}
+
+.legend-toggle {
+  cursor: pointer;
+  width: 14px;
+  height: 14px;
+  accent-color: white;
+}
+
+.legend-color {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  transition: opacity 0.3s ease;
+}
+
+.legend-checkbox:has(.legend-toggle:not(:checked)) .legend-color {
+  opacity: 0.3;
+}
+
+.legend-checkbox:has(.legend-toggle:not(:checked)) .legend-label {
+  opacity: 0.5;
+}
+
+.legend-label {
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+  transition: opacity 0.3s ease;
+}
+
+#performance-chart {
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  filter: drop-shadow(0 10px 20px rgba(0, 0, 0, 0.3));
+}
+
+/* Table Header Styles */
+.table-header {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 1.5rem;
+  gap: 8px;
+  align-items: center;
+}
+
+.add-btn {
+  background: rgba(255, 255, 255, 0.2);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  font-size: 1.2rem;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.add-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.1);
+}
+
+.refresh-btn {
+  background: rgba(138, 43, 226, 0.15);
+  border: 1.5px solid rgba(138, 43, 226, 0.3);
+  color: #9b59b6;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-left: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.refresh-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.refresh-btn:hover {
+  background: rgba(138, 43, 226, 0.25);
+  box-shadow: 0 0 12px rgba(138, 43, 226, 0.3);
+  border-color: rgba(138, 43, 226, 0.5);
+}
+
+.refresh-btn:active svg {
+  animation: spin 0.6s ease-in-out;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.export-btn {
+  background: rgba(0, 217, 255, 0.15);
+  border: 1.5px solid rgba(0, 217, 255, 0.3);
+  color: #00d9ff;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-left: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.export-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.export-btn:hover {
+  background: rgba(0, 217, 255, 0.25);
+  box-shadow: 0 0 12px rgba(0, 217, 255, 0.3);
+  border-color: rgba(0, 217, 255, 0.5);
+}
+
+/* Floating Add Button */
+.floating-add-btn {
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: 2px solid rgba(255, 255, 255, 0.5);
+  color: white;
+  font-size: 2rem;
+  font-weight: bold;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  z-index: 999;
+  opacity: 0;
+}
+
+.floating-add-btn.visible {
+  display: flex;
+  animation: fadeInUp 0.3s ease forwards;
+}
+
+.floating-add-btn:hover {
+  transform: scale(1.1) rotate(90deg);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+}
+
+.floating-add-btn:active {
+  transform: scale(0.95) rotate(90deg);
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Table Styles */
+.stocks-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border-radius: 10px;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+}
+
+.stocks-table thead {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.stocks-table th {
+  padding: 0.5rem;
+  text-align: left;
+  font-weight: bold;
+  color: white;
+  font-size: 0.8rem;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.stocks-table th.sortable {
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.2s ease;
+}
+
+.stocks-table th.sortable:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #64ffda;
+}
+
+.sort-icon {
+  font-size: 0.7rem;
+  opacity: 0.5;
+  margin-left: 0.2rem;
+  transition: opacity 0.2s ease;
+}
+
+.stocks-table th.sortable:hover .sort-icon {
+  opacity: 1;
+}
+
+.stocks-table th.sorted-asc .sort-icon::after {
+  content: ' ↑';
+  opacity: 1;
+  color: #64ffda;
+}
+
+.stocks-table th.sorted-desc .sort-icon::after {
+  content: ' ↓';
+  opacity: 1;
+  color: #64ffda;
+}
+
+.stocks-table td {
+  padding: 0.5rem;
+  text-align: left;
+  color: white;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 0.75rem;
+}
+
+.stocks-table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.stocks-table input {
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  padding: 0.5rem;
+  width: 100%;
+  font-size: 0.75rem;
+  border-radius: 3px;
+}
+
+.stocks-table input:focus {
+  outline: none;
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.stocks-table select {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  padding: 0.5rem;
+  width: 100%;
+  font-size: 0.75rem;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.stocks-table select:focus {
+  outline: none;
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.stocks-table select option {
+  background: #667eea;
+  color: white;
+  padding: 0.5rem;
+}
+
+.deposits-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 0 auto 1rem auto;
+  padding: 1rem 1.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  backdrop-filter: blur(10px);
+  width: 100%;
+}
+
+/* Match width with Deposits table container */
+#deposits-section .deposits-total,
+#deposits-section .stocks-table {
+  max-width: 960px;
+}
+
+/* Center both elements to align widths visually */
+#deposits-section .deposits-total,
+#deposits-section .stocks-table {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.deposits-total span:first-child {
+  font-size: 1rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.deposits-total span:last-child {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #ffffff;
+  text-shadow: none;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 0.3rem;
+  justify-content: center;
+}
+
+.edit-btn,
+.delete-btn {
+  padding: 0.4rem;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: transparent;
+  border-radius: 3px;
+  cursor: pointer;
+  color: white;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.edit-btn svg,
+.delete-btn svg {
+  display: block;
+}
+
+.edit-btn:hover {
+  background: rgba(76, 175, 80, 0.2);
+  border-color: rgba(76, 175, 80, 0.5);
+}
+
+.delete-btn:hover {
+  background: rgba(244, 67, 54, 0.2);
+  border-color: rgba(244, 67, 54, 0.5);
+}
+
+/* Risk Info Icon & Tooltip */
+.risk-header {
+  position: relative;
+}
+
+.info-icon {
+  cursor: help;
+  display: inline-block;
+  margin-left: 0.3rem;
+  color: rgba(255, 255, 255, 0.8);
+  position: relative;
+  vertical-align: middle;
+}
+
+.info-icon:hover {
+  color: white;
+}
+
+.info-icon svg {
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.tooltip {
+  display: none;
+  position: fixed;
+  background: rgba(0, 0, 0, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  padding: 1rem;
+  min-width: 190px;
+  z-index: 10000;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.tooltip.show {
+  display: block;
+}
+
+.tooltip-title {
+  font-weight: bold;
+  font-size: 0.95rem;
+  margin-bottom: 0.75rem;
+  color: white;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  padding-bottom: 0.5rem;
+}
+
+.tooltip-item {
+  font-size: 0.85rem;
+  line-height: 1.6;
+  margin-bottom: 0.5rem;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.risk-indicator {
+  margin-right: 0.5rem;
+  font-size: 1rem;
+}
+
+/* Modal Styles */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(5px);
+  z-index: 999999;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-overlay.show {
+  display: flex !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.modal-content {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 16px;
+  padding: 2rem;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  animation: slideUp 0.3s ease;
+  text-align: center;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(50px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.modal-icon {
+  margin-bottom: 1.5rem;
+}
+
+.modal-title {
+  color: #333;
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+  font-weight: 600;
+}
+
+.modal-message {
+  color: #666;
+  font-size: 1rem;
+  line-height: 1.5;
+  margin-bottom: 2rem;
+}
+
+.modal-message strong {
+  color: #333;
+  font-weight: 600;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+}
+
+.modal-btn {
+  padding: 0.75rem 2rem;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.modal-btn-cancel {
+  background: rgba(0, 0, 0, 0.05);
+  color: #666;
+}
+
+.modal-btn-cancel:hover {
+  background: rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+.modal-btn-confirm {
+  background: linear-gradient(135deg, #f44336, #d32f2f);
+  color: white;
+  box-shadow: 0 4px 15px rgba(244, 67, 54, 0.3);
+}
+
+.modal-btn-confirm:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(244, 67, 54, 0.4);
+}
+
+/* Admin Section Styles */
+/* ===== Admin WOW Redesign ===== */
+.admin-hero {
+  background: linear-gradient(135deg, rgba(255,255,255,0.16), rgba(255,255,255,0.06));
+  backdrop-filter: blur(18px);
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 22px;
+  padding: 1rem 1.25rem;
+  box-shadow: 0 16px 42px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.28);
+  margin: 0 auto 1.5rem auto;
+  max-width: 980px;
+}
+.admin-title {
+  font-size: 2rem;
+  font-weight: 800;
+  margin: 0;
+}
+.admin-subtitle {
+  margin-top: 0.25rem;
+  color: rgba(255,255,255,0.85);
+}
+
+.admin-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.9rem;
+  align-items: start;
+}
+
+.admin-panel {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.045));
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 18px;
+  box-shadow: 0 16px 42px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  padding: 0.85rem 0.8rem 0.9rem 0.8rem;
+}
+
+.admin-table-panel {
+  grid-column: 1 / -1;
+}
+
+/* Make Admin snapshots header sticky during scroll */
+.admin-table-panel .table-container {
+  max-height: 360px; /* scroll area height */
+  overflow: auto;
+  border-radius: 12px;
+}
+.admin-table-panel .data-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.admin-table-panel .data-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.08));
+  backdrop-filter: blur(10px);
+  box-shadow: inset 0 -1px 0 rgba(255,255,255,0.2);
+}
+.admin-table-panel .data-table th,
+.admin-table-panel .data-table td {
+  padding: 0.5rem;
+  color: #fff;
+  border-bottom: 1px solid rgba(255,255,255,0.12);
+  font-size: 0.8rem;
+}
+
+.admin-actions,
+.admin-danger-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.admin-danger-actions { margin-top: 0.5rem; }
+
+.admin-range {
+  display: grid;
+  grid-template-columns: auto 1fr auto 1fr auto;
+  gap: 0.45rem;
+  align-items: center;
+}
+.admin-label { color: rgba(255,255,255,0.9); font-size: 0.8rem; }
+.admin-input {
+  background: #232323;
+  color: #fff;
+  border: 1px solid #3a3a3a;
+  border-radius: 8px;
+  padding: 6px 8px;
+  min-width: 120px;
+}
+
+.btn-sm {
+  padding: 0.45rem 0.8rem;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  border: none;
+  padding: 0.6rem 1rem;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+/* ===== Dividends Page Spacing ===== */
+/* Keep ~2mm gap between the switch and chart/table on both subpages */
+#dividends-section .chart-container {
+  margin-top: 2mm !important;    /* default top spacing */
+  margin-bottom: 2mm !important; /* gap before the switch/table */
+}
+/* Monthly: increase top gap to ~1cm from menu bar */
+#dividends-section.monthly-view .chart-container {
+  margin-top: 1cm !important;
+}
+/* Annual: keep 2mm top spacing */
+#dividends-section.annual-view .chart-container {
+  margin-top: 2mm !important;
+}
+/* Remove any extra top margins inside chart container */
+#dividends-section .chart-container h2 {
+  margin-top: 0 !important;
+}
+#dividends-section #dividends-monthly-table {
+  margin-top: 2mm !important;
+}
+#dividends-section #dividends-annual-subpage {
+  margin-top: 2mm !important;
+}
+
+.btn-danger {
+  background: linear-gradient(135deg, #f44336, #d32f2f);
+  color: white;
+  border: none;
+  padding: 0.6rem 1rem;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(244, 67, 54, 0.3);
+}
+
+.btn-warning {
+  background: linear-gradient(135deg, #ffc107, #ff9800);
+  color: #1b1b1b;
+  border: none;
+  padding: 0.6rem 1rem;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(255, 193, 7, 0.3);
+}
+
+.btn-danger:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(244, 67, 54, 0.4);
+}
+
+.snapshots-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.snapshots-stats.compact {
+  grid-template-columns: repeat(3, minmax(140px, 1fr));
+  gap: 0.6rem;
+  margin-bottom: 0.8rem;
+}
+
+.stat-card {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border-radius: 15px;
+  padding: 1.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.stat-card.mini {
+  padding: 0.7rem 0.8rem;
+  border-radius: 12px;
+}
+.stat-card.mini .stat-label { font-size: 0.8rem; }
+.stat-card.mini span:last-child { font-size: 1.1rem; }
+
+@media (max-width: 980px) {
+  .admin-grid { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 640px) {
+  .admin-grid { grid-template-columns: 1fr; }
+  .admin-hero { padding: 0.8rem 1rem; }
+}
+
+.stat-label {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.stat-card span:last-child {
+  color: white;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+#snapshots-tbody tr {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+#snapshots-tbody tr:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.delete-snapshot-btn {
+  background: linear-gradient(135deg, #ff6b6b, #ee5a6f);
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.delete-snapshot-btn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 15px rgba(255, 107, 107, 0.4);
+}
+
+/* Dividends Table Styles */
+#dividends-table {
+  width: 800px;
+  max-width: 90%;
+  margin: 0 auto;
+  border-collapse: collapse;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border-radius: 10px;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+}
+
+/* Withdrawals table styled identic cu Dividends */
+#withdrawals-table {
+  width: 800px;
+  max-width: 90%;
+  margin: 0 auto 2rem auto;
+  border-collapse: collapse;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border-radius: 10px;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+}
+
+/* Withdrawals summary panel */
+.withdrawals-summary-panel {
+  max-width: 800px;
+  margin: 0.5rem auto 1.2rem auto;
+  background: linear-gradient(135deg, rgba(255,255,255,0.14), rgba(255,255,255,0.05));
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 16px;
+  padding: 0.85rem 1rem 0.9rem 1rem;
+  box-shadow: 0 14px 36px rgba(0,0,0,0.38), inset 0 1px 0 rgba(255,255,255,0.3);
+}
+.withdrawals-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.75rem;
+}
+.withdrawals-summary-item {
+  background: rgba(0,0,0,0.35);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 12px;
+  padding: 0.6rem 0.75rem 0.55rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.4);
+}
+.withdrawals-summary-item .label {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.75px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.75);
+}
+.withdrawals-summary-item .value {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 0 6px rgba(255,255,255,0.35);
+}
+@media (max-width: 600px) {
+  .withdrawals-summary-item { padding: 0.55rem 0.65rem; }
+  .withdrawals-summary-item .value { font-size: 0.95rem; }
+}
+
+#withdrawals-table thead {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+#withdrawals-table th {
+  padding: 0.25rem; /* compact */
+  text-align: left;
+  font-weight: bold;
+  color: white;
+  font-size: 0.8rem;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+}
+
+#withdrawals-table td {
+  padding: 0.25rem; /* compact */
+  text-align: left;
+  color: white;
+  border-top: 1px solid rgba(255,255,255,0.1);
+  font-size: 0.75rem;
+}
+
+#withdrawals-table tbody tr {
+  background: linear-gradient(135deg, rgba(0,0,0,0.476), rgba(0,0,0,0.34));
+  transition: background 0.25s ease;
+}
+
+#withdrawals-table tbody tr:hover {
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.503), rgba(0, 0, 0, 0.367));
+}
+
+#withdrawals-section .floating-add-btn {
+  bottom: 40px;
+  right: 40px;
+}
+
+#dividends-section .chart-container {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border-radius: 15px;
+  padding: 2rem;
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  width: 100%;
+  max-width: 100%;
+  min-height: 400px;
+}
+
+#dividends-table thead {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+#dividends-table th {
+  padding: 0.25rem; /* further compact */
+  text-align: left;
+  font-weight: bold;
+  color: white;
+  font-size: 0.8rem;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+#dividends-table td {
+  padding: 0.25rem; /* further compact */
+  text-align: left;
+  color: white;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 0.75rem;
+}
+
+#dividends-table tbody tr:hover {
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.503), rgba(0, 0, 0, 0.367));
+}
+
+/* Normal dividends rows match Stocks gradient */
+#dividends-table tbody tr {
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.476), rgba(0, 0, 0, 0.34));
+}
+
+#dividends-table td[contenteditable='true'] {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+  cursor: text;
+}
+
+#dividends-table td[contenteditable='true']:focus {
+  outline: none;
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+#dividends-table .year-select {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  padding: 0.5rem;
+  width: 100%;
+  font-size: 0.85rem;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+#dividends-table .year-select:focus {
+  outline: none;
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+#dividends-table .year-select option {
+  background: #667eea;
+  color: white;
+  padding: 0.5rem;
+}
+
+#dividends-table .monthly-dividend {
+  color: #64ffda;
+  font-weight: 600;
+}
+
+#dividends-table .editable {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+  padding: 0.4rem 0.5rem;
+  min-height: 2rem;
+  height: 2rem;
+  display: block;
+  line-height: 1.2;
+  width: calc(100% - 2px);
+  box-sizing: border-box;
+  text-align: left;
+  margin: 0;
+}
+
+#dividends-table .editable:focus {
+  outline: none;
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+#dividends-table .year-cell {
+  font-weight: 500;
+  vertical-align: middle;
+  padding: 0.5rem !important;
+  width: 120px;
+}
+
+#dividends-table .annual-dividend-cell {
+  font-weight: 500;
+  vertical-align: middle;
+  padding: 0.5rem !important;
+  padding-left: 1.5rem !important;
+  width: 180px;
+}
+
+#dividends-table .year-select {
+  height: 2rem;
+  line-height: 1.2;
+  padding: 0.4rem 0.5rem;
+  box-sizing: border-box;
+}
+
+#dividends-table .delete-btn {
+  background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+#dividends-table .delete-btn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 15px rgba(255, 107, 107, 0.4);
+}
+
+#dividends-table .save-icon-btn,
+#dividends-table .cancel-icon-btn,
+#dividends-table .delete-icon-btn {
+  background: transparent;
+  border: none;
+  color: white;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 0.3rem 0.5rem;
+  transition: all 0.2s ease;
+  opacity: 0.7;
+}
+
+#dividends-table .save-icon-btn:hover {
+  opacity: 1;
+  transform: scale(1.2);
+  color: #4caf50;
+}
+
+#dividends-table .edit-icon-btn {
+  background: transparent;
+  border: none;
+  color: white;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 0.3rem 0.5rem;
+  transition: all 0.2s ease;
+  opacity: 0.7;
+}
+
+#dividends-table .edit-icon-btn:hover {
+  opacity: 1;
+  transform: scale(1.2);
+  color: #4fc3f7;
+}
+
+#dividends-table .cancel-icon-btn:hover,
+#dividends-table .delete-icon-btn:hover {
+  opacity: 1;
+  transform: scale(1.2);
+  color: #ff6b6b;
+}
+
+#dividends-table tr.editing {
+  background: rgba(102, 126, 234, 0.1);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    background: rgba(102, 126, 234, 0.1);
+  }
+  50% {
+    background: rgba(102, 126, 234, 0.2);
+  }
+}
+
+/* Dividends Monthly Table: match Annual visuals */
+#dividends-monthly-table {
+  width: 800px;
+  max-width: 90%;
+  margin: 0 auto;
+  border-collapse: collapse;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border-radius: 10px;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+}
+
+#dividends-monthly-table thead {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+#dividends-monthly-table th {
+  padding: 0.25rem; /* compact like annual */
+  text-align: left;
+  font-weight: bold;
+  color: white;
+  font-size: 0.8rem;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+#dividends-monthly-table td {
+  padding: 0.25rem; /* compact like annual */
+  text-align: left;
+  color: white;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 0.75rem;
+}
+
+#dividends-monthly-table tbody tr {
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.476), rgba(0, 0, 0, 0.34));
+}
+
+#dividends-monthly-table tbody tr:hover {
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.503), rgba(0, 0, 0, 0.367));
+}
+
+/* Brand / Navbar logo styles */
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.brand-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  text-decoration: none;
+}
+
+.brand-logo {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  object-fit: cover;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+}
+
+.brand-title {
+  font-weight: 800;
+  font-size: 1rem;
+  letter-spacing: 0.4px;
+  color: #ffffff;
+  text-shadow: 0 1px 12px rgba(102, 126, 234, 0.45);
+}
+
+/* Optional: slightly enlarge on hover for a premium feel */
+.brand-link:hover .brand-logo {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.45);
+}
+.brand-link:hover .brand-title {
+  filter: brightness(1.15);
+}
