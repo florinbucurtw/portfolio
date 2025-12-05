@@ -72,6 +72,57 @@ navLinks.forEach((link) => {
     }
   });
 });
+    
+// Connection check tools: ping API endpoints and surface status
+function setApiStatus(msg, type = 'warn') {
+  const el = document.getElementById('api-status');
+  if (!el) return;
+  el.textContent = msg;
+  el.classList.remove('ok', 'error');
+  if (type === 'ok') el.classList.add('ok');
+  if (type === 'error') el.classList.add('error');
+  el.style.display = 'block';
+}
+
+async function checkConnection() {
+  try {
+    setApiStatus('Checking connection…');
+    const opts = { headers: {} };
+    const token = localStorage.getItem('auth_token');
+    if (token) opts.headers['Authorization'] = `Bearer ${token}`;
+
+    const res1 = await fetch('/api/exchange-rates', opts);
+    const res2 = await fetch('/api/stocks', opts);
+    if (res1.ok && res2.ok) {
+      setApiStatus('API OK: exchange-rates and stocks reachable', 'ok');
+    } else {
+      const t1 = `${res1.status} ${res1.statusText}`;
+      const t2 = `${res2.status} ${res2.statusText}`;
+      setApiStatus(`API issue: /api/exchange-rates -> ${t1}; /api/stocks -> ${t2}`, 'error');
+    }
+  } catch (e) {
+    setApiStatus(`Network error: ${e && e.message ? e.message : e}`, 'error');
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const btn = document.getElementById('check-connection-btn');
+  if (btn) btn.addEventListener('click', checkConnection);
+  // Simplify "+ Add Deposit" button label to just '+'
+  try {
+    const depSection = document.getElementById('deposits-section');
+    if (depSection) {
+      const buttons = depSection.querySelectorAll('button');
+      for (const b of buttons) {
+        const txt = (b.textContent || '').trim().toLowerCase();
+        if (txt.includes('add deposit')) {
+          b.textContent = '+';
+          b.setAttribute('title', 'Add Deposit');
+        }
+      }
+    }
+  } catch {}
+});
 
 // Add row functionality
 const addRowBtn = document.getElementById('add-row-btn');
@@ -90,6 +141,17 @@ const API_URL = `${API_BASE}/api/stocks`;
   if (!override || typeof override !== 'string' || !override.startsWith('http')) return;
   const originalFetch = window.fetch.bind(window);
   window.fetch = function (input, init) {
+    // Attach Authorization header if token available
+    try {
+      const token = localStorage.getItem('auth_token');
+      if (token) {
+        if (!init) init = {};
+        init.headers = new Headers(init.headers || {});
+        if (!init.headers.get('Authorization')) {
+          init.headers.set('Authorization', `Bearer ${token}`);
+        }
+      }
+    } catch {}
     try {
       if (typeof input === 'string') {
         if (input.startsWith('/api/')) {
@@ -114,6 +176,25 @@ const API_URL = `${API_BASE}/api/stocks`;
     return originalFetch(input, init);
   };
   console.log('API_BASE_OVERRIDE active:', override);
+})();
+
+// Attach Authorization header for local API calls even without override
+(function attachAuthHeader() {
+  if (typeof window === 'undefined') return;
+  const originalFetch = window.fetch.bind(window);
+  window.fetch = function (input, init) {
+    try {
+      const token = localStorage.getItem('auth_token');
+      if (token) {
+        if (!init) init = {};
+        init.headers = new Headers(init.headers || {});
+        if (!init.headers.get('Authorization')) {
+          init.headers.set('Authorization', `Bearer ${token}`);
+        }
+      }
+    } catch {}
+    return originalFetch(input, init);
+  };
 })();
 
 // Floating button visibility based on scroll
@@ -155,6 +236,35 @@ async function loadTableData() {
     stocks.forEach((stock) => {
       createRow(stock);
     });
+    // After rows rendered, backfill company names for symbols missing company
+    const rows = stocksTbody.querySelectorAll('tr[data-id]');
+    for (const row of rows) {
+      const symbolCell = row.querySelector('td[data-field="symbol"]');
+      const companyCell = row.querySelector('td[data-field="company"]');
+      const symbol = (symbolCell?.textContent || '').trim();
+      const currentCompany = (companyCell?.textContent || '').trim();
+      if (symbol && symbol !== '-' && (!currentCompany || currentCompany === '-')) {
+        try {
+          const info = await fetchStockPrice(symbol);
+          if (info) {
+            const name = (info.longName || info.name || info.shortName || '').trim();
+            if (name) {
+              companyCell.title = name;
+              const span = companyCell.querySelector('.company-ellipsis');
+              if (span) span.textContent = name; else companyCell.textContent = name;
+              const id = row.dataset.id;
+              if (id) {
+                await fetch(`${API_URL}/${id}`, {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ company: name }),
+                });
+              }
+            }
+          }
+        } catch {}
+      }
+    }
     // Ensure dashboard charts render after initial table load
     updateTotalBalance();
     updateBalancePieChart();
@@ -363,6 +473,28 @@ async function refreshStockPrices() {
               body: JSON.stringify({ share_price: displayText }),
             });
           }
+
+          // Also backfill company name if empty
+          try {
+            const companyCell = cells[3];
+            const currentCompany = (companyCell.textContent || '').trim();
+            if (!currentCompany || currentCompany === '-') {
+              const cname = (priceData.longName || priceData.name || priceData.shortName || '').trim();
+              if (cname) {
+                companyCell.title = cname;
+                const span = companyCell.querySelector('.company-ellipsis');
+                if (span) span.textContent = cname; else companyCell.textContent = cname;
+                const stockId2 = row.dataset.id;
+                if (stockId2) {
+                  await fetch(`${API_URL}/${stockId2}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ company: cname }),
+                  });
+                }
+              }
+            }
+          } catch {}
         }
       } catch (error) {
         console.error(`Error refreshing price for ${symbol}:`, error);
@@ -569,7 +701,7 @@ function createRow(data = null) {
         <td data-field="number">${rowNumber}</td>
         <td class="editable-cell" data-field="symbol">${data?.symbol || '-'}</td>
         <td data-field="weight">${data?.weight || '-'}</td>
-        <td class="editable-cell" data-field="company">${data?.company || '-'}</td>
+      <td class="editable-cell" data-field="company">${data?.company || '-'}</td>
         <td data-field="allocation">${data?.allocation || '-'}</td>
         <td class="editable-cell" data-field="shares">${data?.shares || '-'}</td>
         <td data-field="share_price">${data?.share_price || '-'}</td>
@@ -968,6 +1100,16 @@ async function exitEditMode() {
               cells[4].textContent = `€${allocation.toFixed(2)}`;
             }
             updateWeightForRow(currentEditingRow);
+
+            // Auto-fill Company name from price object (long name when available)
+            try {
+              const companyCell = cells[3];
+              const companyName = (priceObj.longName || priceObj.name || priceObj.shortName || '').trim();
+              if (companyName) {
+                companyCell.textContent = companyName;
+                companyCell.removeAttribute('title');
+              }
+            } catch {}
           }
         }
       }
@@ -1581,6 +1723,8 @@ setTimeout(initGlobalSorting, 150);
 // ========== PIE CHART ==========
 let balancePieChart = null;
 let balancePieChartRetries = 0;
+let depositsChart = null;
+let depositsChartType = 'bar';
 
 // ========== DEPOSITS SECTION ==========
 const depositsTbody = document.getElementById('deposits-tbody');
@@ -1593,10 +1737,25 @@ async function loadDepositsData() {
   try {
     const response = await fetch(DEPOSITS_API_URL);
     const deposits = await response.json();
-    deposits.forEach((deposit) => {
-      createDepositRow(deposit);
+    // Sort by date descending (most recent first)
+    const parseDate = (d) => {
+      // expects format DD/MM/YYYY
+      const m = (d || '').match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+      if (!m) return new Date(0);
+      const dd = parseInt(m[1], 10);
+      const mm = parseInt(m[2], 10) - 1;
+      const yyyy = parseInt(m[3], 10);
+      return new Date(yyyy, mm, dd);
+    };
+    deposits.sort((a, b) => parseDate(b.date) - parseDate(a.date));
+    deposits.forEach((deposit, idx) => {
+      const row = createDepositRow(deposit);
+      // Ensure counts start from 1 top-down
+      const countCell = row.querySelector('[data-field="count"]');
+      if (countCell) countCell.textContent = String(idx + 1);
     });
     updateTotalDeposits();
+    try { await renderDepositsChart(deposits); } catch (e) { console.warn('Deposits chart render failed', e); }
   } catch (error) {
     console.error('Error loading deposits:', error);
   }
@@ -1654,6 +1813,26 @@ function getCurrentDate() {
   return `${day}/${month}/${year}`;
 }
 
+// Helpers to convert between DD/MM/YYYY and ISO (YYYY-MM-DD)
+function toIsoDate(ddmmyyyy) {
+  const m = /^([0-9]{2})\/([0-9]{2})\/([0-9]{4})$/;
+  const match = (ddmmyyyy || '').match(m);
+  if (!match) return '';
+  const dd = match[1];
+  const mm = match[2];
+  const yyyy = match[3];
+  return `${yyyy}-${mm}-${dd}`;
+}
+function fromIsoDate(iso) {
+  const m = /^([0-9]{4})-([0-9]{2})-([0-9]{2})$/;
+  const match = (iso || '').match(m);
+  if (!match) return getCurrentDate();
+  const yyyy = match[1];
+  const mm = match[2];
+  const dd = match[3];
+  return `${dd}/${mm}/${yyyy}`;
+}
+
 // Create deposit row
 function createDepositRow(data) {
   const newRow = document.createElement('tr');
@@ -1667,7 +1846,6 @@ function createDepositRow(data) {
         <td data-field="count">${count}</td>
         <td data-field="date">${data?.date || getCurrentDate()}</td>
         <td class="editable-cell" data-field="account">${data?.account || '-'}</td>
-        <td class="editable-cell" data-field="month">${data?.month || '-'}</td>
         <td class="editable-cell" data-field="amount">${data?.amount || '-'}</td>
         <td class="action-buttons">
             <button class="edit-btn" title="Edit">
@@ -1714,36 +1892,23 @@ function attachDepositRowListeners(row) {
             `;
 
       const editableCells = row.querySelectorAll('.editable-cell');
+
+      // Make Date editable for any row when entering edit mode
+      const dateCell = row.querySelector('[data-field="date"]');
+      if (dateCell && !dateCell.querySelector('input')) {
+        const cur = (dateCell.textContent || '').trim();
+        const input = document.createElement('input');
+        input.type = 'date';
+        input.value = toIsoDate(cur) || new Date().toISOString().slice(0, 10);
+        dateCell.textContent = '';
+        dateCell.appendChild(input);
+        input.addEventListener('keypress', (ev) => { if (ev.key === 'Enter') exitDepositEditMode(); });
+      }
       editableCells.forEach((cell) => {
         const currentValue = cell.textContent;
         const fieldName = cell.dataset.field;
 
-        if (fieldName === 'month') {
-          const select = document.createElement('select');
-          const months = [
-            'January',
-            'February',
-            'March',
-            'April',
-            'May',
-            'June',
-            'July',
-            'August',
-            'September',
-            'October',
-            'November',
-            'December',
-          ];
-          select.innerHTML =
-            '<option value="">Select Month</option>' +
-            months
-              .map(
-                (m) => `<option value="${m}" ${currentValue === m ? 'selected' : ''}>${m}</option>`
-              )
-              .join('');
-          cell.textContent = '';
-          cell.appendChild(select);
-        } else if (fieldName === 'account') {
+        if (fieldName === 'account') {
           const select = document.createElement('select');
           const accounts = [
             'Tradeville',
@@ -1798,6 +1963,16 @@ function attachDepositRowListeners(row) {
       row.remove();
       updateDepositCounts();
       updateTotalDeposits();
+      // Refresh Money Invested sections immediately after deletion
+      try { await updateDepositsBreakdown(); } catch {}
+      try { await updateBalanceBreakdown(); } catch {}
+      try { await updateTotalBalance(); } catch {}
+      try { updateBalancePieChart(); } catch {}
+      try {
+        const resp = await fetch(DEPOSITS_API_URL);
+        const items = await resp.json();
+        await renderDepositsChart(items);
+      } catch {}
     });
   });
 }
@@ -1815,7 +1990,6 @@ async function exitDepositEditMode() {
         date: cells[1].textContent,
         amount: '',
         account: '',
-        month: '',
       };
 
       editableCells.forEach((cell) => {
@@ -1832,6 +2006,17 @@ async function exitDepositEditMode() {
         }
       });
 
+      // If Date was edited, capture input and persist
+      const dateCell = currentEditingDeposit.querySelector('[data-field="date"]');
+      const dateInput = dateCell ? dateCell.querySelector('input') : null;
+      if (dateInput) {
+        const valIso = (dateInput.value || '').trim();
+        const display = valIso ? fromIsoDate(valIso) : getCurrentDate();
+        dateCell.textContent = display;
+        depositData.date = display;
+        currentEditingDeposit.removeAttribute('data-newDeposit');
+      }
+
       // Update in database
       const id = currentEditingDeposit.dataset.id;
       if (id) {
@@ -1844,6 +2029,18 @@ async function exitDepositEditMode() {
         try { await updateBalanceBreakdown(); } catch {}
         try { await updateTotalBalance(); } catch {}
         try { updateBalancePieChart(); } catch {}
+        try {
+          const resp = await fetch(DEPOSITS_API_URL);
+          const items = await resp.json();
+          await renderDepositsChart(items);
+        } catch {}
+
+        // After saving, move this row to the top (most recent first) and auto-scroll
+        if (depositsTbody.firstChild && currentEditingDeposit.parentNode === depositsTbody) {
+          depositsTbody.insertBefore(currentEditingDeposit, depositsTbody.firstChild);
+          updateDepositCounts();
+          try { currentEditingDeposit.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch {}
+        }
       }
 
       editBtn.title = 'Edit';
@@ -1903,8 +2100,13 @@ function updateTotalDeposits() {
 // Update deposits breakdown in dashboard
 async function updateDepositsBreakdown() {
   try {
-    const response = await fetch('/api/deposits');
-    const deposits = await response.json();
+    const [respDeposits, respHidden] = await Promise.all([
+      apiGet('/api/deposits'),
+      apiGet('/api/settings/hidden-labels')
+    ]);
+    const deposits = await respDeposits.json();
+    const hiddenJson = respHidden && respHidden.ok ? await respHidden.json() : { labels: [] };
+    const hidden = Array.isArray(hiddenJson.labels) ? hiddenJson.labels.map((s) => String(s).trim()) : [];
 
     // Initialize totals
     let xtbEur = 0;
@@ -1913,16 +2115,17 @@ async function updateDepositsBreakdown() {
     let crypto = 0;
     let bankDeposits = 0;
 
-    // Calculate totals based on account field
+    // Calculate totals based on account field; skip hidden labels
     deposits.forEach((deposit) => {
       const amount = parseFloat(deposit.amount.replace(/[^0-9.-]/g, '')) || 0;
       const account = deposit.account || '';
+      if (hidden.includes(String(account).trim())) return; // suppressed
 
       if (account === 'XTB-EURO') {
         xtbEur += amount;
       } else if (account === 'Tradeville') {
         tradeville += amount;
-      } else if (account === 'Trading212' || account === 'XTB-USD') {
+      } else if (account === 'Trading212' || account === 'XTB-USD' || account === 'T212 + XTB USD') {
         t212XtbUsd += amount;
       } else if (account === 'Crypto') {
         crypto += amount;
@@ -1931,25 +2134,42 @@ async function updateDepositsBreakdown() {
       }
     });
 
-    // Helper to update multiple id variants (dashboard + deposits tab duplicate)
+    // Helper to update multiple id variants (dashboard + deposits tab duplicate), skipping hidden labels
     function setIfExists(id, value) {
       const el = document.getElementById(id);
       if (el) el.textContent = Math.round(value).toLocaleString('en-US') + ' €';
     }
     const mapping = [
-      ['xtb-eur-value', xtbEur],
-      ['tradeville-value', tradeville],
-      ['t212-xtb-usd-value', t212XtbUsd],
-      ['crypto-value', crypto],
-      ['bank-deposits-value', bankDeposits],
+      ['xtb-eur-value', xtbEur, 'XTB-EURO'],
+      ['tradeville-value', tradeville, 'Tradeville'],
+      ['t212-xtb-usd-value', t212XtbUsd, 'XTB-USD'],
+      ['crypto-value', crypto, 'Crypto'],
+      ['bank-deposits-value', bankDeposits, 'Bank Deposit'],
       // Deposits tab duplicate IDs
-      ['xtb-eur-value-deposits', xtbEur],
-      ['tradeville-value-deposits', tradeville],
-      ['t212-xtb-usd-value-deposits', t212XtbUsd],
-      ['crypto-value-deposits', crypto],
-      ['bank-deposits-value-deposits', bankDeposits],
+      ['xtb-eur-value-deposits', xtbEur, 'XTB-EURO'],
+      ['tradeville-value-deposits', tradeville, 'Tradeville'],
+      ['t212-xtb-usd-value-deposits', t212XtbUsd, 'XTB-USD'],
+      ['crypto-value-deposits', crypto, 'Crypto'],
+      ['bank-deposits-value-deposits', bankDeposits, 'Bank Deposit'],
     ];
-    mapping.forEach(([id, val]) => setIfExists(id, val));
+    mapping.forEach(([id, val, label]) => {
+      if (hidden.includes(label)) {
+        const el = document.getElementById(id);
+        if (el) {
+          el.textContent = '0 €';
+          // Also remove any breakdown rows with this label
+          const rows = Array.from(document.querySelectorAll('.deposits-breakdown .breakdown-item'));
+          rows.forEach((r) => {
+            const lbl = r.querySelector('.breakdown-label');
+            if (lbl && String(lbl.textContent || '').trim() === label) {
+              r.remove();
+            }
+          });
+        }
+      } else {
+        setIfExists(id, val);
+      }
+    });
     // After updating Money invested values, refresh Average Monthly Contribution
     try { updateAverageMonthlyContribution(); } catch {}
   } catch (error) {
@@ -2297,6 +2517,12 @@ async function probeBase(base) {
 }
 async function apiFetchWithFallback(method, path, payload) {
   const headers = { 'Content-Type': 'application/json' };
+  try {
+    const token = localStorage.getItem('auth_token');
+    if (token && token !== 'dev-token') {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+  } catch {}
   const bases = buildBaseCandidates();
   // Prefer cached base, if any
   if (API_BASE_CACHED) {
@@ -2409,13 +2635,14 @@ async function loadWithdrawals() {
 function getMonthNameFromDate(dateStr) {
   // Expect DD/MM/YYYY
   if (!dateStr || !/\d{2}\/\d{2}\/\d{4}/.test(dateStr)) return '-';
-  const [day, month] = dateStr.split('/');
+  const [day, month, year] = dateStr.split('/');
   const monthIndex = parseInt(month, 10) - 1;
   const months = [
     'January','February','March','April','May','June',
     'July','August','September','October','November','December'
   ];
-  return months[monthIndex] || '-';
+  const m = months[monthIndex] || '-';
+  return year && m !== '-' ? `${m} ${year}` : m;
 }
 
 function createWithdrawalRow(data = null) {
@@ -2473,18 +2700,23 @@ function attachWithdrawalRowListeners(row) {
       input.focus();
       input.addEventListener('keypress', (ev) => { if (ev.key === 'Enter') exitWithdrawalEditMode(); });
 
-      // Month dropdown editable
+      // Month-Year picker editable (defaults from Date column)
       const monthCell = row.querySelector('[data-field="month"]');
       if (monthCell) {
-        const currentMonth = monthCell.textContent.trim();
-        const months = [
-          'January','February','March','April','May','June',
-          'July','August','September','October','November','December'
-        ];
-        const select = document.createElement('select');
-        select.innerHTML = '<option value="">Select Month</option>' + months.map(m => `<option value="${m}" ${currentMonth===m?'selected':''}>${m}</option>`).join('');
+        const dateCell = row.querySelector('[data-field="date"]');
+        const dateVal = dateCell ? dateCell.textContent.trim() : '';
+        // Build default value as YYYY-MM from Date cell
+        let defaultYM = '';
+        if (dateVal && /\d{2}\/\d{2}\/\d{4}/.test(dateVal)) {
+          const [d, m, y] = dateVal.split('/');
+          defaultYM = `${y}-${String(parseInt(m,10)).padStart(2,'0')}`;
+        }
+        const input = document.createElement('input');
+        input.type = 'month';
+        input.value = defaultYM;
+        input.placeholder = 'Select month';
         monthCell.textContent = '';
-        monthCell.appendChild(select);
+        monthCell.appendChild(input);
       }
     } else {
       await exitWithdrawalEditMode();
@@ -2525,13 +2757,23 @@ async function exitWithdrawalEditMode() {
     } else {
       amountCell.textContent = '-';
     }
-    // Persist chosen month from dropdown (if present)
+    // Persist chosen month from month-year picker (if present)
     const monthCell = currentEditingWithdrawal.querySelector('[data-field="month"]');
     if (monthCell) {
-      const select = monthCell.querySelector('select');
-      if (select) {
-        const chosen = select.value || '-';
-        monthCell.textContent = chosen;
+      const inputMonth = monthCell.querySelector('input[type="month"]');
+      if (inputMonth) {
+        const ym = inputMonth.value; // format YYYY-MM
+        if (ym && /\d{4}-\d{2}/.test(ym)) {
+          const [y, m] = ym.split('-');
+          const months = [
+            'January','February','March','April','May','June',
+            'July','August','September','October','November','December'
+          ];
+          const label = `${months[parseInt(m,10)-1]} ${y}`;
+          monthCell.textContent = label;
+        } else {
+          monthCell.textContent = '-';
+        }
       }
     }
     // Persist to backend
@@ -2776,6 +3018,138 @@ function updateProfit() {
   }
 }
 
+// Build timeline months from min deposit date to current month inclusive
+function buildMonthTimeline(minDateStr) {
+  const [dd, mm, yyyy] = (minDateStr || getCurrentDate()).split('/').map((x) => parseInt(x, 10));
+  const start = new Date(yyyy, mm - 1, 1);
+  const end = new Date();
+  end.setDate(1);
+  const labels = [];
+  const keys = [];
+  const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const keyFmt = (d) => `${String(d.getFullYear())}-${String(d.getMonth()+1).padStart(2,'0')}`;
+  const cur = new Date(start);
+  while (cur <= end) {
+    labels.push(`${months[cur.getMonth()]} ${cur.getFullYear()}`);
+    keys.push(keyFmt(cur));
+    cur.setMonth(cur.getMonth() + 1);
+  }
+  return { labels, keys };
+}
+
+// Aggregate deposits by month (YYYY-MM) summing amounts
+function aggregateDepositsByMonth(items) {
+  const map = new Map();
+  let minDate = null;
+  items.forEach((it) => {
+    const date = String(it.date || '').trim();
+    const amount = parseFloat(String(it.amount || '0').replace(/[^0-9.-]/g, '')) || 0;
+    const m = date.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (!m) return;
+    const dd = m[1], mm = m[2], yyyy = m[3];
+    const key = `${yyyy}-${mm}`;
+    map.set(key, (map.get(key) || 0) + amount);
+    if (!minDate) minDate = date;
+    else {
+      const [d1, m1, y1] = minDate.split('/').map((x) => parseInt(x, 10));
+      const [d2, m2, y2] = [parseInt(dd,10), parseInt(mm,10), parseInt(yyyy,10)];
+      const A = new Date(y1, m1-1, d1).getTime();
+      const B = new Date(y2, m2-1, d2).getTime();
+      if (B < A) minDate = date;
+    }
+  });
+  return { map, minDate: minDate || getCurrentDate() };
+}
+
+async function renderDepositsChart(items) {
+  try {
+    const ctx = document.getElementById('depositsChart');
+    if (!ctx) return;
+    const { map, minDate } = aggregateDepositsByMonth(items || []);
+    const { labels, keys } = buildMonthTimeline(minDate);
+    const data = keys.map((k) => map.get(k) || 0);
+    const config = {
+      type: depositsChartType === 'line' ? 'line' : 'bar',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Deposits per month',
+          data,
+          backgroundColor: depositsChartType === 'line' ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.7)',
+          borderColor: '#ffffff',
+          borderWidth: 2,
+          fill: depositsChartType === 'line',
+          pointBackgroundColor: '#ffffff',
+          pointBorderColor: '#ffffff',
+          pointRadius: depositsChartType === 'line' ? 3 : 0,
+        }],
+      },
+      options: {
+        responsive: true,
+        aspectRatio: 2.4, // reduce chart height by ~20% compared to default
+        plugins: {
+          legend: { display: true, labels: { color: '#ffffff' } },
+          tooltip: { enabled: true, titleColor: '#ffffff', bodyColor: '#ffffff' },
+        },
+        scales: {
+          x: {
+            title: { display: true, text: 'Time (months)', color: '#ffffff' },
+            ticks: {
+              color: '#ffffff',
+              callback: function(value, index, ticks) {
+                const raw = this.getLabelForValue(value);
+                if (typeof raw === 'string') {
+                  const parts = raw.split(' ');
+                  if (parts.length >= 2) {
+                    const monthShort = parts[0].slice(0, 3);
+                    const yearShort = parts[1].slice(-2);
+                    return monthShort + ' ' + yearShort;
+                  }
+                }
+                return raw;
+              }
+            },
+            grid: { color: 'rgba(255,255,255,0.15)' }
+          },
+          y: {
+            title: { display: true, text: 'Amount (€)', color: '#ffffff' },
+            ticks: { color: '#ffffff' },
+            grid: { color: 'rgba(255,255,255,0.15)' },
+            beginAtZero: true
+          },
+        },
+      },
+    };
+    if (depositsChart) {
+      depositsChart.destroy();
+    }
+    depositsChart = new Chart(ctx, config);
+  } catch (e) {
+    console.warn('renderDepositsChart error', e);
+  }
+}
+
+const depositsBarsBtn = document.getElementById('deposits-chart-bars-btn');
+const depositsLineBtn = document.getElementById('deposits-chart-line-btn');
+if (depositsBarsBtn && depositsLineBtn) {
+  const setActive = (bars) => {
+    depositsBarsBtn.classList.toggle('active', bars);
+    depositsBarsBtn.setAttribute('aria-selected', bars ? 'true' : 'false');
+    depositsLineBtn.classList.toggle('active', !bars);
+    depositsLineBtn.setAttribute('aria-selected', bars ? 'false' : 'true');
+  };
+  depositsBarsBtn.addEventListener('click', async () => {
+    depositsChartType = 'bar';
+    setActive(true);
+    try { const resp = await fetch(DEPOSITS_API_URL); const items = await resp.json(); await renderDepositsChart(items); } catch {}
+  });
+  depositsLineBtn.addEventListener('click', async () => {
+    depositsChartType = 'line';
+    setActive(false);
+    try { const resp = await fetch(DEPOSITS_API_URL); const items = await resp.json(); await renderDepositsChart(items); } catch {}
+  });
+}
+
 // Add new deposit button
 if (addDepositBtn) {
   addDepositBtn.addEventListener('click', async () => {
@@ -2786,14 +3160,22 @@ if (addDepositBtn) {
       date: getCurrentDate(),
       amount: '-',
       account: '-',
-      month: '-',
     };
     console.log('Deposit data to save:', data);
     const result = await addDepositToDatabase(data);
     console.log('Result from database:', result);
     if (result) {
-      const newRow = createDepositRow(result);
+        const newRow = createDepositRow(result);
+      // mark as newly added to allow Date editing
+      newRow.dataset.newDeposit = '1';
       console.log('New row created:', newRow);
+        // Move newly added row to the top and renumber counts
+        if (depositsTbody.firstChild) {
+          depositsTbody.insertBefore(newRow, depositsTbody.firstChild);
+        }
+        updateDepositCounts();
+        // Smooth scroll the new row into view, centering it
+        try { newRow.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch {}
       updateTotalDeposits();
       // Enter edit mode automatically
       setTimeout(() => {
@@ -2966,6 +3348,243 @@ function initSettingsInvesting() {
 
 // Initialize settings after DOM
 setTimeout(initSettingsInvesting, 0);
+
+// ===== Settings: Hardcoded Multi List =====
+function initSettingsMultiList() {
+  const container = document.getElementById('settings-multi-list');
+  const searchInput = document.getElementById('settings-multi-search');
+  const addInput = document.getElementById('settings-multi-add-input');
+  const addBtn = document.getElementById('settings-multi-add-btn');
+  if (!container) return;
+  const HARD_OPTIONS = [];
+  // Do NOT auto-populate from Money invested labels; items are sourced from server settings
+  // Stored state (initialize from server, then fallback to localStorage)
+  let savedSelections = [];
+  let items = [];
+  async function loadServerItems() {
+    try {
+      const resp = await apiGet('/api/settings/user-items');
+      if (resp && resp.ok) {
+        const json = await resp.json();
+        if (json && Array.isArray(json.items)) items = json.items.map((s) => String(s).trim());
+      }
+    } catch {}
+  }
+  async function ensureLocalFallback() {
+    try {
+      const rawSel = localStorage.getItem('settings_multi_list');
+      if (rawSel) savedSelections = JSON.parse(rawSel);
+      if (!Array.isArray(savedSelections)) savedSelections = [];
+      const rawItems = localStorage.getItem('settings_multi_items');
+      if (rawItems && items.length === 0) items = JSON.parse(rawItems);
+      if (!Array.isArray(items)) items = [];
+    } catch {}
+  }
+  // Initialize items with union of invested labels and stored custom
+  const toTitle = (s) => String(s).trim();
+  async function buildInitialItems() {
+    await loadServerItems();
+    await ensureLocalFallback();
+    items = Array.from(new Set([...(items || []).map(toTitle)])).sort();
+  }
+
+  function persist() {
+    try {
+      localStorage.setItem('settings_multi_list', JSON.stringify(savedSelections));
+      localStorage.setItem('settings_multi_items', JSON.stringify(items));
+    } catch {}
+  }
+
+  function render(filter = '') {
+    const f = String(filter || '').toLowerCase();
+    container.innerHTML = '';
+    items
+      .filter(label => !f || label.toLowerCase().includes(f))
+      .forEach((label) => {
+        const row = document.createElement('div');
+        row.style.display = 'flex';
+        row.style.alignItems = 'center';
+        row.style.gap = '10px';
+        row.style.padding = '8px 10px';
+        row.style.border = '1px solid #2b2b2b';
+        row.style.borderRadius = '10px';
+        row.style.background = '#0f172a';
+        row.style.boxShadow = 'inset 0 1px 0 rgba(255,255,255,0.05), 0 4px 12px rgba(0,0,0,0.25)';
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.checked = savedSelections.includes(label);
+        cb.addEventListener('change', () => {
+          const exists = savedSelections.includes(label);
+          if (cb.checked && !exists) savedSelections.push(label);
+          if (!cb.checked && exists) savedSelections = savedSelections.filter(x => x !== label);
+          persist();
+        });
+        const span = document.createElement('span');
+        span.textContent = label;
+        span.style.flex = '1';
+        span.style.color = '#e5e7eb';
+        span.style.fontWeight = '600';
+        span.style.letterSpacing = '0.2px';
+        const del = document.createElement('button');
+        del.title = 'Delete';
+        del.innerHTML = '🗑️';
+        del.className = 'btn-sm ghost';
+        del.style.fontSize = '0.8rem';
+        del.style.padding = '2px 6px';
+        del.style.border = '1px solid #3b3b3b';
+        del.style.borderRadius = '6px';
+        del.style.background = '#111827';
+        del.style.color = '#9ca3af';
+        del.addEventListener('mouseenter', () => { del.style.color = '#e5e7eb'; del.style.borderColor = '#4b5563'; });
+        del.addEventListener('mouseleave', () => { del.style.color = '#9ca3af'; del.style.borderColor = '#3b3b3b'; });
+        del.addEventListener('click', async () => {
+                    // Persist deletion to backend user items
+                    try {
+                      const resp = await apiDelete(`/api/settings/user-item?label=${encodeURIComponent(label)}`);
+                      if (!resp || !resp.ok) {
+                        console.warn('Failed to delete item from server');
+                      }
+                    } catch {}
+          // Check if label exists in Money Invested panel and has value 0
+          let canRemove = true;
+          let foundRow = null;
+          try {
+            const moneyPanel = document.querySelector('#deposits-section .deposits-breakdown');
+            if (moneyPanel) {
+              const rows = Array.from(moneyPanel.querySelectorAll('.breakdown-item'));
+              for (const r of rows) {
+                const lbl = r.querySelector('.breakdown-label');
+                const valEl = r.querySelector('.breakdown-value, .breakdown-value-white');
+                const lblText = lbl ? lbl.textContent.trim() : '';
+                if (lblText === label) {
+                  foundRow = r;
+                  const valText = valEl ? valEl.textContent : '';
+                  const num = parseEuroText(valText);
+                  canRemove = Math.abs(num) <= 0.0001; // treat near-zero as zero
+                  break;
+                }
+              }
+            }
+          } catch {}
+
+          // Backend guard: attempt to delete category for current user when UI value is zero
+          if (canRemove) {
+            try {
+              const resp = await apiDelete(`/api/money-invested/category?label=${encodeURIComponent(label)}`);
+              if (!resp || !resp.ok) {
+                const err = await (resp ? resp.json().catch(() => ({})) : Promise.resolve({}));
+                const msg = err && err.error
+                  ? err.error
+                  : 'Server rejected category removal';
+                showWarningBanner(msg);
+                return;
+              }
+              // Persist hidden label so Dashboard/Deposits panels suppress it on refresh
+              try {
+                const hideResp = await apiPost('/api/settings/hidden-label', { label });
+                if (!hideResp || !hideResp.ok) console.warn('Failed to persist hidden label');
+              } catch {}
+            } catch (e) {
+              showWarningBanner('Network error while removing category');
+              return;
+            }
+          } else {
+            showWarningBanner('You are not allowed to remove this account because it has Deposits on it');
+            return;
+          }
+
+          // Remove settings item
+          items = items.filter(x => x !== label);
+          savedSelections = savedSelections.filter(x => x !== label);
+          persist();
+          render(searchInput ? searchInput.value : '');
+
+          // Also remove all Money Invested rows (Dashboard/Deposits panels) with this label if zero
+          if (canRemove) {
+            try {
+              const allPanels = Array.from(document.querySelectorAll('.deposits-breakdown .breakdown-item'));
+              for (const r of allPanels) {
+                const lbl = r.querySelector('.breakdown-label');
+                if (lbl && String(lbl.textContent || '').trim() === label) {
+                  r.remove();
+                }
+              }
+            } catch {}
+          }
+        });
+        row.appendChild(cb);
+        row.appendChild(span);
+        row.appendChild(del);
+        container.appendChild(row);
+      });
+  }
+
+  if (searchInput) {
+    searchInput.addEventListener('input', () => render(searchInput.value));
+  }
+  if (addBtn && addInput) {
+    const addHandler = () => {
+      const val = toTitle(addInput.value);
+      if (!val) return;
+      if (!items.includes(val)) {
+        items.push(val);
+        items.sort();
+      }
+      addInput.value = '';
+      persist();
+      // Persist addition to backend user items
+      (async () => {
+        try {
+          const resp = await apiPost('/api/settings/user-item', { label: val });
+          if (!resp || !resp.ok) console.warn('Failed to save item to server');
+        } catch {}
+      })();
+      render(searchInput ? searchInput.value : '');
+    };
+    addBtn.addEventListener('click', addHandler);
+    addInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') addHandler(); });
+  }
+
+  (async () => { await buildInitialItems(); render(); })();
+}
+
+setTimeout(initSettingsMultiList, 0);
+
+// Fancy warning banner (non-blocking, auto-hide)
+function showWarningBanner(message) {
+  const existing = document.getElementById('warning-banner');
+  if (existing) existing.remove();
+  const banner = document.createElement('div');
+  banner.id = 'warning-banner';
+  banner.textContent = message;
+  banner.style.position = 'fixed';
+  banner.style.top = '20px';
+  banner.style.right = '20px';
+  banner.style.zIndex = '9999';
+  banner.style.padding = '12px 16px';
+  banner.style.borderRadius = '10px';
+  banner.style.backdropFilter = 'blur(6px)';
+  banner.style.boxShadow = '0 10px 25px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)';
+  banner.style.color = '#fff';
+  banner.style.background = 'linear-gradient(135deg, #ef4444, #b91c1c)';
+  banner.style.border = '1px solid rgba(255,255,255,0.15)';
+  banner.style.fontWeight = '700';
+  banner.style.letterSpacing = '0.3px';
+  banner.style.textShadow = '0 1px 2px rgba(0,0,0,0.35)';
+  banner.style.transform = 'translateY(-10px)';
+  banner.style.opacity = '0';
+  banner.style.transition = 'transform 250ms ease, opacity 250ms ease';
+  document.body.appendChild(banner);
+  requestAnimationFrame(() => {
+    banner.style.transform = 'translateY(0)';
+    banner.style.opacity = '1';
+  });
+  setTimeout(() => {
+    banner.style.transform = 'translateY(-10px)';
+    banner.style.opacity = '0';
+    setTimeout(() => { try { banner.remove(); } catch {} }, 300);
+  }, 3500);
+}
 
 // Compute Average Monthly Contribution: sum Money invested (excluding Bank Deposits) / months
 function parseEuroText(text) {
@@ -3398,7 +4017,9 @@ async function updateBalancePieChart() {
 async function checkAndSaveSnapshot() {
   try {
     // Get the most recent snapshot from database
-    const response = await fetch('/api/performance-snapshots?range=max');
+    const uid = getCurrentUid();
+    const qs = uid != null ? `?range=max&userId=${uid}` : `?range=max`;
+    const response = await apiGet(`/api/performance-snapshots${qs}`);
     const data = await response.json();
     const snapshots = data.snapshots || [];
 
@@ -3434,7 +4055,7 @@ async function savePerformanceSnapshot() {
     // Calculate total deposits from deposits data (not from DOM element which might not be loaded)
     let totalDeposits = 0;
     try {
-      const response = await fetch('/api/deposits');
+      const response = await apiGet('/api/deposits');
       const deposits = await response.json();
       totalDeposits = deposits.reduce((sum, deposit) => {
         // Remove € symbol, commas, and other non-numeric characters
@@ -3456,13 +4077,9 @@ async function savePerformanceSnapshot() {
 
     console.log(`💾 Saving snapshot: Balance=${normalizedBalance}€, Deposits=${totalDeposits}€`);
 
-    const response = await fetch(`${API_BASE}/api/performance-snapshot`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        portfolio_balance: normalizedBalance,
-        total_deposits: totalDeposits,
-      }),
+    const response = await apiPost('/api/performance-snapshot', {
+      portfolio_balance: normalizedBalance,
+      total_deposits: totalDeposits,
     });
 
     if (response.ok) {
@@ -3479,6 +4096,19 @@ async function savePerformanceSnapshot() {
   } catch (error) {
     console.error('❌ Error saving snapshot:', error);
   }
+}
+// Helper: decode current uid from JWT in localStorage
+function getCurrentUid() {
+  try {
+    const tok = localStorage.getItem('auth_token');
+    if (!tok || tok === 'dev-token') return null;
+    const parts = tok.split('.');
+    if (parts.length < 2) return null;
+    const b64 = parts[1].replace(/-/g,'+').replace(/_/g,'/');
+    const payload = JSON.parse(atob(b64));
+    const uid = Number(payload && payload.uid);
+    return Number.isFinite(uid) ? uid : null;
+  } catch { return null; }
 }
 
 // Snapshot saving is now integrated with price refresh (no separate interval needed)
@@ -3600,6 +4230,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Admin section event listeners
   const refreshSnapshotsBtn = document.getElementById('refresh-snapshots-btn');
+  const loadByUserBtn = document.getElementById('admin-snapshots-load');
   const exportSnapshotsBtn = document.getElementById('export-snapshots-btn');
   const resetBaselineBtn = document.getElementById('reset-baseline-btn');
   const deleteOldSnapshotsBtn = document.getElementById('delete-old-snapshots-btn');
@@ -3608,6 +4239,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (refreshSnapshotsBtn) {
     refreshSnapshotsBtn.addEventListener('click', loadSnapshotsData);
+  }
+  if (loadByUserBtn) {
+    loadByUserBtn.addEventListener('click', loadSnapshotsData);
   }
 
   if (resetBaselineBtn) {
@@ -5239,7 +5873,9 @@ async function generatePerformanceData(range) {
   try {
     console.log(`📊 Fetching performance snapshots for range: ${range}`);
 
-    const response = await fetch(`${API_BASE}/api/performance-snapshots?range=${range}`);
+    const uid = getCurrentUid();
+    const qs = uid != null ? `?range=${range}&userId=${uid}` : `?range=${range}`;
+    const response = await apiGet(`/api/performance-snapshots${qs}`);
     const data = await response.json();
     const snapshots = data.snapshots || [];
 
@@ -5643,7 +6279,11 @@ async function updatePerformanceChart(range = '1m') {
 // Load all snapshots
 async function loadSnapshotsData() {
   try {
-    const response = await fetch(`${API_BASE}/api/performance-snapshots?range=max`);
+    const userInput = document.getElementById('admin-snapshots-user-id');
+    const params = new URLSearchParams({ range: 'max' });
+    const userIdVal = Number(userInput && userInput.value);
+    if (Number.isInteger(userIdVal) && userIdVal > 0) params.set('userId', String(userIdVal));
+    const response = await fetch(`${API_BASE}/api/performance-snapshots?${params.toString()}`);
     const data = await response.json();
     const snapshots = data.snapshots || [];
 
@@ -5979,13 +6619,39 @@ async function deleteOldSnapshots() {
 // Delete all snapshots
 async function deleteAllSnapshots() {
   try {
-    const response = await fetch(`${API_BASE}/api/performance-snapshots/delete-all`, {
-      method: 'DELETE',
-    });
-
-    const result = await response.json();
-    alert(`Deleted all ${result.deleted || 0} snapshots`);
-    loadSnapshotsData();
+    const userInput = document.getElementById('admin-snapshots-user-id');
+    const userIdVal = Number(userInput && userInput.value);
+    if (Number.isInteger(userIdVal) && userIdVal > 0) {
+      const confirmed = confirm(`Delete ALL snapshots for user #${userIdVal}?`);
+      if (!confirmed) return;
+      const response = await apiDelete(`/api/performance-snapshots/delete-user?userId=${userIdVal}`);
+      if (!response) {
+        alert('API not reachable for delete-user');
+        return;
+      }
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        alert(`Delete failed: ${result.error || response.status}`);
+        return;
+      }
+      alert(`Deleted ${result.deleted || 0} snapshots for user #${userIdVal}`);
+      await loadSnapshotsData();
+    } else {
+      const confirmed = confirm('Delete ALL snapshots for ALL users?');
+      if (!confirmed) return;
+      const response = await apiDelete(`/api/performance-snapshots/delete-all`);
+      if (!response) {
+        alert('API not reachable for delete-all');
+        return;
+      }
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        alert(`Delete failed: ${result.error || response.status}`);
+        return;
+      }
+      alert(`Deleted all ${result.deleted || 0} snapshots`);
+      await loadSnapshotsData();
+    }
   } catch (error) {
     console.error('Error deleting all snapshots:', error);
     alert('Error deleting all snapshots');
@@ -6095,7 +6761,9 @@ async function deleteSnapshotRange(fromId, toId) {
 async function resetBaseline() {
   try {
     // Get latest snapshot data to use as new baseline
-    const snapshotsResponse = await fetch(`${API_BASE}/api/performance-snapshots?range=max`);
+    const uid = getCurrentUid();
+    const qs = uid != null ? `?range=max&userId=${uid}` : `?range=max`;
+    const snapshotsResponse = await apiGet(`/api/performance-snapshots${qs}`);
     const snapshotsData = await snapshotsResponse.json();
     const snapshots = snapshotsData.snapshots || [];
 
@@ -6152,7 +6820,12 @@ async function resetBaseline() {
 
 // Export snapshots to CSV
 function exportSnapshotsToCSV() {
-  fetch(`${API_BASE}/api/performance-snapshots?range=max`)
+  (async () => {
+    const uid = getCurrentUid();
+    const qs = uid != null ? `?range=max&userId=${uid}` : `?range=max`;
+    const resp = await apiGet(`/api/performance-snapshots${qs}`);
+    return resp.json();
+  })()
     .then((response) => response.json())
     .then((data) => {
       const snapshots = data.snapshots || [];

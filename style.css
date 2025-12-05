@@ -95,6 +95,62 @@
   transform: translateX(100%);
 }
 
+/* ===== Connection tools & API status ===== */
+#dashboard-section .chart-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+#dashboard-section .connection-tools {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+}
+#dashboard-section .tiny-btn {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.8rem;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.35);
+  background: rgba(255,255,255,0.08);
+  color: #fff;
+  cursor: pointer;
+}
+#dashboard-section .tiny-btn:hover { background: rgba(255,255,255,0.15); }
+#dashboard-section .api-status {
+  margin: 8px 0 12px 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(255, 193, 7, 0.12);
+  border: 1px solid rgba(255, 193, 7, 0.45);
+  color: #ffd54f;
+  font-size: 0.9rem;
+}
+#dashboard-section .api-status.ok {
+  background: rgba(76, 175, 80, 0.12);
+  border-color: rgba(76, 175, 80, 0.45);
+  color: #9be7a1;
+}
+#dashboard-section .api-status.error {
+  background: rgba(244, 67, 54, 0.12);
+  border-color: rgba(244, 67, 54, 0.45);
+  color: #ff867c;
+}
+
+/* ===== Deposits table tweaks ===== */
+#deposits-section table tr td:nth-child(3),
+#deposits-section table tr th:nth-child(3),
+#deposits-section table tr td:nth-child(4),
+#deposits-section table tr th:nth-child(4) {
+  text-align: center;
+}
+
+#deposits-section table th,
+#deposits-section table td {
+  /* Widen visual spacing by ~20% (incremental +10%) */
+  padding-left: 0.66rem;
+  padding-right: 0.66rem;
+}
+
 /* ===== Admin: Delete Range inputs and button ===== */
 #admin-section .admin-range .admin-input {
   flex: 1 1 40%; /* allow shrink/grow while targeting ~40% */
@@ -117,6 +173,44 @@
   align-items: center;
   justify-content: center;
   font-size: 16px; /* emoji icon size */
+}
+
+/* ===== Deposits: Chart switch size adjustments ===== */
+/* Reduce the switch button height by ~50% in Deposits panel */
+#deposits-section .allocation-switch {
+  padding: 0.175rem 0.5rem; /* half of 0.35rem top/bottom */
+}
+#deposits-section .allocation-option {
+  padding: 0.3rem 1.15rem; /* half vertical padding, slightly tighter horizontal */
+}
+
+/* Position the Deposits chart switch inside the chart panel (top-right) */
+#deposits-section .deposits-chart-container {
+  position: relative;
+  display: block;
+  width: 100%;
+  max-width: 768px; /* match Money Invested panel width */
+  height: auto;
+  margin-left: auto;
+  margin-right: auto;
+}
+#deposits-section .deposits-chart-switch {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 2;
+}
+
+/* Ensure the chart canvas fills the panel container */
+#deposits-section .deposits-chart-container canvas {
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+}
+
+/* Add a 5mm gap between the chart panel and its parent */
+#deposits-section .deposits-chart-panel {
+  margin: 5mm 0; /* top and bottom spacing of 5 millimeters */
 }
 
 /* ===== Admin: Snapshot Stats panels sizing ===== */
@@ -337,7 +431,7 @@
 /* Deposits table header grid */
 #deposits-section .stocks-table thead tr {
   display: grid;
-  grid-template-columns: 70px 160px 140px 160px 140px 120px; /* revert to original widths */
+  grid-template-columns: 70px 160px 180px 160px 120px; /* Count, Date, Account, Amount, Actions */
   gap: 8px;
 }
 
@@ -376,10 +470,19 @@
     background 160ms ease;
 }
 
+/* Company cell: truncate long names with ellipsis and show full on hover via title */
+.company-ellipsis {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
 /* Deposits table rows styled like Stocks cards */
 #deposits-tbody tr {
   display: grid;
-  grid-template-columns: 70px 160px 140px 160px 140px 120px; /* revert to original widths */
+  grid-template-columns: 70px 160px 180px 160px 120px; /* Count, Date, Account, Amount, Actions */
   gap: 3px;
   /* Match lightened Stocks row gradient */
   /* Lightened ~20% (alphas *0.8) */
@@ -976,6 +1079,13 @@ body {
   margin-top: -2rem;
 }
 
+/* Center Deposits section contents only when active */
+#deposits-section.active {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
 h1 {
   font-size: 3rem;
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
@@ -1321,6 +1431,15 @@ p {
 /* Deposits table: amount values should be white */
 #deposits-section td[data-field="amount"] {
   color: #ffffff;
+}
+
+/* Match Deposits table width to Money Invested panel */
+#deposits-section table.stocks-table {
+  width: 100% !important;
+  max-width: 768px !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  display: block;
 }
 
 /* Deposits table: header 'Account' in white (override any theme color) */

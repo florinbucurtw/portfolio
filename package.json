@@ -8,6 +8,7 @@
   "scripts": {
     "start": "node serve.mjs",
     "dev": "nodemon serve.mjs",
+    "dev:worker": "wrangler dev",
     "db:clone": "node scripts/clone-db.mjs",
     "start:test": "PORT=3001 DB_PATH=portfolio.test.db node serve.mjs",
     "firestore:export": "node scripts/firestore-export.mjs",
@@ -26,6 +27,7 @@
   "dependencies": {
     "cors": "^2.8.5",
     "express": "^4.18.2",
+    "http-proxy-middleware": "^3.0.5",
     "node-fetch": "^3.3.2",
     "sqlite3": "^5.1.7"
   },
@@ -33,10 +35,10 @@
     "@playwright/test": "^1.48.0",
     "@vitest/coverage-v8": "^4.0.14",
     "@vitest/ui": "^4.0.14",
-    "firebase-admin": "^12.6.0",
     "eslint": "^9.12.0",
-    "prettier": "^3.2.5",
+    "firebase-admin": "^12.6.0",
     "nodemon": "^3.0.2",
+    "prettier": "^3.2.5",
     "typescript": "^5.6.3",
     "undici": "^6.19.8",
     "vitest": "^4.0.14"

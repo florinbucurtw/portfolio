@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="ro">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Login • Portfolio</title>
+    <link rel="stylesheet" href="/style.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+  </head>
+  <body class="login-body">
+    <div class="login-container">
+      <div class="login-card">
+        <div class="login-brand">
+          <div class="brand-glow"></div>
+          <h1 class="brand-title">Portfolio</h1>
+          <p class="brand-sub">Sign in to your dashboard</p>
+        </div>
+
+        <form id="login-form" class="login-form" autocomplete="on">
+          <div class="input-group">
+            <label for="login-username" class="input-label">Email or Username</label>
+            <input id="login-username" name="username" type="text" class="login-input" placeholder="you@example.com" required />
+          </div>
+
+          <div class="input-group">
+            <label for="login-password" class="input-label">Password</label>
+            <div class="password-wrapper">
+              <input id="login-password" name="password" type="password" class="login-input" placeholder="Enter your password" required />
+              <button type="button" id="toggle-password" class="password-toggle" aria-label="Show/Hide Password">👁️</button>
+            </div>
+          </div>
+
+          <div class="login-row">
+            <label class="remember-me">
+              <input type="checkbox" id="remember" />
+              <span>Remember me</span>
+            </label>
+            <a href="forgot.html" class="forgot-link">Forgot password?</a>
+          </div>
+
+          <button type="submit" class="login-btn primary" id="login-submit">Sign In</button>
+
+          <div class="login-separator">
+            <span class="sep-line"></span>
+            <span class="sep-text">or</span>
+            <span class="sep-line"></span>
+          </div>
+
+          <div class="login-actions">
+            <a href="/register.html" class="login-btn ghost" id="go-register">Create Account</a>
+            <a href="/index.html" class="login-btn ghost" id="go-dashboard">Back to Dashboard</a>
+          </div>
+        </form>
+
+        <p class="login-footer">By continuing you agree to the Terms & Privacy.</p>
+      </div>
+    </div>
+
+    <script src="/login.js"></script>
+  </body>
+</html>

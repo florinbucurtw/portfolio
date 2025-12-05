@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="ro">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Aplicația Mea Web</title>
+    <link rel="stylesheet" href="/style.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+    <!-- Keep original override if present in root index.html -->
+    <script>
+      (function () {
+        const isLocal = ['localhost', '127.0.0.1'].includes(location.hostname);
+        const workerUrl = location.origin; // serve same-origin via Worker
+        window.API_BASE_OVERRIDE = workerUrl;
+      })();
+    </script>
+  </head>
+  <body>
+    <!-- Load the full app logic from root script.js -->
+    <script src="/script.js"></script>
+  </body>
+</html>

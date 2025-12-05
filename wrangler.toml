@@ -8,6 +8,9 @@ binding = "DB"
 database_name = "portfolio"
 database_id = "1fb040bd-7b49-4796-a5cb-8933b2eb9efc"
 
+[assets]
+directory = "public"
+
 [triggers]
 # Run every minute
 crons = ["*/1 * * * *"]

@@ -5,6 +5,12 @@ export default {
     const method = request.method.toUpperCase();
 
     try {
+      // Serve static assets from public/ via Wrangler [assets]
+      if (!path.startsWith('/api/')) {
+        // Allow SPA-style routing: serve index.html for root and known pages
+        return env.ASSETS.fetch(request);
+      }
+
       if (path === '/api/exchange-rates' && method === 'GET') {
         const rates = await fetchRates(env);
         return json({ rates });
