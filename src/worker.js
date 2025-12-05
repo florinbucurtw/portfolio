@@ -812,7 +812,27 @@ export default {
       return json({ cached: true, data: [] });
     }
 
-    // Performance snapshots: save
+    // Helper: parse uid from Authorization Bearer token (unverified JWT payload)
+    const getUid = () => {
+      try {
+        const auth = request.headers.get('Authorization') || '';
+        if (!auth.startsWith('Bearer ')) return null;
+        const token = auth.slice(7).trim();
+        const parts = token.split('.');
+        if (parts.length < 2) return null;
+        const b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+        const json = atob(b64);
+        const payload = JSON.parse(json);
+        return payload && payload.uid != null ? Number(payload.uid) : null;
+      } catch { return null; }
+    };
+    // Ensure schema has user_id for performance tables
+    await env.DB.prepare('CREATE TABLE IF NOT EXISTS performance_baseline (id INTEGER PRIMARY KEY, timestamp INTEGER, portfolio_balance REAL, total_deposits REAL, sp500_price REAL, bet_price REAL, created_at TEXT)').run();
+    await env.DB.prepare('ALTER TABLE performance_baseline ADD COLUMN user_id INTEGER DEFAULT 1').run().catch(() => {});
+    await env.DB.prepare('CREATE TABLE IF NOT EXISTS performance_snapshots (id INTEGER PRIMARY KEY AUTOINCREMENT, timestamp INTEGER, portfolio_balance REAL, portfolio_percent REAL, deposits_percent REAL, sp500_percent REAL, bet_percent REAL)').run();
+    await env.DB.prepare('ALTER TABLE performance_snapshots ADD COLUMN user_id INTEGER DEFAULT 1').run().catch(() => {});
+
+    // Performance snapshots: save (per-user)
     if (path === '/api/performance-snapshot' && method === 'POST') {
       try {
         const body = await request.json();
@@ -820,25 +840,25 @@ export default {
         const total_deposits = Number(body.total_deposits || 0);
         const tsOverride = Number(body.timestamp);
         const timestamp = Number.isFinite(tsOverride) ? tsOverride : Date.now();
+        const uid = getUid() ?? 1;
 
         const baseline = await env.DB.prepare(
-          'SELECT * FROM performance_baseline WHERE id = 1'
-        ).first();
+          'SELECT * FROM performance_baseline WHERE user_id = ? ORDER BY id LIMIT 1'
+        ).bind(uid).first();
         if (!baseline) {
           const spBase = await fetchIndexPrice('^GSPC');
           const betBase = await fetchIndexPrice('^BET-TRN.RO');
           await env.DB.prepare(
-            'INSERT INTO performance_baseline (id, timestamp, portfolio_balance, total_deposits, sp500_price, bet_price) VALUES (1, ?, ?, ?, ?, ?)'
+            'INSERT INTO performance_baseline (timestamp, portfolio_balance, total_deposits, sp500_price, bet_price, user_id) VALUES (?, ?, ?, ?, ?, ?)'
           )
-            .bind(timestamp, portfolio_balance, total_deposits, spBase, betBase)
+            .bind(timestamp, portfolio_balance, total_deposits, spBase, betBase, uid)
             .run();
           await env.DB.prepare(
-            'INSERT INTO performance_snapshots (timestamp, portfolio_balance, portfolio_percent, deposits_percent, sp500_percent, bet_percent) VALUES (?, ?, 0, 0, 0, 0)'
+            'INSERT INTO performance_snapshots (timestamp, portfolio_balance, portfolio_percent, deposits_percent, sp500_percent, bet_percent, user_id) VALUES (?, ?, 0, 0, 0, 0, ?)'
           )
-            .bind(timestamp, portfolio_balance)
+            .bind(timestamp, portfolio_balance, uid)
             .run();
           return json({
-            id: 1,
             timestamp,
             portfolio_percent: 0,
             deposits_percent: 0,
@@ -863,7 +883,7 @@ export default {
         const betPercent = await latestIndexPercent(env, baseline.bet_price || 0, '^BET-TRN.RO');
 
         await env.DB.prepare(
-          'INSERT INTO performance_snapshots (timestamp, portfolio_balance, portfolio_percent, deposits_percent, sp500_percent, bet_percent) VALUES (?, ?, ?, ?, ?, ?)'
+          'INSERT INTO performance_snapshots (timestamp, portfolio_balance, portfolio_percent, deposits_percent, sp500_percent, bet_percent, user_id) VALUES (?, ?, ?, ?, ?, ?, ?)'
         )
           .bind(
             timestamp,
@@ -871,7 +891,8 @@ export default {
             portfolioPercent,
             depositsPercent,
             sp500Percent,
-            betPercent
+            betPercent,
+            uid
           )
           .run();
         return json({
@@ -886,9 +907,11 @@ export default {
       }
     }
 
-    // Performance snapshots: list
+    // Performance snapshots: list (per-user if token present)
     if (path === '/api/performance-snapshots' && method === 'GET') {
       const range = url.searchParams.get('range') || '1m';
+      const userIdParam = url.searchParams.get('userId');
+      const uid = (userIdParam && Number(userIdParam)) || getUid();
       const now = Date.now();
       let startTime = 0;
       switch (range) {
@@ -922,43 +945,53 @@ export default {
         default:
           startTime = now - 2592000000;
       }
-      const rows = await env.DB.prepare(
-        'SELECT * FROM performance_snapshots WHERE timestamp >= ? ORDER BY timestamp ASC'
-      )
-        .bind(startTime)
-        .all();
+      let rows;
+      if (uid != null) {
+        rows = await env.DB.prepare(
+          'SELECT * FROM performance_snapshots WHERE user_id = ? AND timestamp >= ? ORDER BY timestamp ASC'
+        )
+          .bind(uid, startTime)
+          .all();
+      } else {
+        rows = await env.DB.prepare(
+          'SELECT * FROM performance_snapshots WHERE timestamp >= ? ORDER BY timestamp ASC'
+        )
+          .bind(startTime)
+          .all();
+      }
       return json({ range, snapshots: rows.results || [] });
     }
 
-    // Performance baseline: reset to provided values
+    // Performance baseline: reset to provided values (per-user)
     if (path === '/api/performance-baseline/reset' && method === 'POST') {
       try {
         const body = await request.json();
         const portfolio_balance = Number(body.portfolio_balance || 0);
         const total_deposits = Number(body.total_deposits || 0);
         const timestamp = Date.now();
+        const uid = getUid() ?? 1;
 
         const baseline = await env.DB.prepare(
-          'SELECT * FROM performance_baseline WHERE id = 1'
-        ).first();
+          'SELECT * FROM performance_baseline WHERE user_id = ? ORDER BY id LIMIT 1'
+        ).bind(uid).first();
         if (baseline) {
           await env.DB.prepare(
-            'UPDATE performance_baseline SET timestamp=?, portfolio_balance=?, total_deposits=? WHERE id = 1'
+            'UPDATE performance_baseline SET timestamp=?, portfolio_balance=?, total_deposits=? WHERE id = ?'
           )
-            .bind(timestamp, portfolio_balance, total_deposits)
+            .bind(timestamp, portfolio_balance, total_deposits, baseline.id)
             .run();
         } else {
           await env.DB.prepare(
-            'INSERT INTO performance_baseline (id, timestamp, portfolio_balance, total_deposits, sp500_price, bet_price) VALUES (1, ?, ?, ?, 0, 0)'
+            'INSERT INTO performance_baseline (timestamp, portfolio_balance, total_deposits, sp500_price, bet_price, user_id) VALUES (?, ?, ?, 0, 0, ?)'
           )
-            .bind(timestamp, portfolio_balance, total_deposits)
+            .bind(timestamp, portfolio_balance, total_deposits, uid)
             .run();
         }
         // Insert a zeroed snapshot to mark reset moment
         await env.DB.prepare(
-          'INSERT INTO performance_snapshots (timestamp, portfolio_balance, portfolio_percent, deposits_percent, sp500_percent, bet_percent) VALUES (?, ?, 0, 0, 0, 0)'
+          'INSERT INTO performance_snapshots (timestamp, portfolio_balance, portfolio_percent, deposits_percent, sp500_percent, bet_percent, user_id) VALUES (?, ?, 0, 0, 0, 0, ?)'
         )
-          .bind(timestamp, portfolio_balance)
+          .bind(timestamp, portfolio_balance, uid)
           .run();
         return json({ id: 1, timestamp, portfolio_balance, total_deposits, reset: true });
       } catch (e) {
@@ -977,6 +1010,24 @@ export default {
       if (!exists) return json({ error: 'Snapshot not found' }, 404);
       await env.DB.prepare('DELETE FROM performance_snapshots WHERE id = ?').bind(id).run();
       return json({ message: 'Snapshot deleted', id });
+    }
+
+    // Performance snapshots: delete all for a specific user
+    if (path === '/api/performance-snapshots/delete-user' && method === 'DELETE') {
+      const userIdParam = url.searchParams.get('userId');
+      const uid = getUid();
+      const targetUid = (userIdParam && Number(userIdParam)) || uid;
+      if (!Number.isFinite(targetUid) || targetUid <= 0) {
+        return json({ error: 'Invalid or missing userId' }, 400);
+      }
+      await env.DB.prepare('DELETE FROM performance_snapshots WHERE user_id = ?').bind(targetUid).run();
+      return json({ message: 'User snapshots deleted', user_id: targetUid });
+    }
+
+    // Performance snapshots: delete all (global)
+    if (path === '/api/performance-snapshots/delete-all' && method === 'DELETE') {
+      await env.DB.prepare('DELETE FROM performance_snapshots').run();
+      return json({ message: 'All snapshots deleted' });
     }
 
     // Performance snapshot: update by id (PUT)
@@ -1022,25 +1073,47 @@ export default {
       }
     }
 
-    // ===== Withdrawals (D1) =====
+    // ===== Withdrawals (D1) — per-user =====
+    // Helper: parse uid from Authorization Bearer token (unverified JWT payload)
+    const getUid = () => {
+      try {
+        const auth = request.headers.get('Authorization') || '';
+        if (!auth.startsWith('Bearer ')) return null;
+        const token = auth.slice(7).trim();
+        const parts = token.split('.');
+        if (parts.length < 2) return null;
+        const payload = JSON.parse(Buffer.from(parts[1].replace(/-/g,'+').replace(/_/g,'/'), 'base64').toString('utf8'));
+        return payload && payload.uid != null ? Number(payload.uid) : null;
+      } catch { return null; }
+    };
+    // Ensure schema has user_id
+    await env.DB.prepare('CREATE TABLE IF NOT EXISTS withdrawals (id INTEGER PRIMARY KEY AUTOINCREMENT, date TEXT, amount REAL, month TEXT, created_at INTEGER)').run();
+    await env.DB.prepare('ALTER TABLE withdrawals ADD COLUMN user_id INTEGER DEFAULT 1').run().catch(() => {});
+
     if (path === '/api/withdrawals' && method === 'GET') {
-      const { results } = await env.DB.prepare('SELECT * FROM withdrawals ORDER BY created_at ASC, id ASC').all();
-      return json(results || []);
+      const uid = getUid();
+      if (uid == null) {
+        // No auth → return all (admin/public)
+        const { results } = await env.DB.prepare('SELECT * FROM withdrawals ORDER BY created_at ASC, id ASC').all();
+        return json(results);
+      }
+      const { results } = await env.DB.prepare('SELECT * FROM withdrawals WHERE user_id = ? ORDER BY created_at ASC, id ASC').bind(uid).all();
+      return json(results);
     }
     if (path === '/api/withdrawals' && method === 'POST') {
-      try {
-        const body = await request.json();
-        const date = String(body.date || '');
-        const amount = Number(body.amount);
-        const month = String(body.month || '');
-        if (!date || !Number.isFinite(amount)) return json({ error: 'Invalid data' }, 400);
-        const created_at = Date.now();
-        const res = await env.DB.prepare('INSERT INTO withdrawals (date, amount, month, created_at) VALUES (?, ?, ?, ?)')
-          .bind(date, amount, month, created_at)
-          .run();
-        const row = await env.DB.prepare('SELECT * FROM withdrawals WHERE id = ?').bind(res.lastInsertRowId).first();
-        return json(row, 201);
-      } catch (e) {
+      const uid = getUid();
+      const body = await request.json();
+      const created_at = Date.now();
+      const date = String(body.date || '');
+      const amount = Number(body.amount);
+      const month = String(body.month || '');
+      if (!date || !Number.isFinite(amount)) return json({ error: 'Invalid data' }, 400);
+      const res = await env.DB.prepare('INSERT INTO withdrawals (date, amount, month, created_at, user_id) VALUES (?, ?, ?, ?, ?)')
+        .bind(date, amount, month, created_at, uid != null ? uid : 1)
+        .run();
+      const row = await env.DB.prepare('SELECT * FROM withdrawals WHERE id = ?').bind(res.lastInsertRowId).first();
+      return json(row, 201);
+    }
         return json({ error: e.message }, 500);
       }
     }

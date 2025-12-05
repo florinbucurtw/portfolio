@@ -37,6 +37,18 @@
       if (!pw) { submitBtn.disabled=false; submitBtn.textContent='Sign In'; return showError(password, 'Please enter your password.'); }
 
       try {
+        // Dev mode bypass: if backend says auth is disabled, short-circuit
+        try {
+          const devResp = await fetch('/api/dev-mode');
+          const dev = await devResp.json();
+          if (dev && dev.disable_auth) {
+            localStorage.setItem('auth_token', 'dev-token');
+            localStorage.setItem('auth_user', user || 'dev');
+            localStorage.setItem('auth_remember', remember?.checked ? '1' : '0');
+            setTimeout(() => { window.location.href = 'new.html'; }, 150);
+            return;
+          }
+        } catch {}
         const resp = await fetch('/api/login', {
           method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: user, password: pw })
         });

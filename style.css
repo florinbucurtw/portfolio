@@ -137,6 +137,108 @@
 }
 
 /* ===== Deposits table tweaks ===== */
+/* ===== Theme Switch (Settings) ===== */
+.theme-switch-wrapper {
+  position: relative;
+  display: inline-flex;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.06));
+  backdrop-filter: blur(14px);
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  border-radius: 50px;
+  padding: 0.35rem 0.5rem;
+  gap: 0.5rem;
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.35), inset 0 2px 6px rgba(255, 255, 255, 0.3);
+}
+.theme-option {
+  position: relative;
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 0.6rem 1.4rem;
+  border-radius: 40px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  transition: color 0.35s ease, transform 0.35s ease;
+  letter-spacing: 0.3px;
+}
+.theme-option.active { color: #ffffff; text-shadow: 0 0 8px rgba(255, 255, 255, 0.6); }
+.theme-switch-glow {
+  position: absolute;
+  top: 4px; left: 4px;
+  height: calc(100% - 8px);
+  width: calc(33.333% - 8px);
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #4facfe 100%);
+  border-radius: 40px;
+  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.5), inset 0 0 0 2px rgba(255, 255, 255, 0.25);
+  transition: transform 0.5s cubic-bezier(0.77, 0, 0.175, 1);
+  z-index: 0;
+}
+.theme-switch-wrapper .theme-option { z-index: 1; }
+.theme-switch-wrapper.dark-active .theme-switch-glow { transform: translateX(100%); }
+.theme-switch-wrapper.blue-active .theme-switch-glow { transform: translateX(200%); }
+.theme-hint { opacity: 0.8; font-size: 0.9rem; margin-top: 0.6rem; }
+
+/* ===== Theme palettes ===== */
+body.theme-purple {
+  --bg: linear-gradient(135deg, #5b3db5, #7b4bbd 40%, #3b1c7a);
+  --panel-bg: rgba(255,255,255,0.08);
+  --text: #ffffff;
+}
+body.theme-dark {
+  --bg: radial-gradient(1200px 600px at 20% 10%, #111, #000 60%, #0a0a0a);
+  --panel-bg: rgba(28,28,28,0.9);
+  --text: #e5e7eb;
+}
+body.theme-blue {
+  --bg: linear-gradient(135deg, #0b1a3a, #0e2a5e 45%, #0a1a33);
+  --panel-bg: rgba(22,40,72,0.85);
+  --text: #dce7ff;
+}
+
+body { color: var(--text); background: var(--bg); }
+.container, .panel-zone, .chart-container, .wide-panel-container, .panel { background: var(--panel-bg); }
+#deposits-section input,
+#deposits-section select,
+#deposits-section textarea,
+input,
+select,
+textarea {
+  width: 3cm; /* requested fixed width for input fields */
+  box-sizing: border-box;
+}
+#deposits-section table thead th .header-pill {
+  /* Remove pill visuals and let content render plainly */
+  display: contents; /* ignore wrapper sizing, use direct children */
+  background: none;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  margin: 0;
+}
+#deposits-section table thead th .header-pill::before,
+#deposits-section table thead th .header-pill::after {
+  content: none !important;
+}
+
+/* Force-remove any pill-like styling from header cells */
+#deposits-section table thead th {
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+  border-radius: 0 !important;
+}
+#deposits-section table thead th,
+#deposits-section table thead th * {
+  white-space: nowrap; /* prevent wrapping for header and children */
+}
+#deposits-section table thead th .sort-icon,
+#deposits-section table thead th svg {
+  display: inline-block; /* ensure icons sit inline */
+  vertical-align: middle;
+}
 #deposits-section table tr td:nth-child(3),
 #deposits-section table tr th:nth-child(3),
 #deposits-section table tr td:nth-child(4),
@@ -146,9 +248,110 @@
 
 #deposits-section table th,
 #deposits-section table td {
-  /* Widen visual spacing by ~20% (incremental +10%) */
-  padding-left: 0.66rem;
-  padding-right: 0.66rem;
+  /* Normalize header/body padding for exact alignment */
+  padding-left: 1rem;
+  padding-right: 1rem;
+  height: 3.25rem;
+  vertical-align: middle;
+  line-height: 1.2;
+}
+
+/* Align header and body columns exactly and set explicit widths */
+#deposits-section .table-container,
+#deposits-section table {
+  width: 100%;
+}
+#deposits-section .table-container {
+  max-width: 960px; /* constrain for nicer centering */
+  margin-left: auto;
+  margin-right: auto; /* center within panel */
+}
+#deposits-section table,
+#deposits-section .stocks-table {
+  display: block;
+  max-width: 960px;
+  margin-left: auto;
+  margin-right: auto; /* ensure table centers if wider than content */
+}
+
+/* Override full-width for Deposits table to allow visual centering */
+#deposits-section .stocks-table {
+  width: auto; /* don't force 100% width */
+}
+#deposits-section table {
+  table-layout: fixed; /* ensures header/body alignment */
+  border-collapse: separate; /* preserve rounded header cells */
+  border-spacing: 0; /* avoid extra gaps causing misalignment */
+}
+
+/* Column widths (adjust as needed) */
+#deposits-section table thead th:nth-child(1),
+#deposits-section table tbody td:nth-child(1) { /* Count */
+  width: 30%;
+  text-align: center;
+}
+#deposits-section table thead th:nth-child(2),
+#deposits-section table tbody td:nth-child(2) { /* Date */
+  width: 23%;
+}
+#deposits-section table thead th:nth-child(3),
+#deposits-section table tbody td:nth-child(3) { /* Account */
+  width: 25%;
+  white-space: nowrap; /* keep saved text on a single line */
+  overflow: visible; /* allow full text to be visible */
+}
+#deposits-section table thead th:nth-child(4),
+#deposits-section table tbody td:nth-child(4) { /* Amount */
+  width: 12%;
+}
+
+/* Shift Amount text/input right by ~1cm to clear actions */
+#deposits-section table tbody td:nth-child(4) {
+  padding-left: 1cm;
+}
+#deposits-section table thead th:nth-child(5),
+#deposits-section table tbody td:nth-child(5) { /* Actions */
+  width: 10%;
+  text-align: center;
+}
+
+/* Normalize header padding to match body for consistent look */
+#deposits-section table thead th {
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+/* Ensure action buttons fit comfortably */
+#deposits-section .actions-cell,
+#deposits-section table tbody td:nth-child(5) {
+  padding-top: 0.4rem;
+  padding-bottom: 0.4rem;
+  padding-left: 3cm; /* push buttons ~3cm to the right */
+  text-align: right; /* keep buttons aligned to the right edge */
+}
+#deposits-section table tbody td:nth-child(5) .edit-btn,
+#deposits-section table tbody td:nth-child(5) .delete-btn {
+  margin: 0 2px; /* small spacing between buttons */
+}
+
+/* Position the floating '+' away from header edge */
+#deposits-section #floating-add-btn {
+  right: 1.5rem; /* move inward from edge */
+}
+
+/* Prevent header pill bleed at edges */
+#deposits-section table thead {
+  overflow: hidden;
+}
+#deposits-section table thead th .header-pill { border-radius: 0; }
+
+/* Make Date inputs fill the cell, with a 3cm minimum */
+#deposits-section table tbody td:nth-child(2) input,
+#deposits-section table tbody td:nth-child(2) select {
+  width: 100%;
+  max-width: 100%;
+  min-width: 3cm;
+  box-sizing: border-box;
 }
 
 /* ===== Admin: Delete Range inputs and button ===== */

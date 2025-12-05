@@ -8,11 +8,25 @@
   </head>
   <body class="login-body">
     <script>
+      // Ensure auth bypass completes before redirect decision
+      (async () => {
+        try {
+          const resp = await fetch('/api/dev-mode');
+          const data = await resp.json();
+          if (data && data.disable_auth) {
+            localStorage.setItem('auth_token', 'dev-token');
+            localStorage.setItem('auth_user', 'dev');
+          }
+        } catch {}
+        const token = localStorage.getItem('auth_token');
+        if (!token) location.href = 'login.html';
+      })();
+    </script>
+    <script>
       // Protect this page: require token
       (function(){
         try {
-          const token = localStorage.getItem('auth_token');
-          if (!token) location.href = 'login.html';
+          // token check performed above after dev-mode probe
         } catch {}
       })();
     </script>

@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="ro">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Reset Password • Portfolio</title>
+    <link rel="stylesheet" href="style.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+  </head>
+  <body class="login-body">
+    <div class="login-container">
+      <div class="login-card">
+        <div class="login-brand">
+          <div class="brand-glow"></div>
+          <h1 class="brand-title">Set New Password</h1>
+          <p class="brand-sub">Enter and confirm your new password</p>
+        </div>
+        <form id="reset-form" class="login-form" autocomplete="on">
+          <div class="input-group">
+            <label for="reset-password" class="input-label">New Password</label>
+            <div class="password-wrapper">
+              <input id="reset-password" name="password" type="password" class="login-input" placeholder="Enter a new password" required />
+              <button type="button" id="toggle-password" class="password-toggle" aria-label="Show/Hide Password">👁️</button>
+            </div>
+          </div>
+          <div class="input-group">
+            <label for="reset-password2" class="input-label">Confirm Password</label>
+            <div class="password-wrapper">
+              <input id="reset-password2" name="password2" type="password" class="login-input" placeholder="Confirm password" required />
+              <button type="button" id="toggle-password2" class="password-toggle" aria-label="Show/Hide Password">👁️</button>
+            </div>
+          </div>
+          <button type="submit" class="login-btn primary" id="reset-submit">Update Password</button>
+          <div class="login-actions" style="margin-top:0.4rem">
+            <a href="login.html" class="login-btn ghost">Back to Login</a>
+          </div>
+          <p id="reset-message" class="login-footer" style="display:none"></p>
+        </form>
+      </div>
+    </div>
+    <script src="reset.js"></script>
+  </body>
+</html>

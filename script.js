@@ -122,6 +122,33 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
   } catch {}
+
+  // Theme switch
+  try {
+    const wrapper = document.querySelector('.theme-switch-wrapper');
+    const btnPurple = document.getElementById('theme-purple');
+    const btnDark = document.getElementById('theme-dark');
+    const btnBlue = document.getElementById('theme-blue');
+    const setActive = (variant) => {
+      btnPurple?.classList.toggle('active', variant === 'purple');
+      btnPurple?.setAttribute('aria-selected', variant === 'purple' ? 'true' : 'false');
+      btnDark?.classList.toggle('active', variant === 'dark');
+      btnDark?.setAttribute('aria-selected', variant === 'dark' ? 'true' : 'false');
+      btnBlue?.classList.toggle('active', variant === 'blue');
+      btnBlue?.setAttribute('aria-selected', variant === 'blue' ? 'true' : 'false');
+      wrapper?.classList.remove('dark-active', 'blue-active');
+      if (variant === 'dark') wrapper?.classList.add('dark-active');
+      if (variant === 'blue') wrapper?.classList.add('blue-active');
+      document.body.classList.remove('theme-purple', 'theme_dark', 'theme-blue', 'theme-dark');
+      document.body.classList.add(variant === 'purple' ? 'theme-purple' : (variant === 'dark' ? 'theme-dark' : 'theme-blue'));
+      localStorage.setItem('app_theme', variant);
+    };
+    const saved = localStorage.getItem('app_theme') || 'purple';
+    setActive(saved);
+    btnPurple?.addEventListener('click', () => setActive('purple'));
+    btnDark?.addEventListener('click', () => setActive('dark'));
+    btnBlue?.addEventListener('click', () => setActive('blue'));
+  } catch {}
 });
 
 // Add row functionality
@@ -3086,10 +3113,22 @@ async function renderDepositsChart(items) {
       },
       options: {
         responsive: true,
+        maintainAspectRatio: false,
         aspectRatio: 2.4, // reduce chart height by ~20% compared to default
+        interaction: { mode: 'index', intersect: false, axis: 'x' },
+        animation: { duration: 0 },
+        hover: { mode: 'index', intersect: false },
         plugins: {
           legend: { display: true, labels: { color: '#ffffff' } },
-          tooltip: { enabled: true, titleColor: '#ffffff', bodyColor: '#ffffff' },
+          tooltip: {
+            enabled: true,
+            animation: { duration: 0 },
+            position: 'average',
+            caretPadding: 6,
+            yAlign: 'bottom',
+            titleColor: '#ffffff',
+            bodyColor: '#ffffff'
+          },
         },
         scales: {
           x: {

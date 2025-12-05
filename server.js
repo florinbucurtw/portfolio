@@ -14,6 +14,7 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 let PORT = parseInt(process.env.PORT || '3000', 10);
+const STRICT_PORT = process.env.STRICT_PORT === '1';
 
 // In-memory cache for PREM validated price
 const premCache = {
@@ -93,7 +94,7 @@ db.run(
   `
   CREATE TABLE IF NOT EXISTS stocks (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    symbol TEXT UNIQUE,
+    symbol TEXT,
     weight TEXT,
     company TEXT,
     allocation TEXT,
@@ -108,6 +109,47 @@ db.run(
     if (err) {
       console.error('Error creating stocks table:', err);
     } else {
+      // If legacy UNIQUE(symbol) exists, migrate table to per-user uniqueness
+      db.get(
+        `SELECT sql FROM sqlite_master WHERE type='table' AND name='stocks'`,
+        [],
+        (e, row) => {
+          if (!e && row && typeof row.sql === 'string' && row.sql.includes('symbol TEXT UNIQUE')) {
+            console.log('⚠️ Legacy UNIQUE(symbol) detected. Migrating stocks table to per-user uniqueness...');
+            db.serialize(() => {
+              db.run('BEGIN');
+              db.run(
+                `CREATE TABLE IF NOT EXISTS stocks_new (
+                  id INTEGER PRIMARY KEY AUTOINCREMENT,
+                  symbol TEXT,
+                  weight TEXT,
+                  company TEXT,
+                  allocation TEXT,
+                  shares TEXT,
+                  share_price TEXT,
+                  broker TEXT,
+                  risk TEXT,
+                  sector TEXT,
+                  user_id INTEGER DEFAULT 1
+                )`
+              );
+              db.run(
+                `INSERT INTO stocks_new (id, symbol, weight, company, allocation, shares, share_price, broker, risk, sector, user_id)
+                 SELECT id, symbol, weight, company, allocation, shares, share_price, broker, risk, sector, COALESCE(user_id, 1)
+                 FROM stocks`
+              );
+              db.run('DROP TABLE stocks');
+              db.run('ALTER TABLE stocks_new RENAME TO stocks');
+              db.run('COMMIT');
+              // Create per-user unique index
+              db.run(
+                `CREATE UNIQUE INDEX IF NOT EXISTS idx_stocks_symbol_user ON stocks(symbol, user_id)`
+              );
+              console.log('✅ Stocks table migrated to per-user uniqueness.');
+            });
+          }
+        }
+      );
       // Add sector column if it doesn't exist (for existing databases)
       db.run(`ALTER TABLE stocks ADD COLUMN sector TEXT`, (err) => {
         if (err && !err.message.includes('duplicate column')) {
@@ -116,6 +158,21 @@ db.run(
           console.log('✓ Added sector column to stocks table');
         }
       });
+
+      // Ensure user_id exists for multi-tenancy
+      db.run(`ALTER TABLE stocks ADD COLUMN user_id INTEGER DEFAULT 1`, (e) => {
+        if (e && !String(e.message || '').includes('duplicate column')) {
+          console.warn('Could not add user_id to stocks:', e.message);
+        }
+      });
+
+      // Ensure per-user uniqueness: create index on (symbol, user_id)
+      db.run(
+        `CREATE UNIQUE INDEX IF NOT EXISTS idx_stocks_symbol_user ON stocks(symbol, user_id)`,
+        (e) => {
+          if (e) console.warn('Could not create unique index for stocks per user:', e.message);
+        }
+      );
 
       // Check if table is empty and import data if needed
       db.get('SELECT COUNT(*) as count FROM stocks', [], (err, row) => {
@@ -148,6 +205,11 @@ db.run(
       console.error('Error creating deposits table:', err);
     } else {
       console.log('Deposits table ready');
+      db.run(`ALTER TABLE deposits ADD COLUMN user_id INTEGER DEFAULT 1`, (e) => {
+        if (e && !String(e.message || '').includes('duplicate column')) {
+          console.warn('Could not add user_id to deposits:', e.message);
+        }
+      });
     }
   }
 );
@@ -166,6 +228,11 @@ db.run(
       console.error('Error creating dividends table:', err);
     } else {
       console.log('Dividends table ready');
+      db.run(`ALTER TABLE dividends ADD COLUMN user_id INTEGER DEFAULT 1`, (e) => {
+        if (e && !String(e.message || '').includes('duplicate column')) {
+          console.warn('Could not add user_id to dividends:', e.message);
+        }
+      });
     }
   }
 );
@@ -199,6 +266,11 @@ db.run(
           console.warn('Could not add currency column (may already exist):', e.message);
         }
       });
+      db.run(`ALTER TABLE dividends_monthly ADD COLUMN user_id INTEGER DEFAULT 1`, (e) => {
+        if (e && !String(e.message || '').includes('duplicate column')) {
+          console.warn('Could not add user_id to dividends_monthly:', e.message);
+        }
+      });
     }
   }
 );
@@ -228,6 +300,12 @@ db.run(
           console.warn('Could not add portfolio_balance column (may already exist):', e.message);
         }
       });
+      // Ensure multi-tenant column exists
+      db.run(`ALTER TABLE performance_snapshots ADD COLUMN user_id INTEGER DEFAULT 1`, (e2) => {
+        if (e2 && !String(e2.message || '').includes('duplicate column')) {
+          console.warn('Could not add user_id to performance_snapshots:', e2.message);
+        }
+      });
     }
   }
 );
@@ -236,7 +314,7 @@ db.run(
 db.run(
   `
   CREATE TABLE IF NOT EXISTS performance_baseline (
-    id INTEGER PRIMARY KEY CHECK (id = 1),
+    id INTEGER PRIMARY KEY,
     timestamp INTEGER NOT NULL,
     portfolio_balance REAL NOT NULL,
     total_deposits REAL NOT NULL,
@@ -250,6 +328,38 @@ db.run(
       console.error('Error creating performance_baseline table:', err);
     } else {
       console.log('Performance baseline table ready');
+      // Ensure multi-tenant column exists
+      db.run(`ALTER TABLE performance_baseline ADD COLUMN user_id INTEGER DEFAULT 1`, (e3) => {
+        if (e3 && !String(e3.message || '').includes('duplicate column')) {
+          console.warn('Could not add user_id to performance_baseline:', e3.message);
+        }
+      });
+      // Migrate legacy baseline schema that enforced single-row id=1
+      db.get(`SELECT sql FROM sqlite_master WHERE type='table' AND name='performance_baseline'`, [], (e, row) => {
+        if (!e && row && typeof row.sql === 'string' && row.sql.includes('CHECK (id = 1)')) {
+          console.log('⚠️ Legacy baseline schema detected (id=1). Migrating to per-user baselines...');
+          db.serialize(() => {
+            db.run('BEGIN');
+            db.run(`CREATE TABLE IF NOT EXISTS performance_baseline_new (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              timestamp INTEGER NOT NULL,
+              portfolio_balance REAL NOT NULL,
+              total_deposits REAL NOT NULL,
+              sp500_price REAL NOT NULL,
+              bet_price REAL NOT NULL,
+              created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+              user_id INTEGER DEFAULT 1
+            )`);
+            db.run(`INSERT INTO performance_baseline_new (timestamp, portfolio_balance, total_deposits, sp500_price, bet_price, created_at, user_id)
+                    SELECT timestamp, portfolio_balance, total_deposits, sp500_price, bet_price, created_at, COALESCE(user_id, 1)
+                    FROM performance_baseline`);
+            db.run('DROP TABLE performance_baseline');
+            db.run('ALTER TABLE performance_baseline_new RENAME TO performance_baseline');
+            db.run('COMMIT');
+            console.log('✅ Migrated baseline table to support per-user entries.');
+          });
+        }
+      });
     }
   }
 );
@@ -326,6 +436,8 @@ db.run(
     password_hash TEXT NOT NULL,
     is_active INTEGER DEFAULT 0,
     activation_token TEXT,
+    reset_token TEXT,
+    reset_expires INTEGER,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP
   )
 `,
@@ -334,6 +446,23 @@ db.run(
       console.error('Error creating users table:', err);
     } else {
       console.log('Users table ready');
+      // Add role column if missing
+      db.run(`ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'user'`, (e) => {
+        if (e && !String(e.message||'').includes('duplicate column')) {
+          console.warn('Could not add role column to users:', e.message);
+        }
+      });
+      // Ensure reset columns exist for older databases
+      db.run(`ALTER TABLE users ADD COLUMN reset_token TEXT`, (e2) => {
+        if (e2 && !String(e2.message||'').includes('duplicate column')) {
+          console.warn('Could not add reset_token column to users:', e2.message);
+        }
+      });
+      db.run(`ALTER TABLE users ADD COLUMN reset_expires INTEGER`, (e3) => {
+        if (e3 && !String(e3.message||'').includes('duplicate column')) {
+          console.warn('Could not add reset_expires column to users:', e3.message);
+        }
+      });
     }
   }
 );
@@ -658,16 +787,88 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(__dirname));
 
+// ===== Role-based access helpers =====
+function getUserFromReq(req, cb) {
+  try {
+    const auth = req.headers.authorization || '';
+    const token = (auth.startsWith('Bearer ') ? auth.slice(7) : '').trim();
+    if (!token) return cb(null, null);
+    const parts = token.split('.');
+    if (parts.length < 2) return cb(null, null);
+    const b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const payload = JSON.parse(Buffer.from(b64, 'base64').toString('utf8'));
+    const uid = payload && payload.uid;
+    if (uid == null) return cb(null, null);
+    db.get('SELECT id, username, role FROM users WHERE id = ?', [uid], (err, row) => {
+      if (err) return cb(err);
+      cb(null, row || null);
+    });
+  } catch (e) {
+    cb(e);
+  }
+}
+
 // API Routes
 
 // Get all stocks
 app.get('/api/stocks', (req, res) => {
-  db.all('SELECT * FROM stocks', [], (err, rows) => {
-    if (err) {
-      res.status(500).json({ error: err.message });
-      return;
-    }
-    res.json(rows);
+  db.run(`ALTER TABLE stocks ADD COLUMN user_id INTEGER DEFAULT 1`, () => {
+    getUserFromReq(req, (ge, user) => {
+      if (ge) return res.status(500).json({ error: ge.message });
+      if (!user) return res.status(401).json({ error: 'Unauthorized' });
+      db.all('SELECT * FROM stocks WHERE user_id = ? ORDER BY id', [user.id], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows);
+      });
+    });
+  });
+});
+
+// Get deposits by user or admin
+app.get('/api/deposits', (req, res) => {
+  db.run(`ALTER TABLE deposits ADD COLUMN user_id INTEGER DEFAULT 1`, () => {
+    getUserFromReq(req, (ge, user) => {
+      if (ge) return res.status(500).json({ error: ge.message });
+      if (!user) return res.status(401).json({ error: 'Unauthorized' });
+      db.all('SELECT * FROM deposits WHERE user_id = ? ORDER BY id', [user.id], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows);
+      });
+    });
+  });
+});
+
+// Get dividends
+app.get('/api/dividends', (req, res) => {
+  db.run(`ALTER TABLE dividends ADD COLUMN user_id INTEGER DEFAULT 1`, (e) => {
+    getUserFromReq(req, (ge, user) => {
+      if (ge) return res.status(500).json({ error: ge.message });
+      const isAdmin = user && user.role === 'admin';
+      const noAuth = !user;
+      const sql = (isAdmin || noAuth) ? 'SELECT * FROM dividends' : 'SELECT * FROM dividends WHERE user_id = ?';
+      const params = (isAdmin || noAuth) ? [] : [user.id];
+      db.all(sql, params, (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows);
+      });
+    });
+  });
+});
+
+// Get monthly dividends
+app.get('/api/dividends-monthly', (req, res) => {
+  db.run(`ALTER TABLE dividends_monthly ADD COLUMN user_id INTEGER DEFAULT 1`, (e) => {
+    getUserFromReq(req, (ge, user) => {
+      if (ge) return res.status(500).json({ error: ge.message });
+      const isAdmin = user && user.role === 'admin';
+      const noAuth = !user;
+      const sql = (isAdmin || noAuth) ? 'SELECT * FROM dividends_monthly' : 'SELECT * FROM dividends_monthly WHERE user_id = ?';
+      const params = (isAdmin || noAuth) ? [] : [user.id];
+      db.all(sql, params, (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows);
+      });
+    });
   });
 });
 
@@ -675,96 +876,84 @@ app.get('/api/stocks', (req, res) => {
 app.post('/api/stocks', (req, res) => {
   const { symbol, weight, company, allocation, shares, share_price, broker, risk, sector } =
     req.body;
+  getUserFromReq(req, (ge, user) => {
+    if (ge) return res.status(500).json({ error: ge.message });
+    const userId = user?.id || 1;
 
-  // Check if symbol already exists
-  db.get('SELECT id FROM stocks WHERE symbol = ?', [symbol], (err, row) => {
+  // Check if symbol already exists for this user
+  db.get('SELECT id FROM stocks WHERE symbol = ? AND user_id = ?', [symbol, userId], (err, row) => {
     if (err) {
       res.status(500).json({ error: err.message });
       return;
     }
 
     if (row) {
-      res.status(409).json({ error: `Stock with symbol '${symbol}' already exists` });
+      res.status(409).json({ error: `Stock with symbol '${symbol}' already exists for this user` });
       return;
     }
 
     // Insert new stock if no duplicate found
     db.run(
-      `INSERT INTO stocks (symbol, weight, company, allocation, shares, share_price, broker, risk, sector)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [symbol, weight, company, allocation, shares, share_price, broker, risk, sector || null],
+      `INSERT INTO stocks (symbol, weight, company, allocation, shares, share_price, broker, risk, sector, user_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [symbol, weight, company, allocation, shares, share_price, broker, risk, sector || null, userId],
       function (err) {
         if (err) {
           res.status(500).json({ error: err.message });
           return;
         }
-        res.json({ id: this.lastID, ...req.body });
+        res.json({ id: this.lastID, ...req.body, user_id: userId });
       }
     );
+  });
   });
 });
 
 // Update stock
 app.put('/api/stocks/:id', (req, res) => {
   const { id } = req.params;
-  const { symbol, weight, company, allocation, shares, share_price, broker, risk, sector } =
-    req.body;
+  const { symbol, weight, company, allocation, shares, share_price, broker, risk, sector } = req.body;
 
-  // If only share_price is provided, update only that field
-  if (Object.keys(req.body).length === 1 && share_price !== undefined) {
-    db.run(`UPDATE stocks SET share_price = ? WHERE id = ?`, [share_price, id], function (err) {
-      if (err) {
-        res.status(500).json({ error: err.message });
-        return;
-      }
-      res.json({ id: parseInt(id), share_price });
-    });
-  } else {
-    // Full update - check for duplicate symbol (excluding current stock)
-    if (symbol && symbol !== '-') {
-      db.get('SELECT id FROM stocks WHERE symbol = ? AND id != ?', [symbol, id], (err, row) => {
-        if (err) {
-          res.status(500).json({ error: err.message });
-          return;
-        }
+  getUserFromReq(req, (ge, user) => {
+    if (ge) return res.status(500).json({ error: ge.message });
+    const userId = user?.id || 1;
 
-        if (row) {
-          res.status(409).json({ error: `Stock with symbol '${symbol}' already exists` });
-          return;
-        }
-
-        // Perform update if no duplicate found
-        db.run(
-          `UPDATE stocks 
-           SET symbol = ?, weight = ?, company = ?, allocation = ?, shares = ?, share_price = ?, broker = ?, risk = ?, sector = ?
-           WHERE id = ?`,
-          [symbol, weight, company, allocation, shares, share_price, broker, risk, sector, id],
-          function (err) {
-            if (err) {
-              res.status(500).json({ error: err.message });
-              return;
-            }
-            res.json({ id: parseInt(id), ...req.body });
-          }
-        );
+    // If only share_price is provided, update only that field
+    if (Object.keys(req.body).length === 1 && share_price !== undefined) {
+      db.run(`UPDATE stocks SET share_price = ? WHERE id = ?`, [share_price, id], function (err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ id: parseInt(id), share_price });
       });
-    } else {
-      // No symbol check needed for empty or "-" symbols
+      return;
+    }
+
+    const performUpdate = () => {
       db.run(
         `UPDATE stocks 
          SET symbol = ?, weight = ?, company = ?, allocation = ?, shares = ?, share_price = ?, broker = ?, risk = ?, sector = ?
          WHERE id = ?`,
         [symbol, weight, company, allocation, shares, share_price, broker, risk, sector, id],
         function (err) {
-          if (err) {
-            res.status(500).json({ error: err.message });
-            return;
-          }
+          if (err) return res.status(500).json({ error: err.message });
           res.json({ id: parseInt(id), ...req.body });
         }
       );
+    };
+
+    if (symbol && symbol !== '-') {
+      db.get(
+        'SELECT id FROM stocks WHERE symbol = ? AND user_id = ? AND id != ?',
+        [symbol, userId, id],
+        (err, row) => {
+          if (err) return res.status(500).json({ error: err.message });
+          if (row) return res.status(409).json({ error: `Stock with symbol '${symbol}' already exists for this user` });
+          performUpdate();
+        }
+      );
+    } else {
+      performUpdate();
     }
-  }
+  });
 });
 
 // Delete stock
@@ -1258,8 +1447,16 @@ app.post('/api/performance-snapshot', async (req, res) => {
       console.log('Could not fetch BET-TR price:', err.message);
     }
 
-    // Check if baseline exists
-    db.get('SELECT * FROM performance_baseline WHERE id = 1', [], (err, baseline) => {
+    // Resolve current user
+    let uid = 1;
+    await new Promise((resolve) => {
+      getUserFromReq(req, (ge, user) => {
+        if (!ge && user && Number.isFinite(Number(user.id))) uid = Number(user.id);
+        resolve();
+      });
+    });
+    // Check if baseline exists for this user
+    db.get('SELECT * FROM performance_baseline WHERE user_id = ? ORDER BY id LIMIT 1', [uid], (err, baseline) => {
       if (err) {
         console.error('Error checking baseline:', err);
         res.status(500).json({ error: err.message });
@@ -1269,9 +1466,9 @@ app.post('/api/performance-snapshot', async (req, res) => {
       // If no baseline exists, create it (T0)
       if (!baseline) {
         db.run(
-          `INSERT INTO performance_baseline (id, timestamp, portfolio_balance, total_deposits, sp500_price, bet_price)
-           VALUES (1, ?, ?, ?, ?, ?)`,
-          [timestamp, portfolio_balance, total_deposits, sp500Price, betPrice],
+          `INSERT INTO performance_baseline (timestamp, portfolio_balance, total_deposits, sp500_price, bet_price, user_id)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+          [timestamp, portfolio_balance, total_deposits, sp500Price, betPrice, uid],
           function (err) {
             if (err) {
               console.error('Error creating baseline:', err);
@@ -1285,9 +1482,9 @@ app.post('/api/performance-snapshot', async (req, res) => {
 
             // First snapshot is always 0% for everything
             db.run(
-              `INSERT INTO performance_snapshots (timestamp, portfolio_balance, portfolio_percent, deposits_percent, sp500_percent, bet_percent)
-               VALUES (?, ?, 0, 0, 0, 0)`,
-              [timestamp, portfolio_balance],
+              `INSERT INTO performance_snapshots (timestamp, portfolio_balance, portfolio_percent, deposits_percent, sp500_percent, bet_percent, user_id)
+               VALUES (?, ?, 0, 0, 0, 0, ?)`,
+              [timestamp, portfolio_balance, uid],
               function (err) {
                 if (err) {
                   console.error('Error saving first snapshot:', err);
@@ -1333,38 +1530,42 @@ app.post('/api/performance-snapshot', async (req, res) => {
             ? ((betPrice - baseline.bet_price) / baseline.bet_price) * 100
             : 0;
 
-        // Save percentages to database with full precision
-        db.run(
-          `INSERT INTO performance_snapshots (timestamp, portfolio_balance, portfolio_percent, deposits_percent, sp500_percent, bet_percent)
-           VALUES (?, ?, ?, ?, ?, ?)`,
-          [
-            timestamp,
-            portfolio_balance,
-            portfolioPercent,
-            depositsPercent,
-            sp500Percent,
-            betPercent,
-          ],
-          function (err) {
-            if (err) {
-              console.error('Error saving snapshot:', err);
-              res.status(500).json({ error: err.message });
-              return;
-            }
-
-            console.log(
-              `✅ Snapshot saved: Portfolio=${portfolioPercent.toFixed(4)}%, Deposits=${depositsPercent.toFixed(4)}%, S&P=${sp500Percent.toFixed(4)}%, BET=${betPercent.toFixed(4)}%`
-            );
-            res.json({
-              id: this.lastID,
+        // Save percentages to database with full precision, scoped by user
+        getUserFromReq(req, (ge, user) => {
+          const userIdToSave = (!ge && user && Number.isFinite(Number(user.id))) ? Number(user.id) : uid;
+          db.run(
+            `INSERT INTO performance_snapshots (timestamp, portfolio_balance, portfolio_percent, deposits_percent, sp500_percent, bet_percent, user_id)
+                 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            [
               timestamp,
-              portfolio_percent: portfolioPercent,
-              deposits_percent: depositsPercent,
-              sp500_percent: sp500Percent,
-              bet_percent: betPercent,
-            });
-          }
-        );
+              portfolio_balance,
+              portfolioPercent,
+              depositsPercent,
+              sp500Percent,
+              betPercent,
+              userIdToSave,
+            ],
+            function (err) {
+              if (err) {
+                console.error('Error saving snapshot:', err);
+                res.status(500).json({ error: err.message });
+                return;
+              }
+
+              console.log(
+                `✅ Snapshot saved: Portfolio=${portfolioPercent.toFixed(4)}%, Deposits=${depositsPercent.toFixed(4)}%, S&P=${sp500Percent.toFixed(4)}%, BET=${betPercent.toFixed(4)}%`
+              );
+              res.json({
+                id: this.lastID,
+                timestamp,
+                portfolio_percent: portfolioPercent,
+                deposits_percent: depositsPercent,
+                sp500_percent: sp500Percent,
+                bet_percent: betPercent,
+              });
+            }
+          );
+        });
       }
     });
   } catch (error) {
@@ -1477,10 +1678,19 @@ app.get('/api/performance-snapshots', (req, res) => {
       startTime = now - 2592000000; // Default 1 month
   }
 
-  db.all(
-    'SELECT * FROM performance_snapshots WHERE timestamp >= ? ORDER BY timestamp ASC',
-    [startTime],
-    (err, rows) => {
+  // Filter by user: admin sees all, normal users see own (id=uid)
+  getUserFromReq(req, (ge, user) => {
+    if (ge) return res.status(500).json({ error: ge.message });
+    const isAdmin = user && user.role === 'admin';
+    const requestedUserId = Number(req.query.userId);
+    const adminFilterUser = isAdmin && Number.isInteger(requestedUserId) && requestedUserId > 0;
+    const sql = adminFilterUser
+      ? 'SELECT * FROM performance_snapshots WHERE user_id = ? AND timestamp >= ? ORDER BY timestamp ASC'
+      : isAdmin
+        ? 'SELECT * FROM performance_snapshots WHERE timestamp >= ? ORDER BY timestamp ASC'
+        : 'SELECT * FROM performance_snapshots WHERE user_id = ? AND timestamp >= ? ORDER BY timestamp ASC';
+    const params = adminFilterUser ? [requestedUserId, startTime] : isAdmin ? [startTime] : [user?.id || -1, startTime];
+    db.all(sql, params, (err, rows) => {
       if (err) {
         console.error('Error fetching snapshots:', err);
         res.status(500).json({ error: err.message });
@@ -1488,8 +1698,8 @@ app.get('/api/performance-snapshots', (req, res) => {
       }
       console.log(`📊 Retrieved ${rows.length} snapshots for range: ${range}`);
       res.json({ range, snapshots: rows });
-    }
-  );
+    });
+  });
 });
 
 // Delete a single snapshot
@@ -1532,6 +1742,57 @@ app.delete('/api/performance-snapshots/delete-all', (req, res) => {
     }
     console.log(`🗑️ Deleted all ${this.changes} snapshots`);
     res.json({ message: 'All snapshots deleted', deleted: this.changes });
+  });
+});
+
+// Delete all snapshots for a specific user (admin can target any user, normal users only themselves)
+app.delete('/api/performance-snapshots/delete-user', (req, res) => {
+  getUserFromReq(req, (ge, user) => {
+    if (ge) return res.status(500).json({ error: ge.message });
+    const isAdmin = user && user.role === 'admin';
+    const requestedUserId = Number(req.query.userId);
+    const targetUserId = isAdmin && Number.isInteger(requestedUserId) && requestedUserId > 0
+      ? requestedUserId
+      : (user?.id || -1);
+    if (!Number.isInteger(targetUserId) || targetUserId <= 0) {
+      return res.status(400).json({ error: 'Invalid or missing userId' });
+    }
+    db.run('DELETE FROM performance_snapshots WHERE user_id = ?', [targetUserId], function (err) {
+      if (err) {
+        console.error('Error deleting user snapshots:', err);
+        res.status(500).json({ error: err.message });
+        return;
+      }
+      console.log(`🗑️ Deleted ${this.changes} snapshots for user_id=${targetUserId}`);
+      res.json({ message: 'User snapshots deleted', deleted: this.changes, user_id: targetUserId });
+    });
+  });
+});
+
+// Cleanup mixed/legacy snapshots (admin can target a user; normal users remove only NULL user_id)
+app.post('/api/performance-cleanup/snapshots', (req, res) => {
+  getUserFromReq(req, (ge, user) => {
+    if (ge) return res.status(500).json({ error: ge.message });
+    const isAdmin = user && user.role === 'admin';
+    const requestedUserId = Number(req.body?.userId);
+    const targetUserId = isAdmin && Number.isInteger(requestedUserId) && requestedUserId > 0 ? requestedUserId : user?.id || -1;
+    const deleteOthers = Boolean(req.body?.deleteOthers) && isAdmin;
+    // By default, remove only snapshots with NULL user_id (legacy)
+    const sql = deleteOthers
+      ? 'DELETE FROM performance_snapshots WHERE user_id IS NULL OR user_id != ?'
+      : isAdmin
+        ? 'DELETE FROM performance_snapshots WHERE user_id IS NULL'
+        : 'DELETE FROM performance_snapshots WHERE user_id IS NULL';
+    const params = deleteOthers ? [targetUserId] : [];
+    db.run(sql, params, function (err) {
+      if (err) {
+        console.error('Error cleaning snapshots:', err);
+        res.status(500).json({ error: err.message });
+        return;
+      }
+      console.log(`🧹 Cleaned ${this.changes} mixed/legacy snapshots`);
+      res.json({ cleaned: this.changes, deleteOthers });
+    });
   });
 });
 
@@ -1605,18 +1866,29 @@ app.post('/api/performance-baseline/reset', async (req, res) => {
       console.log('Could not fetch BET-TR price:', err.message);
     }
 
-    // Update baseline with current values
+    // Resolve current user
+    let uid = 1;
+    await new Promise((resolve) => {
+      getUserFromReq(req, (ge, user) => {
+        if (!ge && user && Number.isFinite(Number(user.id))) uid = Number(user.id);
+        resolve();
+      });
+    });
+
+    // Update baseline with current values for this user; insert if missing
     db.run(
       `UPDATE performance_baseline 
        SET timestamp = ?, portfolio_balance = ?, total_deposits = ?, sp500_price = ?, bet_price = ?, created_at = datetime('now')
-       WHERE id = 1`,
-      [timestamp, portfolio_balance, total_deposits, sp500Price, betPrice],
+       WHERE user_id = ?`,
+      [timestamp, portfolio_balance, total_deposits, sp500Price, betPrice, uid],
       function (err) {
         if (err) {
           console.error('Error resetting baseline:', err);
           res.status(500).json({ error: err.message });
           return;
         }
+        const updated = this.changes || 0;
+        const proceed = () => {
 
         console.log(
           `🔄 RESET BASELINE (T0): Portfolio=${portfolio_balance}€, Deposits=${total_deposits}€, S&P=${sp500Price}, BET=${betPrice}`
@@ -1624,9 +1896,9 @@ app.post('/api/performance-baseline/reset', async (req, res) => {
 
         // Create a new snapshot at 0% (new starting point)
         db.run(
-          `INSERT INTO performance_snapshots (timestamp, portfolio_balance, portfolio_percent, deposits_percent, sp500_percent, bet_percent)
-           VALUES (?, ?, 0, 0, 0, 0)`,
-          [timestamp, portfolio_balance],
+          `INSERT INTO performance_snapshots (timestamp, portfolio_balance, portfolio_percent, deposits_percent, sp500_percent, bet_percent, user_id)
+           VALUES (?, ?, 0, 0, 0, 0, ?)`,
+          [timestamp, portfolio_balance, uid],
           function (err) {
             if (err) {
               console.error('Error saving new T0 snapshot:', err);
@@ -1646,12 +1918,56 @@ app.post('/api/performance-baseline/reset', async (req, res) => {
             });
           }
         );
+        };
+        if (updated === 0) {
+          db.run(
+            `INSERT INTO performance_baseline (timestamp, portfolio_balance, total_deposits, sp500_price, bet_price, user_id)
+             VALUES (?, ?, ?, ?, ?, ?)`,
+            [timestamp, portfolio_balance, total_deposits, sp500Price, betPrice, uid],
+            function (e2) {
+              if (e2) {
+                console.error('Error creating baseline for user:', e2);
+                res.status(500).json({ error: e2.message });
+                return;
+              }
+              proceed();
+            }
+          );
+        } else {
+          proceed();
+        }
       }
     );
   } catch (error) {
     console.error('Error in reset baseline:', error);
     res.status(500).json({ error: error.message });
   }
+});
+
+// Cleanup mixed/legacy baselines (admin can target a user; normal users remove only NULL user_id)
+app.post('/api/performance-cleanup/baselines', (req, res) => {
+  getUserFromReq(req, (ge, user) => {
+    if (ge) return res.status(500).json({ error: ge.message });
+    const isAdmin = user && user.role === 'admin';
+    const requestedUserId = Number(req.body?.userId);
+    const targetUserId = isAdmin && Number.isInteger(requestedUserId) && requestedUserId > 0 ? requestedUserId : user?.id || -1;
+    const deleteOthers = Boolean(req.body?.deleteOthers) && isAdmin;
+    const sql = deleteOthers
+      ? 'DELETE FROM performance_baseline WHERE user_id IS NULL OR user_id != ?'
+      : isAdmin
+        ? 'DELETE FROM performance_baseline WHERE user_id IS NULL'
+        : 'DELETE FROM performance_baseline WHERE user_id IS NULL';
+    const params = deleteOthers ? [targetUserId] : [];
+    db.run(sql, params, function (err) {
+      if (err) {
+        console.error('Error cleaning baselines:', err);
+        res.status(500).json({ error: err.message });
+        return;
+      }
+      console.log(`🧹 Cleaned ${this.changes} mixed/legacy baselines`);
+      res.json({ cleaned: this.changes, deleteOthers });
+    });
+  });
 });
 
 // ========== DEPOSITS ENDPOINTS ==========
@@ -1672,12 +1988,29 @@ app.get('/api/deposits', (req, res) => {
 db.run(
   'CREATE TABLE IF NOT EXISTS withdrawals (id INTEGER PRIMARY KEY AUTOINCREMENT, date TEXT, amount REAL, month TEXT, created_at INTEGER)'
 );
+// Ensure multi-tenant column exists
+db.run(`ALTER TABLE withdrawals ADD COLUMN user_id INTEGER DEFAULT 1`, (e) => {
+  if (e && !String(e.message || '').includes('duplicate column')) {
+    console.warn('Could not add user_id to withdrawals:', e.message);
+  }
+});
 
 // List withdrawals
-app.get('/api/withdrawals', (_req, res) => {
-  db.all('SELECT * FROM withdrawals ORDER BY created_at ASC, id ASC', [], (err, rows) => {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json(rows);
+app.get('/api/withdrawals', (req, res) => {
+  db.run(`ALTER TABLE withdrawals ADD COLUMN user_id INTEGER DEFAULT 1`, () => {
+    getUserFromReq(req, (ge, user) => {
+      if (ge) return res.status(500).json({ error: ge.message });
+      const isAdmin = user && user.role === 'admin';
+      const noAuth = !user;
+      const sql = (isAdmin || noAuth)
+        ? 'SELECT * FROM withdrawals ORDER BY created_at ASC, id ASC'
+        : 'SELECT * FROM withdrawals WHERE user_id = ? ORDER BY created_at ASC, id ASC';
+      const params = (isAdmin || noAuth) ? [] : [user.id];
+      db.all(sql, params, (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows);
+      });
+    });
   });
 });
 
@@ -1687,17 +2020,21 @@ app.post('/api/withdrawals', (req, res) => {
   const created_at = Date.now();
   const amt = Number(amount);
   if (!date || !Number.isFinite(amt)) return res.status(400).json({ error: 'Invalid data' });
-  db.run(
-    'INSERT INTO withdrawals (date, amount, month, created_at) VALUES (?, ?, ?, ?)',
-    [String(date), amt, String(month || ''), created_at],
-    function (err) {
-      if (err) return res.status(500).json({ error: err.message });
-      db.get('SELECT * FROM withdrawals WHERE id = ?', [this.lastID], (e2, row) => {
-        if (e2) return res.status(500).json({ error: e2.message });
-        res.status(201).json(row);
-      });
-    }
-  );
+  getUserFromReq(req, (ge, user) => {
+    if (ge) return res.status(500).json({ error: ge.message });
+    const userId = user?.id || 1;
+    db.run(
+      'INSERT INTO withdrawals (date, amount, month, created_at, user_id) VALUES (?, ?, ?, ?, ?)',
+      [String(date), amt, String(month || ''), created_at, userId],
+      function (err) {
+        if (err) return res.status(500).json({ error: err.message });
+        db.get('SELECT * FROM withdrawals WHERE id = ?', [this.lastID], (e2, row) => {
+          if (e2) return res.status(500).json({ error: e2.message });
+          res.status(201).json(row);
+        });
+      }
+    );
+  });
 });
 
 // Update withdrawal
@@ -1738,6 +2075,14 @@ app.delete('/api/withdrawals/:id', (req, res) => {
 db.run(
   'CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)'
 );
+// Per-user preferred categories/items
+db.run(
+  'CREATE TABLE IF NOT EXISTS settings_user_items (user_id INTEGER, label TEXT, created_at INTEGER, PRIMARY KEY(user_id, label))'
+);
+// Per-user hidden labels (to suppress specific Dashboard/Deposits Money Invested rows)
+db.run(
+  'CREATE TABLE IF NOT EXISTS settings_hidden_labels (user_id INTEGER, label TEXT, created_at INTEGER, PRIMARY KEY(user_id, label))'
+);
 
 // Get investing start date
 app.get('/api/settings/investing-start', (_req, res) => {
@@ -1761,20 +2106,146 @@ app.post('/api/settings/investing-start', (req, res) => {
   );
 });
 
+// List user settings items
+app.get('/api/settings/user-items', (req, res) => {
+  getUserFromReq(req, (ge, user) => {
+    if (ge) return res.status(500).json({ error: ge.message });
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+    db.all('SELECT label FROM settings_user_items WHERE user_id = ? ORDER BY label', [user.id], (err, rows) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ items: rows.map(r => r.label) });
+    });
+  });
+});
+
+// Add a user settings item
+app.post('/api/settings/user-item', (req, res) => {
+  const { label } = req.body || {};
+  const val = String(label || '').trim();
+  if (!val) return res.status(400).json({ error: 'Missing label' });
+  getUserFromReq(req, (ge, user) => {
+    if (ge) return res.status(500).json({ error: ge.message });
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+    db.run(
+      'INSERT OR IGNORE INTO settings_user_items(user_id, label, created_at) VALUES(?, ?, ?)',
+      [user.id, val, Date.now()],
+      function (err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.status(201).json({ saved: true, label: val });
+      }
+    );
+  });
+});
+
+// Delete a user settings item
+app.delete('/api/settings/user-item', (req, res) => {
+  const val = String(req.query.label || '').trim();
+  if (!val) return res.status(400).json({ error: 'Missing label' });
+  getUserFromReq(req, (ge, user) => {
+    if (ge) return res.status(500).json({ error: ge.message });
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+    db.run('DELETE FROM settings_user_items WHERE user_id = ? AND label = ?', [user.id, val], function (err) {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ deleted: this.changes || 0 });
+    });
+  });
+});
+
+// Add a hidden label for current user
+app.post('/api/settings/hidden-label', (req, res) => {
+  const { label } = req.body || {};
+  const val = String(label || '').trim();
+  if (!val) return res.status(400).json({ error: 'Missing label' });
+  getUserFromReq(req, (ge, user) => {
+    if (ge) return res.status(500).json({ error: ge.message });
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+    db.run(
+      'INSERT OR IGNORE INTO settings_hidden_labels(user_id, label, created_at) VALUES(?, ?, ?)',
+      [user.id, val, Date.now()],
+      function (err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.status(201).json({ saved: true, label: val });
+      }
+    );
+  });
+});
+
+// List hidden labels for current user
+app.get('/api/settings/hidden-labels', (req, res) => {
+  getUserFromReq(req, (ge, user) => {
+    if (ge) return res.status(500).json({ error: ge.message });
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+    db.all('SELECT label FROM settings_hidden_labels WHERE user_id = ? ORDER BY label', [user.id], (err, rows) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ labels: rows.map(r => r.label) });
+    });
+  });
+});
+
+// ========== MONEY INVESTED CATEGORY MANAGEMENT ==========
+// Delete a Money Invested category for current user ONLY if total deposits for that account are 0
+// Expects query param: label (account/category name)
+app.delete('/api/money-invested/category', (req, res) => {
+  const label = String(req.query.label || '').trim();
+  if (!label) return res.status(400).json({ error: 'Missing label' });
+  getUserFromReq(req, (ge, user) => {
+    if (ge) return res.status(500).json({ error: ge.message });
+    if (!user || !Number.isFinite(Number(user.id))) return res.status(401).json({ error: 'Unauthorized' });
+    const uid = Number(user.id);
+    // Sum deposits for this account for current user
+    db.get(
+      'SELECT COALESCE(SUM(amount), 0) AS total FROM deposits WHERE user_id = ? AND account = ?',
+      [uid, label],
+      (err, row) => {
+        if (err) return res.status(500).json({ error: err.message });
+        const total = Number(row?.total || 0);
+        if (Math.abs(total) > 0.0001) {
+          return res.status(403).json({
+            error: 'Not allowed: category has deposits',
+            total,
+          });
+        }
+        // Safe to delete any zero-amount placeholder rows for this account for the user
+        db.run(
+          'DELETE FROM deposits WHERE user_id = ? AND account = ? AND (amount IS NULL OR ABS(amount) <= 0.0001)',
+          [uid, label],
+          function (e2) {
+            if (e2) return res.status(500).json({ error: e2.message });
+            res.json({ deleted: this.changes || 0, account: label });
+          }
+        );
+      }
+    );
+  });
+});
+
 // Add new deposit
 app.post('/api/deposits', (req, res) => {
   const { count, date, amount, account, month } = req.body;
-  db.run(
-    `INSERT INTO deposits (count, date, amount, account, month) VALUES (?, ?, ?, ?, ?)`,
-    [count, date, amount, account, month],
-    function (err) {
-      if (err) {
-        res.status(500).json({ error: err.message });
-        return;
+  getUserFromReq(req, (ge, user) => {
+    if (ge) return res.status(500).json({ error: ge.message });
+    const userId = user?.id || 1;
+    // Optional per-user duplicate guard: (date, account, amount) uniqueness
+    db.get(
+      `SELECT id FROM deposits WHERE user_id = ? AND date = ? AND account = ? AND amount = ?`,
+      [userId, date, account, amount],
+      (err, row) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (row) return res.status(409).json({ error: 'Duplicate deposit for this user' });
+        db.run(
+          `INSERT INTO deposits (count, date, amount, account, month, user_id) VALUES (?, ?, ?, ?, ?, ?)`,
+          [count, date, amount, account, month, userId],
+          function (err) {
+            if (err) {
+              res.status(500).json({ error: err.message });
+              return;
+            }
+            res.json({ id: this.lastID, ...req.body, user_id: userId });
+          }
+        );
       }
-      res.json({ id: this.lastID, ...req.body });
-    }
-  );
+    );
+  });
 });
 
 // Update deposit
@@ -2102,29 +2573,42 @@ app.get('/api/quotes', async (req, res) => {
 
 // Get all dividends
 app.get('/api/dividends', (req, res) => {
-  db.all('SELECT * FROM dividends ORDER BY year DESC', [], (err, rows) => {
-    if (err) {
-      res.status(500).json({ error: err.message });
-      return;
-    }
-    res.json(rows);
+  db.run(`ALTER TABLE dividends ADD COLUMN user_id INTEGER DEFAULT 1`, () => {
+    getUserFromReq(req, (ge, user) => {
+      if (ge) return res.status(500).json({ error: ge.message });
+      const isAdmin = user && user.role === 'admin';
+      const noAuth = !user;
+      const sql = (isAdmin || noAuth) ? 'SELECT * FROM dividends ORDER BY year DESC' : 'SELECT * FROM dividends WHERE user_id = ? ORDER BY year DESC';
+      const params = (isAdmin || noAuth) ? [] : [user.id];
+      db.all(sql, params, (err, rows) => {
+        if (err) {
+          res.status(500).json({ error: err.message });
+          return;
+        }
+        res.json(rows);
+      });
+    });
   });
 });
 
 // Add new dividend
 app.post('/api/dividends', (req, res) => {
   const { year, annual_dividend } = req.body;
-  db.run(
-    `INSERT INTO dividends (year, annual_dividend) VALUES (?, ?)`,
-    [year, annual_dividend],
-    function (err) {
-      if (err) {
-        res.status(500).json({ error: err.message });
-        return;
+  getUserFromReq(req, (ge, user) => {
+    if (ge) return res.status(500).json({ error: ge.message });
+    const userId = user?.id || 1;
+    db.run(
+      `INSERT INTO dividends (year, annual_dividend, user_id) VALUES (?, ?, ?)`,
+      [year, annual_dividend, userId],
+      function (err) {
+        if (err) {
+          res.status(500).json({ error: err.message });
+          return;
+        }
+        res.json({ id: this.lastID, ...req.body, user_id: userId });
       }
-      res.json({ id: this.lastID, ...req.body });
-    }
-  );
+    );
+  });
 });
 
 // Update dividend
@@ -2158,20 +2642,27 @@ app.delete('/api/dividends/:id', (req, res) => {
   });
 });
 
-// ======== DIVIDENDS MONTHLY CRUD ========
-// List monthly dividends ordered by year then month_index
-app.get('/api/dividends-monthly', (_req, res) => {
-  db.all(
-    'SELECT * FROM dividends_monthly ORDER BY year ASC, month_index ASC, id ASC',
-    [],
-    (err, rows) => {
-      if (err) return res.status(500).json({ error: err.message });
-      res.json(rows);
-    }
-  );
+// ======== DIVIDENDS MONTHLY CRUD (per-user) ========
+// List monthly dividends ordered by year then month_index (scoped by user)
+app.get('/api/dividends-monthly', (req, res) => {
+  db.run(`ALTER TABLE dividends_monthly ADD COLUMN user_id INTEGER DEFAULT 1`, () => {
+    getUserFromReq(req, (ge, user) => {
+      if (ge) return res.status(500).json({ error: ge.message });
+      const isAdmin = user && user.role === 'admin';
+      const noAuth = !user;
+      const sql = (isAdmin || noAuth)
+        ? 'SELECT * FROM dividends_monthly ORDER BY year ASC, month_index ASC, id ASC'
+        : 'SELECT * FROM dividends_monthly WHERE user_id = ? ORDER BY year ASC, month_index ASC, id ASC';
+      const params = (isAdmin || noAuth) ? [] : [user.id];
+      db.all(sql, params, (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows);
+      });
+    });
+  });
 });
 
-// Create monthly dividend
+// Create monthly dividend (attach user_id)
 app.post('/api/dividends-monthly', (req, res) => {
   const { year, month_index, amount, notes, symbol, currency } = req.body || {};
   const yr = Number(year);
@@ -2180,17 +2671,29 @@ app.post('/api/dividends-monthly', (req, res) => {
   if (!Number.isInteger(yr) || !Number.isInteger(mi) || !Number.isFinite(amt)) {
     return res.status(400).json({ error: 'Invalid payload' });
   }
-  db.run(
-    'INSERT INTO dividends_monthly (year, month_index, amount, notes, symbol, currency) VALUES (?, ?, ?, ?, ?, ?)',
-    [yr, mi, amt, notes != null ? String(notes) : null, symbol != null ? String(symbol) : null, currency != null ? String(currency) : null],
-    function (err) {
-      if (err) return res.status(500).json({ error: err.message });
-      db.get('SELECT * FROM dividends_monthly WHERE id = ?', [this.lastID], (e2, row) => {
-        if (e2) return res.status(500).json({ error: e2.message });
-        res.status(201).json(row);
-      });
-    }
-  );
+  getUserFromReq(req, (ge, user) => {
+    if (ge) return res.status(500).json({ error: ge.message });
+    const userId = user?.id || 1;
+    db.run(
+      'INSERT INTO dividends_monthly (year, month_index, amount, notes, symbol, currency, user_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [
+        yr,
+        mi,
+        amt,
+        notes != null ? String(notes) : null,
+        symbol != null ? String(symbol) : null,
+        currency != null ? String(currency) : null,
+        userId,
+      ],
+      function (err) {
+        if (err) return res.status(500).json({ error: err.message });
+        db.get('SELECT * FROM dividends_monthly WHERE id = ?', [this.lastID], (e2, row) => {
+          if (e2) return res.status(500).json({ error: e2.message });
+          res.status(201).json(row);
+        });
+      }
+    );
+  });
 });
 
 // Update monthly dividend
@@ -2244,7 +2747,7 @@ app.put('/api/dividends-monthly/:id', (req, res) => {
   );
 });
 
-// Delete monthly dividend
+// Delete monthly dividend (optionally could check ownership)
 app.delete('/api/dividends-monthly/:id', (req, res) => {
   const { id } = req.params;
   db.run('DELETE FROM dividends_monthly WHERE id = ?', [id], function (err) {
@@ -2254,10 +2757,17 @@ app.delete('/api/dividends-monthly/:id', (req, res) => {
 });
 
 // Delete all monthly dividends (start fresh)
-app.delete('/api/dividends-monthly', (_req, res) => {
-  db.run('DELETE FROM dividends_monthly', [], function (err) {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json({ deleted: this.changes });
+app.delete('/api/dividends-monthly', (req, res) => {
+  getUserFromReq(req, (ge, user) => {
+    if (ge) return res.status(500).json({ error: ge.message });
+    const isAdmin = user && user.role === 'admin';
+    const noAuth = !user;
+    const sql = (isAdmin || noAuth) ? 'DELETE FROM dividends_monthly' : 'DELETE FROM dividends_monthly WHERE user_id = ?';
+    const params = (isAdmin || noAuth) ? [] : [user.id];
+    db.run(sql, params, function (err) {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ deleted: this.changes });
+    });
   });
 });
 
@@ -2354,6 +2864,13 @@ app.get('/api/activate', (req, res) => {
 
 // Login endpoint
 app.post('/api/login', (req, res) => {
+  // Dev mode: bypass credential checks
+  if (process.env.DISABLE_AUTH === '1') {
+    const { username } = req.body || {};
+    const userName = String(username || 'dev');
+    const token = createToken({ uid: 0, username: userName });
+    return res.json({ ok: true, token, user: { id: 0, username: userName }, dev: true });
+  }
   const { username, password } = req.body || {};
   if (!username || !password) return res.status(400).json({ error: 'Missing credentials' });
   db.get('SELECT id, username, password_hash, is_active FROM users WHERE username = ? OR email = ?', [String(username), String(username)], (err, row) => {
@@ -2364,6 +2881,217 @@ app.post('/api/login', (req, res) => {
     if (!ok) return res.status(401).json({ error: 'Invalid credentials' });
     const token = createToken({ uid: row.id, username: row.username });
     res.json({ ok: true, token, user: { id: row.id, username: row.username } });
+  });
+});
+
+// Dev mode flag endpoint
+app.get('/api/dev-mode', (_req, res) => {
+  res.json({ disable_auth: process.env.DISABLE_AUTH === '1' });
+});
+
+// Dev utility: seed database from backup or seed-data
+app.post('/api/seed', (req, res) => {
+  db.get('SELECT COUNT(*) as count FROM stocks', [], (err, row) => {
+    if (err) return res.status(500).json({ error: err.message });
+    const proceed = () => {
+      importData(db)
+        .then(() => {
+          res.json({ ok: true });
+        })
+        .catch((e) => {
+          res.status(500).json({ error: e.message });
+        });
+    };
+    if (row && row.count > 0) {
+      db.run('DELETE FROM stocks', [], (e1) => {
+        if (e1) return res.status(500).json({ error: e1.message });
+        db.run('DELETE FROM deposits', [], (e2) => {
+          if (e2) return res.status(500).json({ error: e2.message });
+          db.run('DELETE FROM dividends', [], (e3) => {
+            if (e3) return res.status(500).json({ error: e3.message });
+            db.run('DELETE FROM dividends_monthly', [], (e4) => {
+              if (e4) return res.status(500).json({ error: e4.message });
+              proceed();
+            });
+          });
+        });
+      });
+    } else {
+      proceed();
+    }
+  });
+});
+
+// Migration: assign existing rows to admin (user_id = 1) and set admin role
+app.post('/api/migrate/admin-ownership', (req, res) => {
+  const queries = [
+    `UPDATE stocks SET user_id = 1 WHERE user_id IS NULL`,
+    `UPDATE deposits SET user_id = 1 WHERE user_id IS NULL`,
+    `UPDATE dividends SET user_id = 1 WHERE user_id IS NULL`,
+    `UPDATE dividends_monthly SET user_id = 1 WHERE user_id IS NULL`,
+    `UPDATE users SET role = 'admin' WHERE id = 1`,
+  ];
+  let done = 0;
+  const results = [];
+  queries.forEach((sql, idx) => {
+    db.run(sql, [], function (err) {
+      if (err) {
+        results.push({ sql, error: err.message });
+      } else {
+        results.push({ sql, changes: this.changes });
+      }
+      done++;
+      if (done === queries.length) {
+        res.json({ ok: true, results });
+      }
+    });
+  });
+});
+
+// Admin bootstrap: ensure user #1 exists and is admin
+app.post('/api/admin/bootstrap', (req, res) => {
+  // Check if a user with id=1 exists
+  db.get('SELECT id, username, role, is_active FROM users WHERE id = 1', [], (err, row) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (row) {
+      // Ensure admin role
+      db.run("UPDATE users SET role = 'admin', is_active = 1 WHERE id = 1", [], function (e2) {
+        if (e2) return res.status(500).json({ error: e2.message });
+        return res.json({ ok: true, existed: true, id: 1, username: row.username, role: 'admin' });
+      });
+      return;
+    }
+
+    // Create admin user #1 with random password and active state
+    const username = 'admin';
+    const email = 'admin@local';
+    const passwordPlain = crypto.randomBytes(10).toString('hex');
+    const password_hash = hashPassword(passwordPlain);
+    db.run(
+      `INSERT INTO users (id, first_name, last_name, age, country, email, username, password_hash, is_active, role)
+       VALUES (1, 'Admin', 'User', NULL, '', ?, ?, ?, 1, 'admin')`,
+      [email, username, password_hash],
+      function (e3) {
+        if (e3) return res.status(500).json({ error: e3.message });
+        const baseUrl = `http://localhost:${PORT}`;
+        const login_hint = { username, password: passwordPlain };
+        console.log('🛡️ Admin bootstrap: created user #1');
+        console.log('Login credentials:', login_hint);
+        return res.status(201).json({ ok: true, created: true, id: 1, username, role: 'admin', login_hint, login_url: `${baseUrl}/login.html` });
+      }
+    );
+  });
+});
+
+// Admin direct password set (for local bootstrap/testing)
+// WARNING: This endpoint is intended for local development. Protect with ADMIN_SETUP_TOKEN env if set.
+app.post('/api/admin/set-password', (req, res) => {
+  const { password } = req.body || {};
+  if (!password || String(password).length < 6) {
+    return res.status(400).json({ error: 'Password must be at least 6 characters' });
+  }
+  const setupToken = process.env.ADMIN_SETUP_TOKEN || null;
+  if (setupToken) {
+    const header = req.headers['x-admin-setup-token'] || req.headers['x-admin-token'] || '';
+    if (String(header) !== setupToken) {
+      return res.status(401).json({ error: 'Unauthorized: invalid ADMIN_SETUP_TOKEN' });
+    }
+  }
+  const pwHash = hashPassword(password);
+  db.get('SELECT id FROM users WHERE id = 1', [], (err, row) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!row) {
+      return res.status(404).json({ error: 'Admin (id=1) not found. Run /api/admin/bootstrap first.' });
+    }
+    db.run("UPDATE users SET password_hash = ?, is_active = 1, role = 'admin' WHERE id = 1", [pwHash], function (e2) {
+      if (e2) return res.status(500).json({ error: e2.message });
+      res.json({ ok: true, id: 1, username: 'admin' });
+    });
+  });
+});
+
+// Admin activate a user by id (skip email link)
+app.post('/api/admin/activate/:id', (req, res) => {
+  const setupToken = process.env.ADMIN_SETUP_TOKEN || null;
+  if (setupToken) {
+    const header = req.headers['x-admin-setup-token'] || req.headers['x-admin-token'] || '';
+    if (String(header) !== setupToken) {
+      return res.status(401).json({ error: 'Unauthorized: invalid ADMIN_SETUP_TOKEN' });
+    }
+  }
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: 'Invalid id' });
+  db.run('UPDATE users SET is_active = 1, activation_token = NULL WHERE id = ?', [id], function (err) {
+    if (err) return res.status(500).json({ error: err.message });
+    if (this.changes === 0) return res.status(404).json({ error: 'User not found' });
+    res.json({ ok: true, id });
+  });
+});
+
+// ======== AUTH: Forgot / Reset Password =========
+app.post('/api/forgot', (req, res) => {
+  const { email } = req.body || {};
+  if (!email) return res.status(400).json({ error: 'Email required' });
+  db.get('SELECT id, email, username FROM users WHERE email = ?', [String(email)], (err, row) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!row) return res.status(404).json({ error: 'No account for this email' });
+    const token = crypto.randomBytes(24).toString('hex');
+    const expires = Date.now() + 1000 * 60 * 30; // 30 minutes
+    db.run('UPDATE users SET reset_token = ?, reset_expires = ? WHERE id = ?', [token, expires, row.id], (e2) => {
+      if (e2) return res.status(500).json({ error: e2.message });
+      const baseUrl = `http://localhost:${PORT}`;
+      const reset_url = `${baseUrl}/reset.html?token=${encodeURIComponent(token)}`;
+      console.log(`🔐 Reset link for ${row.email}: ${reset_url}`);
+      const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, MAIL_FROM } = process.env;
+      if (SMTP_HOST && SMTP_PORT && SMTP_USER && SMTP_PASS && MAIL_FROM) {
+        try {
+          const nodemailer = require('nodemailer');
+          const transporter = nodemailer.createTransport({
+            host: SMTP_HOST,
+            port: Number(SMTP_PORT),
+            secure: Number(SMTP_PORT) === 465,
+            auth: { user: SMTP_USER, pass: SMTP_PASS },
+          });
+          const mailOpts = {
+            from: MAIL_FROM,
+            to: row.email,
+            subject: 'Reset your Portfolio password',
+            html: `<p>Hello ${row.username},</p>
+                   <p>Click the link below to reset your password (valid for 30 minutes):</p>
+                   <p><a href="${reset_url}">${reset_url}</a></p>
+                   <p>If you didn't request this, you can ignore this email.</p>`,
+          };
+          transporter.sendMail(mailOpts).then(() => {
+            console.log(`✉️ Password reset email sent to ${row.email}`);
+            return res.json({ ok: true, reset_url, emailed: true });
+          }).catch((e) => {
+            console.warn('Reset email send failed, returning link only:', e.message);
+            return res.json({ ok: true, reset_url, emailed: false });
+          });
+          return;
+        } catch (e) {
+          console.warn('Nodemailer not available for forgot, returning link only:', e.message);
+        }
+      }
+      res.json({ ok: true, reset_url });
+    });
+  });
+});
+
+app.post('/api/reset', (req, res) => {
+  const { token, password } = req.body || {};
+  if (!token || !password) return res.status(400).json({ error: 'Missing token or password' });
+  db.get('SELECT id, reset_expires FROM users WHERE reset_token = ?', [String(token)], (err, row) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!row) return res.status(404).json({ error: 'Invalid token' });
+    if (!row.reset_expires || Date.now() > Number(row.reset_expires)) {
+      return res.status(410).json({ error: 'Token expired' });
+    }
+    const pwHash = hashPassword(password);
+    db.run('UPDATE users SET password_hash = ?, reset_token = NULL, reset_expires = NULL WHERE id = ?', [pwHash, row.id], (e2) => {
+      if (e2) return res.status(500).json({ error: e2.message });
+      res.json({ ok: true });
+    });
   });
 });
 
@@ -2412,6 +3140,15 @@ app.get('/api/me', authMiddleware, (req, res) => {
   res.json({ user: req.user });
 });
 
+// Lightweight role endpoint
+app.get('/api/whoami', (req, res) => {
+  getUserFromReq(req, (err, user) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!user) return res.status(200).json({ role: 'guest' });
+    res.json({ id: user.id, username: user.username, role: user.role || 'user' });
+  });
+});
+
 // List users (admin view)
 app.get('/api/users', authMiddleware, (req, res) => {
   db.all(
@@ -2447,9 +3184,14 @@ function startServer(port) {
   });
   server.on('error', (err) => {
     if (err.code === 'EADDRINUSE') {
-      const nextPort = port + 1;
-      console.warn(`Port ${port} in use. Trying ${nextPort}...`);
-      startServer(nextPort);
+      if (STRICT_PORT) {
+        console.error(`Port ${port} is in use and STRICT_PORT=1. Exiting.`);
+        process.exit(1);
+      } else {
+        const nextPort = port + 1;
+        console.warn(`Port ${port} in use. Trying ${nextPort}...`);
+        startServer(nextPort);
+      }
     } else {
       throw err;
     }
@@ -2572,7 +3314,7 @@ async function cronSaveSnapshotOnce() {
 
     // Read baseline
     const baseline = await new Promise((resolve) => {
-      db.get('SELECT * FROM performance_baseline WHERE id = 1', [], (err, row) => {
+      db.get('SELECT * FROM performance_baseline WHERE user_id = 1 ORDER BY id LIMIT 1', [], (err, row) => {
         if (err) {
           console.error('Error reading baseline:', err);
           return resolve(null);
@@ -2588,8 +3330,8 @@ async function cronSaveSnapshotOnce() {
       const betPercent = 0;
       await new Promise((resolve) => {
         db.run(
-          `INSERT INTO performance_baseline (id, timestamp, portfolio_balance, total_deposits, sp500_price, bet_price)
-           VALUES (1, ?, ?, ?, ?, ?)`,
+          `INSERT INTO performance_baseline (timestamp, portfolio_balance, total_deposits, sp500_price, bet_price, user_id)
+           VALUES (?, ?, ?, ?, ?, 1)`,
           [timestamp, portfolio_balance, total_deposits, null, null],
           (err) => {
             if (err) console.error('Cron baseline insert error:', err);
@@ -2599,8 +3341,8 @@ async function cronSaveSnapshotOnce() {
       });
       await new Promise((resolve) => {
         db.run(
-          `INSERT INTO performance_snapshots (timestamp, portfolio_balance, portfolio_percent, deposits_percent, sp500_percent, bet_percent)
-           VALUES (?, ?, 0, 0, ?, ?)`,
+          `INSERT INTO performance_snapshots (timestamp, portfolio_balance, portfolio_percent, deposits_percent, sp500_percent, bet_percent, user_id)
+           VALUES (?, ?, 0, 0, ?, ?, 1)`,
           [timestamp, portfolio_balance, sp500Percent, betPercent],
           (err) => {
             if (err) console.error('Cron first snapshot error:', err);
@@ -2631,9 +3373,9 @@ async function cronSaveSnapshotOnce() {
 
     await new Promise((resolve) => {
       db.run(
-        `INSERT INTO performance_snapshots (timestamp, portfolio_balance, portfolio_percent, deposits_percent, sp500_percent, bet_percent)
-         VALUES (?, ?, ?, ?, ?, ?)`,
-        [timestamp, portfolio_balance, portfolioPercent, depositsPercent, sp500Percent, betPercent],
+        `INSERT INTO performance_snapshots (timestamp, portfolio_balance, portfolio_percent, deposits_percent, sp500_percent, bet_percent, user_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [timestamp, portfolio_balance, portfolioPercent, depositsPercent, sp500Percent, betPercent, 1],
         (err) => {
           if (err) console.error('Cron snapshot insert error:', err);
           resolve();
@@ -2652,3 +3394,5 @@ async function cronSaveSnapshotOnce() {
 setInterval(cronSaveSnapshotOnce, 60000);
 // Attempt once shortly after server start
 setTimeout(cronSaveSnapshotOnce, 10000);
+
+// Note: HTTP server and static serving are managed by serve.mjs to avoid double listeners.
